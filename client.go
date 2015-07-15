@@ -9,6 +9,7 @@ import (
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/labels"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/watch"
 	"github.com/coreos/go-etcd/etcd"
+	"github.com/mgutz/logxi/v1"
 )
 
 type EtcdPeerList []string
@@ -31,6 +32,7 @@ type Client struct {
 	k *client.Client
 	e *etcd.Client
 	v string
+	l log.Logger
 }
 
 func NewClient(c *Config) (*Client, error) {
@@ -43,11 +45,13 @@ func NewClient(c *Config) (*Client, error) {
 		e: etcd.NewClient(c.ps()),
 		k: cl,
 		v: (string)(c.v),
+		l: log.New("client"),
 	}, nil
 }
 
 func StartWatch(c *Client, s StopChan) error {
-	w, e := c.k.Services(api.NamespaceAll).Watch(labels.Everything(), fields.Everything(), c.v)
+	c.l.Debug("Setting watch on services")
+	w, e := c.k.Services(api.NamespaceAll).Watch(labels.Everything(), fields.Everything(), "")
 	if e != nil {
 		return e
 	}
@@ -57,6 +61,7 @@ func StartWatch(c *Client, s StopChan) error {
 			case e := <-w.ResultChan():
 				DoEvent(c, e)
 			case <-s:
+				c.l.Info("Received stop, ending watch")
 				w.Stop()
 				return
 			}
@@ -66,7 +71,7 @@ func StartWatch(c *Client, s StopChan) error {
 }
 
 func DoEvent(c *Client, e watch.Event) {
-
+	c.l.Debug("Got an event", "event", e.Type)
 	switch e.Type {
 	case watch.Added, watch.Modified:
 		s := e.Object.(*api.Service)

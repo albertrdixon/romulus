@@ -8,7 +8,7 @@ var (
 	bckndDirFmt  = "/vulcan/backends/%s"
 	frntndDirFmt = "/vulcan/frontends/%s"
 	bckndFmt     = "/vulcan/backends/%s/backend"
-	srvrFmt      = "/vulcan/backends/%s/servers/%s"
+	srvrFmt      = "/vulcan/backends/%s/servers/%d"
 	frntndFmt    = "/vulcan/frontends/%s/frontend"
 )
 
