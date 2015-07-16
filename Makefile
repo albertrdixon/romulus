@@ -1,14 +1,12 @@
 PROJECT = github.com/timelinelabs/romulus
-EXECUTABLE = "romulus"
+EXECUTABLE = "romulusd"
+BINARY = cmd/romulusd/romulusd.go
 LDFLAGS = "-s"
 TEST_COMMAND = godep go test
-PLATFORM = "$$(echo "$$(uname)" | tr '[A-Z]' '[a-z]')"
-VERSION = "$$(./t2 -v)"
-BUILD_ARGS = ""
 
-.PHONY: dep-save dep-restore test test-verbose build install clean
+.PHONY: dep-save dep-restore test test-verbose build build-image install
 
-all: test
+all: test build build-image
 
 help:
 	@echo "Available targets:"
@@ -18,15 +16,16 @@ help:
 	@echo "  test"
 	@echo "  test-verbose"
 	@echo "  build"
-	@echo "  build-docker"
+	@echo "  build-image"
 	@echo "  install"
-	@echo "  clean"
 
 dep-save:
-	godep save ./...
+	@echo "==> Saving dependencies to ./Godeps"
+	@godep save ./...
 
 dep-restore:
-	godep restore
+	@echo "==> Restoring dependencies from ./Godeps"
+	@godep restore
 
 test:
 	@echo "==> Running all tests"
@@ -40,16 +39,14 @@ test-verbose:
 
 build:
 	@echo "==> Building $(EXECUTABLE) with ldflags '$(LDFLAGS)'"
-	@godep go build -ldflags $(LDFLAGS)
+	@godep go build -ldflags $(LDFLAGS) -o bin/romulusd $(BINARY)
+
+build-image: bin/romulusd-linux
+	@echo "==> Building linux binary"
+	@ GOOS=linux CGO_ENABLED=0 godep go build -a -installsuffix cgo -ldflags $(LDFLAGS) -o bin/romulusd-linux $(BINARY)
+	@echo "==> Building docker image 'romulusd'"
+	@docker build -t romulusd .
 
 install:
-	@echo "==> Installing $(EXECUTABLE) with ldflags $(LDFLAGS)"
-	@godep go install -ldflags $(LDFLAGS) $(INSTALL)
-
-package: build
-	@echo "==> Tar'ing up the binary"
-	@test -f escarole && tar czf escarole-$(PLATFORM).tar.gz escarole
-
-clean:
-	go clean ./...
-	rm -rf escarole *.tar.gz
+	@echo "==> Installing $(EXECUTABLE) with ldflags '$(LDFLAGS)'"
+	@godep go install -ldflags $(LDFLAGS) $(BINARY)
