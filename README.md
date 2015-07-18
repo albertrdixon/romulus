@@ -64,7 +64,7 @@ $ kubectl get svc/frontend --template='{{ printf "%s\n" .metadata.uid }}'
 52d87539-2ce8-11e5-8a86-0800279dd272
 
 $ etcdctl get /vulcan/frontends/81aaba2e-2ce5-11e5-8a86-0800279dd272/frontend
-{"Type":"http","BackendId":"52de7ac8-2ce8-11e5-8a86-0800279dd272","Route":"Host('new.guestbook.dev') && Path('guestbook')","Settings":{"FailoverPredicate":"(IsNetworkError() || ResponseCode() == 503) && Attempts() <= 2"}}
+{"Type":"http","BackendId":"52de7ac8-2ce8-11e5-8a86-0800279dd272","Route":"Host('www.example.com') && Path('guestbook')","Settings":{"FailoverPredicate":"(IsNetworkError() || ResponseCode() == 503) && Attempts() <= 2"}}
 
 $ etcdctl ls /vulcan/backends/52de7ac8-2ce8-11e5-8a86-0800279dd272/servers
 /vulcan/backends/52de7ac8-2ce8-11e5-8a86-0800279dd272/servers/10.246.1.8
