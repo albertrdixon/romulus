@@ -3,6 +3,7 @@ package romulus
 import (
 	"fmt"
 	"net/url"
+	"strings"
 
 	"code.google.com/p/go-uuid/uuid"
 
@@ -90,12 +91,15 @@ func (c *Client) pruneServers(bid uuid.UUID, sm ServerMap) error {
 
 	ips := []string{}
 	for _, n := range r.Node.Nodes {
-		ips = append(ips, n.Key)
+		ips = append(ips, strings.TrimLeft(strings.TrimPrefix(n.Key, k), "/"))
 	}
+	c.l.Debug(fmt.Sprintf("prune: Found %v ips in etcd", ips))
 
 	for _, ip := range ips {
-		if s, ok := sm[ip]; !ok {
-			if _, e := c.e.Delete(s.Key(), true); e != nil {
+		if _, ok := sm[ip]; !ok {
+			c.l.Debug("pruning ip", "ip", ip)
+			key := fmt.Sprintf("%s/%s", k, ip)
+			if _, e := c.e.Delete(key, true); e != nil {
 				return Error{"etcd error", e}
 			}
 		}
@@ -165,9 +169,10 @@ func expandEndpoints(bid uuid.UUID, e *api.Endpoints) ServerMap {
 				if err != nil {
 					continue
 				}
-				sm[u.Host] = Server{
+				uu := (*URL)(u)
+				sm[uu.GetHost()] = Server{
 					Backend: bid,
-					URL:     (*URL)(u),
+					URL:     uu,
 				}
 			}
 		}

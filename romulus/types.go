@@ -33,6 +33,9 @@ func (u *URL) GetPath() string {
 }
 
 func (u *URL) GetHost() string {
+	if u == nil {
+		return ""
+	}
 	s := u.Host
 	i := strings.Index(s, ":")
 	if i == -1 {
