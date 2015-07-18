@@ -2,7 +2,6 @@ package romulus
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/api"
 )
@@ -27,12 +26,12 @@ func Version() string {
 
 func Start(c *Client) error {
 	stop = make(chan struct{}, 1)
-	c.l.Debug("Setting watch on Endpoints")
+	log().Debug("Setting watch on Endpoints")
 	ee, e := c.endpointsEventChannel()
 	if e != nil {
 		return e
 	}
-	c.l.Debug("Setting watch on Services")
+	log().Debug("Setting watch on Services")
 	se, e := c.serviceEventsChannel()
 	go func() {
 		for {
@@ -40,17 +39,17 @@ func Start(c *Client) error {
 			case e := <-ee.ResultChan():
 				go func() {
 					if er := doEndpointsEvent(c, e); er != nil {
-						c.l.Error("Error!", "error", er)
+						logf(F{"error": er}).Error("Error!")
 					}
 				}()
 			case e := <-se.ResultChan():
 				go func() {
 					if er := doServiceEvent(c, e); er != nil {
-						c.l.Error("Error!", "error", er)
+						logf(F{"error": er}).Error("Error!")
 					}
 				}()
 			case <-stop:
-				c.l.Info("Received stop, closing watch channels")
+				log().Info("Received stop, closing watch channels")
 				ee.Stop()
 				se.Stop()
 				return
@@ -65,12 +64,12 @@ func Stop() { stop <- struct{}{} }
 func register(c *Client, e *api.Endpoints) error {
 	s, err := c.getService(e.Name, e.Namespace)
 	if err != nil {
-		c.l.Warn(fmt.Sprintf("Could not get service to match endpoint %q", e.Name), "msg", err.Error())
+		logf(F{"msg": err, "endpoint": e.Name}).Warn("Could not get service to match endpoint")
 		return nil
 	}
 
 	if !registerable(s, c.s) {
-		c.l.Debug("Service not registerable", "service", s.Name, "namespace", s.Namespace)
+		logf(F{"service": s.Name, "namespace": s.Namespace}).Debug("Service not registerable")
 		return nil
 	}
 
@@ -82,8 +81,9 @@ func register(c *Client, e *api.Endpoints) error {
 		return fmt.Errorf("Service %q has no uuid", s.Name)
 	}
 
-	c.l.Info("Registering service", "service", s.Name, "namespace", s.Namespace)
-	c.l.Debug(fmt.Sprintf("Backend uuid: %s", eid.String()))
+	logf(F{"service": s.Name, "namespace": s.Namespace,
+		"bcknd-uuid": eid.String(), "frntnd-uuid": sid.String()}).
+		Info("Registering service")
 	bnd := Backend{
 		ID:   eid,
 		Type: "http",
@@ -91,17 +91,18 @@ func register(c *Client, e *api.Endpoints) error {
 	if st, ok := s.Annotations[bckndSettingsAnnotation]; ok {
 		bnd.Settings = NewBackendSettings([]byte(st))
 	}
+	logf(F{"type": bnd.Type, "settings": bnd.Settings.String()}).Debug("Backend settings")
 
 	val, err := bnd.Val()
 	if err != nil {
 		return Error{fmt.Sprintf("Could not encode backend for %q", e.Name), err}
 	}
-	if _, err := c.e.Set(bnd.Key(), strings.TrimSpace(val), 0); err != nil {
+	if _, err := c.e.Set(bnd.Key(), val, 0); err != nil {
 		return Error{"etcd error", err}
 	}
 
 	sm := expandEndpoints(eid, e)
-	c.l.Debug(fmt.Sprintf("Expanded ednpoints: %v", sm))
+	log().Debugf("Expanded endpoints: %v", sm)
 	if err := c.pruneServers(eid, sm); err != nil {
 		return Error{fmt.Sprintf("Unable to prune servers for backend %q", e.Name), err}
 	}
@@ -109,15 +110,16 @@ func register(c *Client, e *api.Endpoints) error {
 	for _, srv := range sm {
 		val, err = srv.Val()
 		if err != nil {
-			c.l.Warn("Unable to encode server", "service", s.Name, "namespace", s.Namespace, "server", srv.URL.String(), "error", err)
+			logf(F{"service": s.Name, "namespace": s.Namespace,
+				"server": srv.URL.String(), "error": err}).
+				Warn("Unable to encode server")
 			continue
 		}
-		if _, err := c.e.Set(srv.Key(), strings.TrimSpace(val), 0); err != nil {
+		if _, err := c.e.Set(srv.Key(), val, 0); err != nil {
 			return Error{"etcd error", err}
 		}
 	}
 
-	c.l.Debug(fmt.Sprintf("Frontend uuid: %s", sid.String()))
 	fnd := Frontend{
 		ID:        sid,
 		Type:      "http",
@@ -127,12 +129,13 @@ func register(c *Client, e *api.Endpoints) error {
 	if st, ok := s.Annotations[frntndSettingsAnnotation]; ok {
 		fnd.Settings = NewFrontendSettings([]byte(st))
 	}
+	logf(F{"type": fnd.Type, "route": fnd.Route, "settings": fnd.Settings.String()}).Debug("Frontend settings")
 
 	val, err = fnd.Val()
 	if err != nil {
 		return Error{fmt.Sprintf("Could not encode frontend for %q", s.Name), err}
 	}
-	if _, err := c.e.Set(fnd.Key(), strings.TrimSpace(val), 0); err != nil {
+	if _, err := c.e.Set(fnd.Key(), val, 0); err != nil {
 		return Error{"etcd error", err}
 	}
 
@@ -146,26 +149,24 @@ func deregister(c *Client, o api.ObjectMeta, frontend bool) error {
 	}
 
 	if frontend {
-		c.l.Info("Deregistering frontend", "service", o.Name, "namespace", o.Namespace)
-		c.l.Debug(fmt.Sprintf("Frontend uuid: %s", id.String()))
+		logf(F{"service": o.Name, "namespace": o.Namespace, "frntnd-uuid": id.String()}).Info("Deregistering frontend")
 		f := Frontend{ID: id}
 		if _, err := c.e.Delete(f.DirKey(), true); err != nil {
 			return Error{"etcd error", err}
 		}
-		if _, err := c.e.DeleteDir(f.Key()); err != nil {
+		if _, err := c.e.DeleteDir(f.DirKey()); err != nil {
 			if isKeyNotFound(err) {
 				return nil
 			}
 			return Error{"etcd error", err}
 		}
 	} else {
-		c.l.Info("Deregistering backend", "service", o.Name, "namespace", o.Namespace)
-		c.l.Debug(fmt.Sprintf("Backend uuid: %s", id.String()))
+		logf(F{"service": o.Name, "namespace": o.Namespace, "bcknd-uuid": id.String()}).Info("Deregistering backend")
 		b := Backend{ID: id}
 		if _, err := c.e.Delete(b.DirKey(), true); err != nil {
 			return Error{"etcd error", err}
 		}
-		if _, err := c.e.DeleteDir(b.Key()); err != nil {
+		if _, err := c.e.DeleteDir(b.DirKey()); err != nil {
 			if isKeyNotFound(err) {
 				return nil
 			}

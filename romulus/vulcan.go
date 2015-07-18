@@ -86,21 +86,41 @@ func NewFrontendSettings(p []byte) *FrontendSettings {
 	return &f
 }
 
-func (b Backend) Key() string  { return fmt.Sprintf(bckndFmt, b.ID.String()) }
-func (s Server) Key() string   { return fmt.Sprintf(srvrFmt, s.Backend.String(), s.URL.GetHost()) }
-func (f Frontend) Key() string { return fmt.Sprintf(frntndFmt, f.ID.String()) }
+func (b Backend) Key() string          { return fmt.Sprintf(bckndFmt, b.ID.String()) }
+func (s Server) Key() string           { return fmt.Sprintf(srvrFmt, s.Backend.String(), s.URL.GetHost()) }
+func (f Frontend) Key() string         { return fmt.Sprintf(frntndFmt, f.ID.String()) }
+func (f FrontendSettings) Key() string { return "" }
+func (b BackendSettings) Key() string  { return "" }
 
-func (b Backend) Val() (string, error)  { return encode(b) }
-func (s Server) Val() (string, error)   { return encode(s) }
-func (f Frontend) Val() (string, error) { return encode(f) }
+func (b Backend) Val() (string, error)          { return encode(b) }
+func (s Server) Val() (string, error)           { return encode(s) }
+func (f Frontend) Val() (string, error)         { return encode(f) }
+func (f FrontendSettings) Val() (string, error) { return "", nil }
+func (b BackendSettings) Val() (string, error)  { return "", nil }
 
 func (b Backend) DirKey() string  { return fmt.Sprintf(bckndDirFmt, b.ID.String()) }
 func (f Frontend) DirKey() string { return fmt.Sprintf(frntndDirFmt, f.ID.String()) }
 
+func (f *FrontendSettings) String() string {
+	s, e := encode(f)
+	if e != nil {
+		return e.Error()
+	}
+	return s
+}
+
+func (b *BackendSettings) String() string {
+	s, e := encode(b)
+	if e != nil {
+		return e.Error()
+	}
+	return s
+}
+
 func encode(v VulcanObject) (string, error) {
 	b := new(bytes.Buffer)
 	e := json.NewEncoder(b).Encode(v)
-	return HTMLUnEscape(b.String()), e
+	return strings.TrimSpace(HTMLUnEscape(b.String())), e
 }
 
 func buildRoute(a map[string]string) string {

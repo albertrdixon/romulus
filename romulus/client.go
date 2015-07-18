@@ -14,7 +14,6 @@ import (
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/watch"
 	etcdErr "github.com/coreos/etcd/error"
 	"github.com/coreos/go-etcd/etcd"
-	"github.com/mgutz/logxi/v1"
 )
 
 type EtcdPeerList []string
@@ -37,7 +36,6 @@ type Client struct {
 	e *etcd.Client
 	v string
 	s ServiceSelector
-	l log.Logger
 }
 
 func NewClient(c *Config) (*Client, error) {
@@ -51,7 +49,6 @@ func NewClient(c *Config) (*Client, error) {
 		k: cl,
 		v: (string)(c.Version),
 		s: c.Selector,
-		l: log.New("client"),
 	}, nil
 }
 
@@ -93,11 +90,11 @@ func (c *Client) pruneServers(bid uuid.UUID, sm ServerMap) error {
 	for _, n := range r.Node.Nodes {
 		ips = append(ips, strings.TrimLeft(strings.TrimPrefix(n.Key, k), "/"))
 	}
-	c.l.Debug(fmt.Sprintf("prune: Found %v ips in etcd", ips))
+	log().Debugf("Found %v ips in etcd", ips)
 
 	for _, ip := range ips {
 		if _, ok := sm[ip]; !ok {
-			c.l.Debug("pruning ip", "ip", ip)
+			log().Debugf("Removing %s from etcd", ip)
 			key := fmt.Sprintf("%s/%s", k, ip)
 			if _, e := c.e.Delete(key, true); e != nil {
 				return Error{"etcd error", e}
@@ -108,7 +105,7 @@ func (c *Client) pruneServers(bid uuid.UUID, sm ServerMap) error {
 }
 
 func doEndpointsEvent(c *Client, e watch.Event) error {
-	c.l.Debug("Got an Endpoints event", "event", e.Type)
+	logf(F{"event": e.Type}).Debug("Got an Endpoints event")
 	switch e.Type {
 	default:
 		return nil
@@ -137,7 +134,7 @@ func doServiceEvent(c *Client, e watch.Event) error {
 	if e.Type == watch.Added || e.Type == watch.Modified {
 		return nil
 	}
-	c.l.Debug("Got a Service event", "event", e.Type)
+	logf(F{"event": e.Type}).Debug("Got a Service event")
 	switch e.Type {
 	default:
 		return nil
@@ -161,9 +158,16 @@ func expandEndpoints(bid uuid.UUID, e *api.Endpoints) ServerMap {
 	for _, es := range e.Subsets {
 		for _, port := range es.Ports {
 			if port.Protocol != api.ProtocolTCP {
-				log.Debug("wrong protocol", "protocol", port.Protocol)
+				log().Debugf("Unsupported protocol: %s", port.Protocol)
 				continue
 			}
+
+			// TODO: Do we want to force ports to have a name?
+			// if port.Name != "vulcan" {
+			// 	log().Debugf("Not registering port %d", port.Port)
+			// 	continue
+			// }
+
 			for _, ip := range es.Addresses {
 				u, err := url.Parse(fmt.Sprintf("http://%s:%d", ip.IP, port.Port))
 				if err != nil {
