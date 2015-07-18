@@ -117,6 +117,14 @@ func (b *BackendSettings) String() string {
 	return s
 }
 
+func (s ServerMap) Slice() []string {
+	st := []string{}
+	for ip := range s {
+		st = append(st, ip)
+	}
+	return st
+}
+
 func encode(v VulcanObject) (string, error) {
 	b := new(bytes.Buffer)
 	e := json.NewEncoder(b).Encode(v)

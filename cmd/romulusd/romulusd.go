@@ -80,7 +80,7 @@ func main() {
 
 type F map[string]interface{}
 
-var pkgField = l.Fields{"package": "main", "version": romulus.Version()}
+var pkgField = l.Fields{"pkg": "main", "version": romulus.Version()}
 
 func LogLevel(lv string) {
 	if lvl, e := l.ParseLevel(lv); e == nil {

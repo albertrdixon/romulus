@@ -90,7 +90,7 @@ func (c *Client) pruneServers(bid uuid.UUID, sm ServerMap) error {
 	for _, n := range r.Node.Nodes {
 		ips = append(ips, strings.TrimLeft(strings.TrimPrefix(n.Key, k), "/"))
 	}
-	log().Debugf("Found %v ips in etcd", ips)
+	logf(F{"servers": ips, "bcknd-id": bid.String()}).Debug("Gathered servers from etcd")
 
 	for _, ip := range ips {
 		if _, ok := sm[ip]; !ok {

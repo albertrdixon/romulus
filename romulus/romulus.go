@@ -82,7 +82,7 @@ func register(c *Client, e *api.Endpoints) error {
 	}
 
 	logf(F{"service": s.Name, "namespace": s.Namespace,
-		"bcknd-uuid": eid.String(), "frntnd-uuid": sid.String()}).
+		"bcknd-id": eid.String(), "frntnd-id": sid.String()}).
 		Info("Registering service")
 	bnd := Backend{
 		ID:   eid,
@@ -91,7 +91,7 @@ func register(c *Client, e *api.Endpoints) error {
 	if st, ok := s.Annotations[bckndSettingsAnnotation]; ok {
 		bnd.Settings = NewBackendSettings([]byte(st))
 	}
-	logf(F{"type": bnd.Type, "settings": bnd.Settings.String()}).Debug("Backend settings")
+	logf(F{"bcknd-id": bnd.ID.String(), "type": bnd.Type, "settings": bnd.Settings.String()}).Debug("Backend settings")
 
 	val, err := bnd.Val()
 	if err != nil {
@@ -102,7 +102,7 @@ func register(c *Client, e *api.Endpoints) error {
 	}
 
 	sm := expandEndpoints(eid, e)
-	log().Debugf("Expanded endpoints: %v", sm)
+	logf(F{"servers": sm.Slice(), "bcknd-id": eid.String()}).Debug("Expanded endpoints")
 	if err := c.pruneServers(eid, sm); err != nil {
 		return Error{fmt.Sprintf("Unable to prune servers for backend %q", e.Name), err}
 	}
@@ -129,7 +129,7 @@ func register(c *Client, e *api.Endpoints) error {
 	if st, ok := s.Annotations[frntndSettingsAnnotation]; ok {
 		fnd.Settings = NewFrontendSettings([]byte(st))
 	}
-	logf(F{"type": fnd.Type, "route": fnd.Route, "settings": fnd.Settings.String()}).Debug("Frontend settings")
+	logf(F{"frntnd-id": fnd.ID.String(), "type": fnd.Type, "route": fnd.Route, "settings": fnd.Settings.String()}).Debug("Frontend settings")
 
 	val, err = fnd.Val()
 	if err != nil {
@@ -149,7 +149,7 @@ func deregister(c *Client, o api.ObjectMeta, frontend bool) error {
 	}
 
 	if frontend {
-		logf(F{"service": o.Name, "namespace": o.Namespace, "frntnd-uuid": id.String()}).Info("Deregistering frontend")
+		logf(F{"service": o.Name, "namespace": o.Namespace, "frntnd-id": id.String()}).Info("Deregistering frontend")
 		f := Frontend{ID: id}
 		if _, err := c.e.Delete(f.DirKey(), true); err != nil {
 			return Error{"etcd error", err}
@@ -161,7 +161,7 @@ func deregister(c *Client, o api.ObjectMeta, frontend bool) error {
 			return Error{"etcd error", err}
 		}
 	} else {
-		logf(F{"service": o.Name, "namespace": o.Namespace, "bcknd-uuid": id.String()}).Info("Deregistering backend")
+		logf(F{"service": o.Name, "namespace": o.Namespace, "bcknd-id": id.String()}).Info("Deregistering backend")
 		b := Backend{ID: id}
 		if _, err := c.e.Delete(b.DirKey(), true); err != nil {
 			return Error{"etcd error", err}

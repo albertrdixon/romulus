@@ -22,7 +22,7 @@ func HTMLUnEscape(s string) string {
 
 type F map[string]interface{}
 
-var pkgField = l.Fields{"package": "romulus"}
+var pkgField = l.Fields{"pkg": "romulus"}
 
 func log() *l.Entry { return logf(nil) }
 func logf(f F) *l.Entry {
