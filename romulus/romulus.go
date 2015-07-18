@@ -101,6 +101,7 @@ func register(c *Client, e *api.Endpoints) error {
 	}
 
 	sm := expandEndpoints(eid, e)
+	c.l.Debug(fmt.Sprintf("Expanded ednpoints: %v", sm))
 	if err := c.pruneServers(eid, sm); err != nil {
 		return Error{fmt.Sprintf("Unable to prune servers for backend %q", e.Name), err}
 	}

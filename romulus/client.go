@@ -157,10 +157,11 @@ func expandEndpoints(bid uuid.UUID, e *api.Endpoints) ServerMap {
 	for _, es := range e.Subsets {
 		for _, port := range es.Ports {
 			if port.Protocol != api.ProtocolTCP {
+				log.Debug("wrong protocol", "protocol", port.Protocol)
 				continue
 			}
 			for _, ip := range es.Addresses {
-				u, err := url.Parse(fmt.Sprintf("http://%s:%i", ip.IP, port.Port))
+				u, err := url.Parse(fmt.Sprintf("http://%s:%d", ip.IP, port.Port))
 				if err != nil {
 					continue
 				}

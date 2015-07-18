@@ -22,9 +22,23 @@ func (u *URL) UnmarshalJSON(p []byte) error {
 	return nil
 }
 
+func (u *URL) MarshalJSON() ([]byte, error) {
+	s := fmt.Sprintf(`"%s"`, u.String())
+	return []byte(s), nil
+}
+
 // GetPath returns url.Path with leading '/' removed
 func (u *URL) GetPath() string {
 	return strings.TrimLeft(u.Path, "/")
+}
+
+func (u *URL) GetHost() string {
+	s := u.Host
+	i := strings.Index(s, ":")
+	if i == -1 {
+		return s
+	}
+	return s[0:i]
 }
 
 // String returns the string representation

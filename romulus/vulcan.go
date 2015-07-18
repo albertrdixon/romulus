@@ -15,7 +15,7 @@ var (
 	frntndDirFmt = "/vulcan/frontends/%s"
 	bckndFmt     = "/vulcan/backends/%s/backend"
 	srvrDirFmt   = "/vulcan/backends/%s/servers"
-	srvrFmt      = "/vulcan/backends/%s/servers/%d"
+	srvrFmt      = "/vulcan/backends/%s/servers/%s"
 	frntndFmt    = "/vulcan/frontends/%s/frontend"
 )
 
@@ -94,7 +94,7 @@ func NewFrontendSettings(p []byte) *FrontendSettings {
 }
 
 func (b Backend) Key() string  { return fmt.Sprintf(bckndFmt, b.ID.String()) }
-func (s Server) Key() string   { return fmt.Sprintf(srvrFmt, s.Backend.String(), s.URL.Host) }
+func (s Server) Key() string   { return fmt.Sprintf(srvrFmt, s.Backend.String(), s.URL.GetHost()) }
 func (f Frontend) Key() string { return fmt.Sprintf(frntndFmt, f.ID.String()) }
 
 func (b Backend) Val() (string, error)  { return encode(b) }
