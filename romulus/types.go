@@ -10,11 +10,9 @@ import (
 // URL is an Unmarshallable url type
 type URL url.URL
 
-type RawString string
-
 // UnmarshalJSON parses JSON string into url.URL
 func (u *URL) UnmarshalJSON(p []byte) error {
-	nu, err := url.Parse(string(bytes.Trim(p, "\"")))
+	nu, err := url.Parse(string(bytes.Trim(p, `"`)))
 	if err != nil {
 		return err
 	}
@@ -29,6 +27,9 @@ func (u *URL) MarshalJSON() ([]byte, error) {
 
 // GetPath returns url.Path with leading '/' removed
 func (u *URL) GetPath() string {
+	if u == nil {
+		return ""
+	}
 	return strings.TrimLeft(u.Path, "/")
 }
 
@@ -47,9 +48,4 @@ func (u *URL) GetHost() string {
 // String returns the string representation
 func (u *URL) String() string {
 	return (*url.URL)(u).String()
-}
-
-func (r RawString) MarshalJSON() ([]byte, error) {
-	s := fmt.Sprintf(`"%s"`, r)
-	return []byte(s), nil
 }

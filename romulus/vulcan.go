@@ -56,7 +56,7 @@ type Frontend struct {
 	ID        uuid.UUID `json:"-"`
 	Type      string
 	BackendID uuid.UUID `json:"BackendId"`
-	Route     RawString
+	Route     string
 	Settings  *FrontendSettings `json:",omitempty"`
 }
 
@@ -77,13 +77,6 @@ func NewBackendSettings(p []byte) *BackendSettings {
 	b := bytes.NewBuffer(p)
 	json.NewDecoder(b).Decode(&ba)
 	return &ba
-}
-
-func NewServer(p []byte) (Server, error) {
-	var s Server
-	b := bytes.NewBuffer(p)
-	e := json.NewDecoder(b).Decode(s)
-	return s, e
 }
 
 func NewFrontendSettings(p []byte) *FrontendSettings {
@@ -110,7 +103,7 @@ func encode(v VulcanObject) (string, error) {
 	return HTMLUnEscape(b.String()), e
 }
 
-func buildRoute(a map[string]string) RawString {
+func buildRoute(a map[string]string) string {
 	rt := []string{}
 	for k, f := range routeAnnotations {
 		if v, ok := a[k]; ok {
@@ -123,5 +116,5 @@ func buildRoute(a map[string]string) RawString {
 	if len(rt) < 1 {
 		rt = []string{"Path('/')"}
 	}
-	return RawString(strings.Join(rt, " && "))
+	return strings.Join(rt, " && ")
 }
