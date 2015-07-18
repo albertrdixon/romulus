@@ -2,12 +2,16 @@ package romulus
 
 import (
 	"fmt"
+	"net/url"
+
+	"code.google.com/p/go-uuid/uuid"
 
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/api"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/client"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/fields"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/labels"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/watch"
+	etcdErr "github.com/coreos/etcd/error"
 	"github.com/coreos/go-etcd/etcd"
 	"github.com/mgutz/logxi/v1"
 )
@@ -16,9 +20,6 @@ type EtcdPeerList []string
 type KubeClientConfig client.Config
 type ResourceVersion string
 type ServiceSelector map[string]string
-type Endpoints []string
-
-func (e Endpoints) isEmpty() bool { return len(([]string)(e)) == 0 }
 
 type Config struct {
 	PeerList   EtcdPeerList
@@ -53,19 +54,72 @@ func NewClient(c *Config) (*Client, error) {
 	}, nil
 }
 
-func (c *Client) setWatch() (watch.Interface, error) {
+func (c *Client) endpointsEventChannel() (watch.Interface, error) {
+	return c.k.Endpoints(api.NamespaceAll).Watch(labels.Everything(), fields.Everything(), "")
+}
+
+func (c *Client) serviceEventsChannel() (watch.Interface, error) {
 	return c.k.Services(api.NamespaceAll).Watch(labels.Everything(), fields.Everything(), "")
 }
 
-func doEvent(c *Client, e watch.Event) error {
-	c.l.Debug("Got an event", "event", e.Type)
+func (c *Client) getService(name, ns string) (*api.Service, error) {
+	s, e := c.k.Services(ns).Get(name)
+	if e != nil || s == nil {
+		return nil, Error{fmt.Sprintf("Unable to get service %q", name), e}
+	}
+	return s, nil
+}
+
+func (c *Client) getEndpoint(name, ns string) (*api.Endpoints, error) {
+	en, e := c.k.Endpoints(ns).Get(name)
+	if e != nil || en == nil {
+		return nil, Error{fmt.Sprintf("Unable to get endpoint %q", name), e}
+	}
+	return en, nil
+}
+
+func (c *Client) pruneServers(bid uuid.UUID, sm ServerMap) error {
+	k := fmt.Sprintf(srvrDirFmt, bid.String())
+	r, e := c.e.Get(k, true, false)
+	if e != nil {
+		if isKeyNotFound(e) {
+			return nil
+		}
+		return Error{"etcd error", e}
+	}
+
+	ips := []string{}
+	for _, n := range r.Node.Nodes {
+		ips = append(ips, n.Key)
+	}
+
+	for _, ip := range ips {
+		if s, ok := sm[ip]; !ok {
+			if _, e := c.e.Delete(s.Key(), true); e != nil {
+				return Error{"etcd error", e}
+			}
+		}
+	}
+	return nil
+}
+
+func doEndpointsEvent(c *Client, e watch.Event) error {
+	c.l.Debug("Got an Endpoints event", "event", e.Type)
 	switch e.Type {
 	default:
-		return Error{fmt.Sprintf("Unrecognized event: %s", e.Type), nil}
-	case watch.Added, watch.Modified:
-		return register(c, e.Object)
+		return nil
 	case watch.Deleted:
-		return deregister(c, e.Object)
+		en, ok := e.Object.(*api.Endpoints)
+		if !ok {
+			return fmt.Errorf("Unrecognized api object: %v", e.Object)
+		}
+		return deregister(c, en.ObjectMeta, false)
+	case watch.Added, watch.Modified:
+		en, ok := e.Object.(*api.Endpoints)
+		if !ok {
+			return fmt.Errorf("Unrecognized api object: %v", e.Object)
+		}
+		return register(c, en)
 	case watch.Error:
 		if a, ok := e.Object.(*api.Status); ok {
 			e := fmt.Errorf("[%d] %v", a.Code, a.Reason)
@@ -75,30 +129,53 @@ func doEvent(c *Client, e watch.Event) error {
 	}
 }
 
-func getBackendID(s *api.Service) string {
-	r := fmt.Sprintf("%s.%s", s.Name, s.Namespace)
-	if an, ok := s.Annotations[bckndIDAnnotation]; ok {
-		r = an
+func doServiceEvent(c *Client, e watch.Event) error {
+	if e.Type == watch.Added || e.Type == watch.Modified {
+		return nil
 	}
-	return r
+	c.l.Debug("Got a Service event", "event", e.Type)
+	switch e.Type {
+	default:
+		return nil
+	case watch.Deleted:
+		s, ok := e.Object.(*api.Service)
+		if !ok {
+			return fmt.Errorf("Unrecognized api object: %v", e.Object)
+		}
+		return deregister(c, s.ObjectMeta, true)
+	case watch.Error:
+		if a, ok := e.Object.(*api.Status); ok {
+			e := fmt.Errorf("[%d] %v", a.Code, a.Reason)
+			return Error{fmt.Sprintf("Kubernetes API failure: %s", a.Message), e}
+		}
+		return Error{"Unknown kubernetes api error", nil}
+	}
 }
 
-func getBackendConfig(s *api.Service) string {
-	if b, ok := s.Annotations["vulcanBackendConfig"]; ok {
-		return b
-	}
-	return ""
-}
-
-func getEndpoints(s *api.Service) Endpoints {
-	en := []string{}
-	ip := s.Spec.ClusterIP
-	for _, sp := range s.Spec.Ports {
-		if sp.Protocol == api.ProtocolTCP {
-			en = append(en, fmt.Sprintf("http://%s:%d", ip, sp.Port))
+func expandEndpoints(bid uuid.UUID, e *api.Endpoints) ServerMap {
+	sm := ServerMap{}
+	for _, es := range e.Subsets {
+		for _, port := range es.Ports {
+			if port.Protocol != api.ProtocolTCP {
+				continue
+			}
+			for _, ip := range es.Addresses {
+				u, err := url.Parse(fmt.Sprintf("http://%s:%i", ip.IP, port.Port))
+				if err != nil {
+					continue
+				}
+				sm[u.Host] = Server{
+					Backend: bid,
+					URL:     (*URL)(u),
+				}
+			}
 		}
 	}
-	return Endpoints(en)
+	return sm
+}
+
+func getUUID(o api.ObjectMeta) uuid.UUID {
+	return uuid.Parse((string)(o.UID))
 }
 
 func registerable(s *api.Service, sl ServiceSelector) bool {
@@ -107,5 +184,10 @@ func registerable(s *api.Service, sl ServiceSelector) bool {
 			return false
 		}
 	}
-	return s.Spec.ClusterIP != "None" && s.Spec.ClusterIP != ""
+	return api.IsServiceIPSet(s)
+}
+
+func isKeyNotFound(err error) bool {
+	e, ok := err.(*etcd.EtcdError)
+	return ok && e.ErrorCode == etcdErr.EcodeKeyNotFound
 }

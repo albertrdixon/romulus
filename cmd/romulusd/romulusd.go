@@ -19,7 +19,7 @@ var (
 	kp = kingpin.Flag("kube-pass", "kubernetes password").Short('P').Default("").OverrideDefaultFromEnvar("KUBE_PASS").String()
 	kv = kingpin.Flag("kube-api", "kubernetes api version").Default("v1").OverrideDefaultFromEnvar("KUBE_API_VER").String()
 	kc = kingpin.Flag("kubecfg", "path to kubernetes cfg file").Short('C').ExistingFile()
-	sl = kingpin.Flag("svc-selector", "service selectors. Leave blank for Everything().").Short('s').StringMap()
+	sl = kingpin.Flag("svc-selector", "service selectors. Leave blank for Everything(). Form: key=value").Short('s').Default("type=external").OverrideDefaultFromEnvar("SVC_SELECTOR").StringMap()
 )
 
 func main() {
