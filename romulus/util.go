@@ -12,15 +12,14 @@ var unicodeReplacements = map[string]string{
 	`\u0026`: "&",
 }
 
-func HTMLUnEscape(s string) string {
+// HTMLUnescape reverses the HTMLEscape process done by JSON encoding
+func HTMLUnescape(s string) string {
 	r := s
 	for k, v := range unicodeReplacements {
 		r = strings.Replace(r, k, v, -1)
 	}
 	return r
 }
-
-type F map[string]interface{}
 
 var pkgField = l.Fields{"pkg": "romulus"}
 
@@ -36,6 +35,7 @@ func logf(f F) *l.Entry {
 	return l.WithFields(fi)
 }
 
+// LogLevel sets the logging level
 func LogLevel(lv string) {
 	if lvl, e := l.ParseLevel(lv); e == nil {
 		l.SetLevel(lvl)

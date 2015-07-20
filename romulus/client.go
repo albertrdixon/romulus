@@ -16,21 +16,30 @@ import (
 	"github.com/coreos/go-etcd/etcd"
 )
 
+// EtcdPeerList is just a slice of etcd peers
 type EtcdPeerList []string
+
+// KubeClientConfig is an alias for kubernetes/pkg/client.Config
 type KubeClientConfig client.Config
-type ResourceVersion string
+
+// APIVersion is the kubernetes API version
+type APIVersion string
+
+// ServiceSelector is a map of labels for selecting services
 type ServiceSelector map[string]string
 
+// Config is used to configure the Client
 type Config struct {
 	PeerList   EtcdPeerList
 	KubeConfig KubeClientConfig
-	Version    ResourceVersion
+	Version    APIVersion
 	Selector   ServiceSelector
 }
 
 func (c *Config) kc() client.Config { return (client.Config)(c.KubeConfig) }
 func (c *Config) ps() []string      { return ([]string)(c.PeerList) }
 
+// Client holds the kubernetes/pkg/client.Client and etcd.Client
 type Client struct {
 	k *client.Client
 	e *etcd.Client
@@ -38,6 +47,7 @@ type Client struct {
 	s ServiceSelector
 }
 
+// NewClient returns a ptr to a new Client from a Config
 func NewClient(c *Config) (*Client, error) {
 	cf := c.kc()
 	cl, err := client.New(&cf)

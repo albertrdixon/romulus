@@ -20,10 +20,12 @@ var (
 	stop chan struct{}
 )
 
+// Version returns the current software version
 func Version() string {
 	return version
 }
 
+// Start boots up the daemon
 func Start(c *Client) error {
 	stop = make(chan struct{}, 1)
 	log().Debug("Setting watch on Endpoints")
@@ -59,6 +61,7 @@ func Start(c *Client) error {
 	return nil
 }
 
+// Stop shuts down the daemon threads
 func Stop() { stop <- struct{}{} }
 
 func register(c *Client, e *api.Endpoints) error {
@@ -102,7 +105,7 @@ func register(c *Client, e *api.Endpoints) error {
 	}
 
 	sm := expandEndpoints(eid, e)
-	logf(F{"servers": sm.Slice(), "bcknd-id": eid.String()}).Debug("Expanded endpoints")
+	logf(F{"servers": sm.IPs(), "bcknd-id": eid.String()}).Debug("Expanded endpoints")
 	if err := c.pruneServers(eid, sm); err != nil {
 		return Error{fmt.Sprintf("Unable to prune servers for backend %q", e.Name), err}
 	}

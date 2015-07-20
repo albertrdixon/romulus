@@ -78,10 +78,12 @@ func main() {
 	os.Exit(0)
 }
 
+// F is just a simple type for adding tags to logs
 type F map[string]interface{}
 
 var pkgField = l.Fields{"pkg": "main", "version": romulus.Version()}
 
+// LogLevel sets the logging level
 func LogLevel(lv string) {
 	if lvl, e := l.ParseLevel(lv); e == nil {
 		l.SetLevel(lvl)
