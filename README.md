@@ -1,5 +1,7 @@
 # romulusd
 
+[![GoDoc](https://godoc.org/github.com/timelinelabs/romulus?status.svg)](https://godoc.org/github.com/timelinelabs/romulus)
+
 Automagically register your kubernetes services in vulcan proxy!
 
 ## Usage
