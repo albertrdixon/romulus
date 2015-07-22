@@ -1,5 +1,6 @@
 PROJECT = github.com/timelinelabs/romulus
 REV = $$(git rev-parse --short=8 HEAD)
+BRANCH = $$(git rev-parse --abbrev-ref HEAD | tr / _)
 EXECUTABLE = "romulusd"
 BINARY = cmd/romulusd/romulusd.go
 IMAGE = romulusd
@@ -51,7 +52,13 @@ build-image:
 	@docker build -t $(IMAGE) .
 
 publish: build-image
-	@echo "==> publishing "
+	@echo "==> Publishing $(EXECUTABLE) to $(REMOTE_REPO)"
+	@echo "==> Tagging with '$(BRANCH)' and pushing"
+	@docker tag $(IMAGE) $(REMOTE_REPO):$(BRANCH)
+	@docker push $(REMOTE_REPO):$(BRANCH)
+	@echo "==> Tagging with '$(REV)' and pushing"
+	@docker tag $(IMAGE) $(REMOTE_REPO):$(REV)
+	@docker push $(REMOTE_REPO):$(REV)
 
 install:
 	@echo "==> Installing $(EXECUTABLE) with ldflags '$(LDFLAGS)'"
