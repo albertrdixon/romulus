@@ -54,7 +54,7 @@ func main() {
 	logf(F{"version": romulus.Version()}).Info("Starting up romulusd")
 	c, e := romulus.NewClient(&romulus.Config{
 		PeerList:   eps,
-		Version:    (romulus.ResourceVersion)(*kv),
+		Version:    (romulus.APIVersion)(*kv),
 		KubeConfig: kcc,
 		Selector:   *sl,
 	})

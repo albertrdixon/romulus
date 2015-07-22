@@ -22,6 +22,9 @@ var (
 
 // Version returns the current software version
 func Version() string {
+	if SHA != "" {
+		return fmt.Sprintf("%s-%s", version, SHA)
+	}
 	return version
 }
 

@@ -6,4 +6,7 @@
 // kubernetes documentation: https://github.com/GoogleCloudPlatform/kubernetes/tree/master/docs
 package romulus
 
-var version = "v0.1.0"
+var (
+	version = "v0.1.0"
+	SHA     = ""
+)

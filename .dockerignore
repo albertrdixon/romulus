@@ -1,5 +1,2 @@
-README*
-Makefile
-romulus
-cmd
-Godeps
+*
+!bin/romulusd-linux
