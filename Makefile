@@ -4,7 +4,7 @@ BRANCH = $$(git rev-parse --abbrev-ref HEAD | tr / _)
 EXECUTABLE = "romulusd"
 BINARY = cmd/romulusd/romulusd.go
 IMAGE = romulusd
-REMOTE_REPO = quay.io/timelinelabs/romulusd
+REMOTE_REPO = quay.io/timeline_labs/romulusd
 LDFLAGS = "-s -X $(PROJECT)/romulus.SHA $(REV)"
 TEST_COMMAND = godep go test
 
@@ -51,12 +51,14 @@ build-image:
 	@echo "==> Building docker image '$(IMAGE)'"
 	@docker build -t $(IMAGE) .
 
-publish: build-image
+publish:
 	@echo "==> Publishing $(EXECUTABLE) to $(REMOTE_REPO)"
 	@echo "==> Tagging with '$(BRANCH)' and pushing"
+	@docker rmi $(REMOTE_REPO):$(BRANCH) >/dev/null 2>&1 || true
 	@docker tag $(IMAGE) $(REMOTE_REPO):$(BRANCH)
 	@docker push $(REMOTE_REPO):$(BRANCH)
 	@echo "==> Tagging with '$(REV)' and pushing"
+	@docker rmi $(REMOTE_REPO):$(REV) >/dev/null 2>&1 || true
 	@docker tag $(IMAGE) $(REMOTE_REPO):$(REV)
 	@docker push $(REMOTE_REPO):$(REV)
 
