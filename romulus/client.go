@@ -39,6 +39,14 @@ type Config struct {
 func (c *Config) kc() client.Config { return (client.Config)(c.KubeConfig) }
 func (c *Config) ps() []string      { return ([]string)(c.PeerList) }
 
+func (sl ServiceSelector) String() string {
+	s := []string{}
+	for k, v := range sl {
+		s = append(s, strings.Join([]string{k, v}, "="))
+	}
+	return strings.Join(s, ", ")
+}
+
 // Client holds the kubernetes/pkg/client.Client and etcd.Client
 type Client struct {
 	k *client.Client

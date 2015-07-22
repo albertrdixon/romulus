@@ -31,6 +31,7 @@ func Version() string {
 // Start boots up the daemon
 func Start(c *Client) error {
 	stop = make(chan struct{}, 1)
+	log().Debugf("Selecting objects that match: %s", c.s.String())
 	log().Debug("Setting watch on Endpoints")
 	ee, e := c.endpointsEventChannel()
 	if e != nil {
