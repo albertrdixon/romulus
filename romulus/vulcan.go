@@ -11,12 +11,13 @@ import (
 )
 
 var (
-	bckndDirFmt  = "/vulcan/backends/%s"
-	frntndDirFmt = "/vulcan/frontends/%s"
-	bckndFmt     = "/vulcan/backends/%s/backend"
-	srvrDirFmt   = "/vulcan/backends/%s/servers"
-	srvrFmt      = "/vulcan/backends/%s/servers/%s"
-	frntndFmt    = "/vulcan/frontends/%s/frontend"
+	vulcanKey    = "/vulcand"
+	bckndDirFmt  = "/vulcand/backends/%s"
+	frntndDirFmt = "/vulcand/frontends/%s"
+	bckndFmt     = "/vulcand/backends/%s/backend"
+	srvrDirFmt   = "/vulcand/backends/%s/servers"
+	srvrFmt      = "/vulcand/backends/%s/servers/%s"
+	frntndFmt    = "/vulcand/frontends/%s/frontend"
 )
 
 // VulcanObject represents a vulcand component
@@ -83,6 +84,21 @@ type FrontendSettings struct {
 type FrontendSettingsLimits struct {
 	MaxMemBodyBytes int
 	MaxBodyBytes    int
+}
+
+// NewBackend returns a ref to a Backend object
+func NewBackend(id uuid.UUID) *Backend {
+	return &Backend{
+		ID: id,
+	}
+}
+
+// NewFrontend returns a ref to a Frontend object
+func NewFrontend(id, bid uuid.UUID) *Frontend {
+	return &Frontend{
+		ID:        id,
+		BackendID: bid,
+	}
 }
 
 // NewBackendSettings returns BackendSettings from raw JSON

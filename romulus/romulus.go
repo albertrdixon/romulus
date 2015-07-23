@@ -91,10 +91,9 @@ func register(c *Client, e *api.Endpoints) error {
 	logf(F{"service": s.Name, "namespace": s.Namespace,
 		"bcknd-id": eid.String(), "frntnd-id": sid.String()}).
 		Info("Registering service")
-	bnd := Backend{
-		ID:   eid,
-		Type: "http",
-	}
+	bnd := NewBackend(eid)
+	bnd.Type = "http"
+
 	if st, ok := s.Annotations[bckndSettingsAnnotation]; ok {
 		bnd.Settings = NewBackendSettings([]byte(st))
 	}
@@ -127,12 +126,10 @@ func register(c *Client, e *api.Endpoints) error {
 		}
 	}
 
-	fnd := Frontend{
-		ID:        sid,
-		Type:      "http",
-		BackendID: eid,
-		Route:     buildRoute(s.Annotations),
-	}
+	fnd := NewFrontend(sid, eid)
+	fnd.Type = "http"
+	fnd.Route = buildRoute(s.Annotations)
+
 	if st, ok := s.Annotations[frntndSettingsAnnotation]; ok {
 		fnd.Settings = NewFrontendSettings([]byte(st))
 	}
