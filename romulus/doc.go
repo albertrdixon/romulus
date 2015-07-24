@@ -8,5 +8,7 @@ package romulus
 
 var (
 	version = "v0.1.0"
-	SHA     = ""
+
+	// SHA is the build sha
+	SHA = ""
 )

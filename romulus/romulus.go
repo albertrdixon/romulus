@@ -11,10 +11,10 @@ var (
 	frntndSettingsAnnotation = "frontendSettings"
 
 	routeAnnotations = map[string]string{
-		"host":   `Host('%s')`,
-		"method": `Method('%s')`,
-		"path":   `Path('%s')`,
-		"header": `Header('%s')`,
+		"host":   "Host(`%s`)",
+		"method": "Method(`%s`)",
+		"path":   "Path(`%s`)",
+		"header": "Header(`%s`)",
 	}
 
 	stop chan struct{}
