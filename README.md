@@ -60,7 +60,7 @@ $ kubectl get endpoints/frontend --template='{{ printf "%s\n" .metadata.uid }}'
 52de7ac8-2ce8-11e5-8a86-0800279dd272
 
 $ etcdctl get /vulcan/backends/52de7ac8-2ce8-11e5-8a86-0800279dd272/backend
-{"Type":"http","Settings":{"KeepAlive":{"MaxIdleConnsPerHost":128}}}
+{"Type":"http","Settings":{"KeepAlive":{"MaxIdleConnsPerHost":128,"Period": "4s"}}}
 
 $ kubectl get svc/frontend --template='{{ printf "%s\n" .metadata.uid }}'
 52d87539-2ce8-11e5-8a86-0800279dd272
