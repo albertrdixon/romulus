@@ -81,12 +81,26 @@
 			"Rev": "fb9c126fd4a2d4130d7ecc405dd59468c92fe0e0"
 		},
 		{
+			"ImportPath": "github.com/Sirupsen/logrus",
+			"Comment": "v0.7.3",
+			"Rev": "55eb11d21d2a31a3cc93838241d04800f52e823d"
+		},
+		{
+			"ImportPath": "github.com/alecthomas/template",
+			"Rev": "b867cc6ab45cece8143cfcc6fc9c77cf3f2c23c0"
+		},
+		{
 			"ImportPath": "github.com/alecthomas/units",
 			"Rev": "6b4e7dc5e3143b85ea77909c72caf89416fc2915"
 		},
 		{
 			"ImportPath": "github.com/beorn7/perks/quantile",
 			"Rev": "b965b613227fddccbfffe13eae360ed3fa822f8d"
+		},
+		{
+			"ImportPath": "github.com/coreos/etcd/error",
+			"Comment": "v2.1.1-41-g5e3dc31",
+			"Rev": "5e3dc31e6fca0f0a94d2fbba7efd2d54434cd54d"
 		},
 		{
 			"ImportPath": "github.com/coreos/go-etcd/etcd",
@@ -163,9 +177,9 @@
 			"Rev": "d9558e5c97f85372afee28cf2b6059d7d3818919"
 		},
 		{
-			"ImportPath": "gopkg.in/alecthomas/kingpin.v1",
-			"Comment": "v1.3.6",
-			"Rev": "55a69a226d28a43b913720f5d765706d49c8fa9e"
+			"ImportPath": "gopkg.in/alecthomas/kingpin.v2",
+			"Comment": "v2.0.10",
+			"Rev": "e1f37920c1d0ced4d1c92f9526a2a433183f02e9"
 		},
 		{
 			"ImportPath": "gopkg.in/yaml.v2",
