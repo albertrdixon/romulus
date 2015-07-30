@@ -12,6 +12,8 @@ usage: romulusd [<flags>]
 
 Flags:
   --help           Show help (also see --help-long and --help-man).
+  -v, --vulcand-key="vulcand"
+                   vulcand etcd key
   -e, --etcd=http://127.0.0.1:2379
                    etcd peers
   -k, --kube=http://127.0.0.1:8080
@@ -21,10 +23,12 @@ Flags:
   -P, --kube-pass=KUBE-PASS
                    kubernetes password
   --kube-api="v1"  kubernetes api version
-  -C, --kubecfg=KUBECFG
+  -C, --kubecfg=/path/to/.kubecfg
                    path to kubernetes cfg file
-  -s, --svc-selector=type=external
+  -s, --svc-selector=key=value[,key=value]
                    service selectors. Leave blank for Everything(). Form: key=value
+  -l, --log-level=info
+                   log level. One of: fatal, error, warn, info, debug
   --version        Show application version.
 ```
 
@@ -42,7 +46,7 @@ metadata:
     backendSettings: '{"KeepAlive": {"MaxIdleConnsPerHost": 128, "Period": "4s"}}'
   labels:
     name: frontend
-    type: external # <-- By default, services without this label will not be registered
+    type: external # <-- Will ensure SVC-SELECTORs specified (e.g. 'type=external') are present in either Labels or Annotations.
 spec: 
 ...
 ```
