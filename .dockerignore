@@ -1,2 +1,7 @@
-*
-!bin/romulusd-linux
+cmd
+Godeps
+romulus
+*.yml
+*.yaml
+README*
+Makefile
