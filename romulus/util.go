@@ -24,15 +24,15 @@ func HTMLUnescape(s string) string {
 var pkgField = l.Fields{"pkg": "romulus"}
 
 func log() *l.Entry { return logf(nil) }
-func logf(f F) *l.Entry {
-	fi := l.Fields{}
+func logf(f fi) *l.Entry {
+	fs := l.Fields{}
 	for k, v := range pkgField {
-		fi[k] = v
+		fs[k] = v
 	}
 	for k, v := range f {
-		fi[k] = v
+		fs[k] = v
 	}
-	return l.WithFields(fi)
+	return l.WithFields(fs)
 }
 
 // LogLevel sets the logging level

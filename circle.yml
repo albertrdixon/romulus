@@ -1,0 +1,15 @@
+dependencies:
+  pre:
+    - if [ ! -d  ~/.go_workspace/src/github.com/timelinelabs ]; then mkdir -p ~/.go_workspace/src/github.com/timelinelabs; fi
+    - if [ ! -e  ~/.go_workspace/src/github.com/timelinelabs/romulus ]; then ln -s ~/romulus ~/.go_workspace/src/github.com/timelinelabs; fi
+    - which godep >/dev/null ; if [ $? == 1 ] ; then go get github.com/tools/godep; fi
+  override:
+    - make dep-restore
+
+test:
+  override:
+    - cd ~/.go_workspace/src/github.com/timelinelabs/romulus && make test
+
+notify:
+  webhooks:
+    - url: https://spudgun-staging.timelinelabs.net:16461/circleci

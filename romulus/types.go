@@ -11,7 +11,7 @@ import (
 type URL url.URL
 
 // F is just a simple type for adding tags to logs
-type F map[string]interface{}
+type fi map[string]interface{}
 
 // UnmarshalJSON parses JSON string into url.URL
 func (u *URL) UnmarshalJSON(p []byte) error {

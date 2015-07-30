@@ -11,19 +11,25 @@ import (
 )
 
 var (
-	vulcanKey    = "/vulcand"
-	bckndDirFmt  = "/vulcand/backends/%s"
-	frntndDirFmt = "/vulcand/frontends/%s"
-	bckndFmt     = "/vulcand/backends/%s/backend"
-	srvrDirFmt   = "/vulcand/backends/%s/servers"
-	srvrFmt      = "/vulcand/backends/%s/servers/%s"
-	frntndFmt    = "/vulcand/frontends/%s/frontend"
+	bckndDirFmt  = "%s/backends/%s"
+	frntndDirFmt = "%s/frontends/%s"
+	bckndFmt     = "%s/backends/%s/backend"
+	srvrDirFmt   = "%s/backends/%s/servers"
+	srvrFmt      = "%s/backends/%s/servers/%s"
+	frntndFmt    = "%s/frontends/%s/frontend"
+
+	routeAnnotations = map[string]string{
+		"romulus/host":   "Host(`%s`)",
+		"romulus/method": "Method(`%s`)",
+		"romulus/path":   "Path(`%s`)",
+		"romulus/header": "Header(`%s`)",
+	}
 )
 
 // VulcanObject represents a vulcand component
 type VulcanObject interface {
 	// Key returns the etcd key for this object
-	Key() string
+	Key(v string) string
 	// Val returns the (JSON-ified) value to store in etcd
 	Val() (string, error)
 }
@@ -117,11 +123,13 @@ func NewFrontendSettings(p []byte) *FrontendSettings {
 	return &f
 }
 
-func (b Backend) Key() string          { return fmt.Sprintf(bckndFmt, b.ID.String()) }
-func (s Server) Key() string           { return fmt.Sprintf(srvrFmt, s.Backend.String(), s.URL.GetHost()) }
-func (f Frontend) Key() string         { return fmt.Sprintf(frntndFmt, f.ID.String()) }
-func (f FrontendSettings) Key() string { return "" }
-func (b BackendSettings) Key() string  { return "" }
+func (b Backend) Key(v string) string { return fmt.Sprintf(bckndFmt, v, b.ID.String()) }
+func (s Server) Key(v string) string {
+	return fmt.Sprintf(srvrFmt, v, s.Backend.String(), s.URL.GetHost())
+}
+func (f Frontend) Key(v string) string         { return fmt.Sprintf(frntndFmt, v, f.ID.String()) }
+func (f FrontendSettings) Key(v string) string { return "" }
+func (b BackendSettings) Key(v string) string  { return "" }
 
 func (b Backend) Val() (string, error)          { return encode(b) }
 func (s Server) Val() (string, error)           { return encode(s) }
@@ -170,7 +178,7 @@ func buildRoute(a map[string]string) string {
 	rt := []string{}
 	for k, f := range routeAnnotations {
 		if v, ok := a[k]; ok {
-			if k == "method" {
+			if k == "romulus/method" {
 				v = strings.ToUpper(v)
 			}
 			rt = append(rt, fmt.Sprintf(f, v))

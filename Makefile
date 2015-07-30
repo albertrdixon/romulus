@@ -1,6 +1,6 @@
 PROJECT = github.com/timelinelabs/romulus
-REV = $$(git rev-parse --short=8 HEAD)
-BRANCH = $$(git rev-parse --abbrev-ref HEAD | tr / _)
+REV ?= $$(git rev-parse --short=8 HEAD)
+BRANCH ?= $$(git rev-parse --abbrev-ref HEAD | tr / _)
 EXECUTABLE = "romulusd"
 BINARY = cmd/romulusd/romulusd.go
 IMAGE = romulusd
@@ -8,20 +8,21 @@ REMOTE_REPO = quay.io/timeline_labs/romulusd
 LDFLAGS = "-s -X $(PROJECT)/romulus.SHA $(REV)"
 TEST_COMMAND = godep go test
 
-.PHONY: dep-save dep-restore test test-verbose build build-image install
+.PHONY: dep-save dep-restore test test-verbose build build-image install publish
 
 all: test build build-image
 
 help:
 	@echo "Available targets:"
 	@echo ""
-	@echo "  dep-save"
-	@echo "  dep-restore"
-	@echo "  test"
-	@echo "  test-verbose"
-	@echo "  build"
-	@echo "  build-image"
-	@echo "  install"
+	@echo "  dep-save				- Save dependencies (godep save)"
+	@echo "  dep-restore		- Restore dependencies (godep restore)"
+	@echo "  test 					- Run package tests"
+	@echo "  test-verbose 	- Run package tests with verbose output"
+	@echo "  build 					- Build binary (go build)"
+	@echo "  build-image 		- Build binary and container image"
+	@echo "  install 				- Install binary (go install)"
+	@echo "	 publish 				- Publish container image to remote repo"
 
 dep-save:
 	@echo "==> Saving dependencies to ./Godeps"

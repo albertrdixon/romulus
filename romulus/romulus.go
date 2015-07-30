@@ -10,13 +10,6 @@ var (
 	bckndSettingsAnnotation  = "backendSettings"
 	frntndSettingsAnnotation = "frontendSettings"
 
-	routeAnnotations = map[string]string{
-		"host":   "Host(`%s`)",
-		"method": "Method(`%s`)",
-		"path":   "Path(`%s`)",
-		"header": "Header(`%s`)",
-	}
-
 	stop chan struct{}
 )
 
@@ -29,7 +22,7 @@ func Version() string {
 }
 
 // Start boots up the daemon
-func Start(c *Client) error {
+func Start(c *Registrar) error {
 	stop = make(chan struct{}, 1)
 	log().Debugf("Selecting objects that match: %s", c.s.String())
 	log().Debug("Setting watch on Endpoints")
@@ -44,14 +37,14 @@ func Start(c *Client) error {
 			select {
 			case e := <-ee.ResultChan():
 				go func() {
-					if er := doEndpointsEvent(c, e); er != nil {
-						logf(F{"error": er}).Error("Error!")
+					if er := do(c, e); er != nil {
+						logf(fi{"error": er}).Error("Error!")
 					}
 				}()
 			case e := <-se.ResultChan():
 				go func() {
-					if er := doServiceEvent(c, e); er != nil {
-						logf(F{"error": er}).Error("Error!")
+					if er := do(c, e); er != nil {
+						logf(fi{"error": er}).Error("Error!")
 					}
 				}()
 			case <-stop:
@@ -68,15 +61,15 @@ func Start(c *Client) error {
 // Stop shuts down the daemon threads
 func Stop() { stop <- struct{}{} }
 
-func register(c *Client, e *api.Endpoints) error {
+func register(c *Registrar, e *api.Endpoints) error {
 	s, err := c.getService(e.Name, e.Namespace)
 	if err != nil {
-		logf(F{"msg": err, "endpoint": e.Name}).Warn("Could not get service to match endpoint")
+		logf(fi{"msg": err, "endpoint": e.Name}).Warn("Could not get service to match endpoint")
 		return nil
 	}
 
 	if !registerable(s, c.s) {
-		logf(F{"service": s.Name, "namespace": s.Namespace}).Debug("Service not registerable")
+		logf(fi{"service": s.Name, "namespace": s.Namespace}).Debug("Service not registerable")
 		return nil
 	}
 
@@ -88,7 +81,7 @@ func register(c *Client, e *api.Endpoints) error {
 		return fmt.Errorf("Service %q has no uuid", s.Name)
 	}
 
-	logf(F{"service": s.Name, "namespace": s.Namespace,
+	logf(fi{"service": s.Name, "namespace": s.Namespace,
 		"bcknd-id": eid.String(), "frntnd-id": sid.String()}).
 		Info("Registering service")
 	bnd := NewBackend(eid)
@@ -97,32 +90,32 @@ func register(c *Client, e *api.Endpoints) error {
 	if st, ok := s.Annotations[bckndSettingsAnnotation]; ok {
 		bnd.Settings = NewBackendSettings([]byte(st))
 	}
-	logf(F{"bcknd-id": bnd.ID.String(), "type": bnd.Type, "settings": bnd.Settings.String()}).Debug("Backend settings")
+	logf(fi{"bcknd-id": bnd.ID.String(), "type": bnd.Type, "settings": bnd.Settings.String()}).Debug("Backend settings")
 
 	val, err := bnd.Val()
 	if err != nil {
-		return Error{fmt.Sprintf("Could not encode backend for %q", e.Name), err}
+		return NewErr(err, "Could not encode backend for %q", e.Name)
 	}
-	if _, err := c.e.Set(bnd.Key(), val, 0); err != nil {
-		return Error{"etcd error", err}
+	if err := c.e.Add(bnd.Key(c.vk), val); err != nil {
+		return NewErr(err, "etcd error")
 	}
 
 	sm := expandEndpoints(eid, e)
-	logf(F{"servers": sm.IPs(), "bcknd-id": eid.String()}).Debug("Expanded endpoints")
+	logf(fi{"servers": sm.IPs(), "bcknd-id": eid.String()}).Debug("Expanded endpoints")
 	if err := c.pruneServers(eid, sm); err != nil {
-		return Error{fmt.Sprintf("Unable to prune servers for backend %q", e.Name), err}
+		return NewErr(err, "Unable to prune servers for backend %q", e.Name)
 	}
 
 	for _, srv := range sm {
 		val, err = srv.Val()
 		if err != nil {
-			logf(F{"service": s.Name, "namespace": s.Namespace,
+			logf(fi{"service": s.Name, "namespace": s.Namespace,
 				"server": srv.URL.String(), "error": err}).
 				Warn("Unable to encode server")
 			continue
 		}
-		if _, err := c.e.Set(srv.Key(), val, 0); err != nil {
-			return Error{"etcd error", err}
+		if err := c.e.Add(srv.Key(c.vk), val); err != nil {
+			return NewErr(err, "etcd error")
 		}
 	}
 
@@ -133,49 +126,49 @@ func register(c *Client, e *api.Endpoints) error {
 	if st, ok := s.Annotations[frntndSettingsAnnotation]; ok {
 		fnd.Settings = NewFrontendSettings([]byte(st))
 	}
-	logf(F{"frntnd-id": fnd.ID.String(), "type": fnd.Type, "route": fnd.Route, "settings": fnd.Settings.String()}).Debug("Frontend settings")
+	logf(fi{"frntnd-id": fnd.ID.String(), "type": fnd.Type, "route": fnd.Route, "settings": fnd.Settings.String()}).Debug("Frontend settings")
 
 	val, err = fnd.Val()
 	if err != nil {
-		return Error{fmt.Sprintf("Could not encode frontend for %q", s.Name), err}
+		return NewErr(err, "Could not encode frontend for %q", s.Name)
 	}
-	if _, err := c.e.Set(fnd.Key(), val, 0); err != nil {
-		return Error{"etcd error", err}
+	if err := c.e.Add(fnd.Key(c.vk), val); err != nil {
+		return NewErr(err, "etcd error")
 	}
 
 	return nil
 }
 
-func deregister(c *Client, o api.ObjectMeta, frontend bool) error {
+func deregister(c *Registrar, o api.ObjectMeta, frontend bool) error {
 	id := getUUID(o)
 	if id.String() == "" {
 		return fmt.Errorf("Unable to get uuid for %q", o.Name)
 	}
 
 	if frontend {
-		logf(F{"service": o.Name, "namespace": o.Namespace, "frntnd-id": id.String()}).Info("Deregistering frontend")
+		logf(fi{"service": o.Name, "namespace": o.Namespace, "frntnd-id": id.String()}).Info("Deregistering frontend")
 		f := Frontend{ID: id}
-		if _, err := c.e.Delete(f.DirKey(), true); err != nil {
-			return Error{"etcd error", err}
+		if err := c.e.Del(f.DirKey()); err != nil {
+			return NewErr(err, "etcd error")
 		}
-		if _, err := c.e.DeleteDir(f.DirKey()); err != nil {
-			if isKeyNotFound(err) {
-				return nil
-			}
-			return Error{"etcd error", err}
-		}
+		// if _, err := c.e.DeleteDir(f.DirKey()); err != nil {
+		// 	if isKeyNotFound(err) {
+		// 		return nil
+		// 	}
+		// 	return Error{"etcd error", err}
+		// }
 	} else {
-		logf(F{"service": o.Name, "namespace": o.Namespace, "bcknd-id": id.String()}).Info("Deregistering backend")
+		logf(fi{"service": o.Name, "namespace": o.Namespace, "bcknd-id": id.String()}).Info("Deregistering backend")
 		b := Backend{ID: id}
-		if _, err := c.e.Delete(b.DirKey(), true); err != nil {
-			return Error{"etcd error", err}
+		if err := c.e.Del(b.DirKey()); err != nil {
+			return NewErr(err, "etcd error")
 		}
-		if _, err := c.e.DeleteDir(b.DirKey()); err != nil {
-			if isKeyNotFound(err) {
-				return nil
-			}
-			return Error{"etcd error", err}
-		}
+		// if _, err := c.e.DeleteDir(b.DirKey()); err != nil {
+		// 	if isKeyNotFound(err) {
+		// 		return nil
+		// 	}
+		// 	return Error{"etcd error", err}
+		// }
 	}
 	return nil
 }
