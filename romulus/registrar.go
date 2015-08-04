@@ -18,11 +18,23 @@ import (
 // EtcdPeerList is just a slice of etcd peers
 type EtcdPeerList []string
 
-// KubeRegistrarConfig is an alias for kubernetes/pkg/client.Config
+// KubeClientConfig is an alias for kubernetes/pkg/client.Config
 type KubeClientConfig client.Config
 
 // ServiceSelector is a map of labels for selecting services
 type ServiceSelector map[string]string
+
+func (s ServiceSelector) fixNamespace() ServiceSelector {
+	ss := make(map[string]string, len(s))
+	for k := range s {
+		key := k
+		if !strings.HasPrefix(k, "romulus/") {
+			key = fmt.Sprintf("romulus/%s", key)
+		}
+		ss[key] = s[k]
+	}
+	return ServiceSelector(ss)
+}
 
 func formatVulcanNamespace(v string) string {
 	return fmt.Sprintf("/%s", strings.Trim((string)(v), "/"))
@@ -199,7 +211,7 @@ func getUUID(o api.ObjectMeta) uuid.UUID {
 }
 
 func registerable(s *api.Service, sl ServiceSelector) bool {
-	for k, v := range sl {
+	for k, v := range sl.fixNamespace() {
 		if sv, ok := s.Labels[k]; !ok || sv != v {
 			if sv, ok := s.Annotations[k]; !ok || sv != v {
 				return false

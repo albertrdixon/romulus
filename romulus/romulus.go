@@ -151,24 +151,12 @@ func deregister(c *Registrar, o api.ObjectMeta, frontend bool) error {
 		if err := c.e.Del(f.DirKey()); err != nil {
 			return NewErr(err, "etcd error")
 		}
-		// if _, err := c.e.DeleteDir(f.DirKey()); err != nil {
-		// 	if isKeyNotFound(err) {
-		// 		return nil
-		// 	}
-		// 	return Error{"etcd error", err}
-		// }
 	} else {
 		logf(fi{"service": o.Name, "namespace": o.Namespace, "bcknd-id": id.String()}).Info("Deregistering backend")
 		b := Backend{ID: id}
 		if err := c.e.Del(b.DirKey()); err != nil {
 			return NewErr(err, "etcd error")
 		}
-		// if _, err := c.e.DeleteDir(b.DirKey()); err != nil {
-		// 	if isKeyNotFound(err) {
-		// 		return nil
-		// 	}
-		// 	return Error{"etcd error", err}
-		// }
 	}
 	return nil
 }
