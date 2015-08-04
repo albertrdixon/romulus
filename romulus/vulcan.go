@@ -138,10 +138,10 @@ func (f FrontendSettings) Val() (string, error) { return "", nil }
 func (b BackendSettings) Val() (string, error)  { return "", nil }
 
 // DirKey returns the etcd directory key for this Backend
-func (b Backend) DirKey() string { return fmt.Sprintf(bckndDirFmt, b.ID.String()) }
+func (b Backend) DirKey(v string) string { return fmt.Sprintf(bckndDirFmt, v, b.ID.String()) }
 
 // DirKey returns the etcd directory key for this Frontend
-func (f Frontend) DirKey() string { return fmt.Sprintf(frntndDirFmt, f.ID.String()) }
+func (f Frontend) DirKey(v string) string { return fmt.Sprintf(frntndDirFmt, v, f.ID.String()) }
 
 func (f *FrontendSettings) String() string {
 	s, e := encode(f)

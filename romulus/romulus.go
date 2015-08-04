@@ -148,13 +148,13 @@ func deregister(c *Registrar, o api.ObjectMeta, frontend bool) error {
 	if frontend {
 		logf(fi{"service": o.Name, "namespace": o.Namespace, "frntnd-id": id.String()}).Info("Deregistering frontend")
 		f := Frontend{ID: id}
-		if err := c.e.Del(f.DirKey()); err != nil {
+		if err := c.e.Del(f.DirKey(c.vk)); err != nil {
 			return NewErr(err, "etcd error")
 		}
 	} else {
 		logf(fi{"service": o.Name, "namespace": o.Namespace, "bcknd-id": id.String()}).Info("Deregistering backend")
 		b := Backend{ID: id}
-		if err := c.e.Del(b.DirKey()); err != nil {
+		if err := c.e.Del(b.DirKey(c.vk)); err != nil {
 			return NewErr(err, "etcd error")
 		}
 	}
