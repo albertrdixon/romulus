@@ -36,17 +36,18 @@ func (s ServiceSelector) fixNamespace() ServiceSelector {
 	return ServiceSelector(ss)
 }
 
-func formatVulcanNamespace(v string) string {
-	return fmt.Sprintf("/%s", strings.Trim((string)(v), "/"))
+func formatEtcdNamespace(v string) string {
+	return fmt.Sprintf("/%s", strings.Trim(v, "/"))
 }
 
 // Config is used to configure the Registrar
 type Config struct {
-	PeerList            EtcdPeerList
-	KubeConfig          KubeClientConfig
-	APIVersion          string
-	Selector            ServiceSelector
-	VulcanEtcdNamespace string
+	PeerList             EtcdPeerList
+	KubeConfig           KubeClientConfig
+	APIVersion           string
+	Selector             ServiceSelector
+	VulcanEtcdNamespace  string
+	RomulusEtcdNamespace string
 }
 
 func (c *Config) kc() client.Config { return (client.Config)(c.KubeConfig) }
@@ -65,6 +66,7 @@ type Registrar struct {
 	k  *client.Client
 	e  EtcdClient
 	vk string
+	rk string
 	v  string
 	s  ServiceSelector
 }
@@ -81,11 +83,21 @@ func NewRegistrar(c *Config) (*Registrar, error) {
 		k:  cl,
 		v:  c.APIVersion,
 		s:  c.Selector,
-		vk: formatVulcanNamespace(c.VulcanEtcdNamespace),
+		vk: formatEtcdNamespace(c.VulcanEtcdNamespace),
+		rk: formatEtcdNamespace(c.RomulusEtcdNamespace),
 	}, nil
 }
 
-func (c *Registrar) endpointsEventChannel() (watch.Interface, error) {
+func (c *Registrar) initEndpoints() (watch.Interface, error) {
+	kf := "%s/backends"
+	ids, err := c.e.Keys(fmt.Sprintf(kf, c.rk))
+	if err != nil {
+		return nil, NewErr(err, "etcd error")
+	}
+	for _, id := range ids {
+		c.k.Endpoints(api.NamespaceAll)
+	}
+
 	return c.k.Endpoints(api.NamespaceAll).Watch(labels.Everything(), fields.Everything(), "")
 }
 
