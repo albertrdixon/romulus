@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"strings"
 	"time"
-
-	"code.google.com/p/go-uuid/uuid"
 )
 
 var (
@@ -34,9 +32,11 @@ type VulcanObject interface {
 	Val() (string, error)
 }
 
+type BackendList map[int]*Backend
+
 // Backend is a vulcand backend
 type Backend struct {
-	ID       uuid.UUID `json:"-"`
+	ID       string `json:"-"`
 	Type     string
 	Settings *BackendSettings `json:",omitempty"`
 }
@@ -65,15 +65,15 @@ type ServerMap map[string]Server
 
 // Server is a vulcand server
 type Server struct {
-	URL     *URL      `json:"URL"`
-	Backend uuid.UUID `json:"-"`
+	URL     *URL   `json:"URL"`
+	Backend string `json:"-"`
 }
 
 // Frontend is a vulcand frontend
 type Frontend struct {
-	ID        uuid.UUID `json:"-"`
+	ID        string `json:"-"`
 	Type      string
-	BackendID uuid.UUID `json:"BackendId"`
+	BackendID string `json:"BackendId"`
 	Route     string
 	Settings  *FrontendSettings `json:",omitempty"`
 }
@@ -93,14 +93,14 @@ type FrontendSettingsLimits struct {
 }
 
 // NewBackend returns a ref to a Backend object
-func NewBackend(id uuid.UUID) *Backend {
+func NewBackend(id string) *Backend {
 	return &Backend{
 		ID: id,
 	}
 }
 
 // NewFrontend returns a ref to a Frontend object
-func NewFrontend(id, bid uuid.UUID) *Frontend {
+func NewFrontend(id, bid string) *Frontend {
 	return &Frontend{
 		ID:        id,
 		BackendID: bid,
@@ -123,11 +123,11 @@ func NewFrontendSettings(p []byte) *FrontendSettings {
 	return &f
 }
 
-func (b Backend) Key(v string) string { return fmt.Sprintf(bckndFmt, v, b.ID.String()) }
+func (b Backend) Key(v string) string { return fmt.Sprintf(bckndFmt, v, b.ID) }
 func (s Server) Key(v string) string {
-	return fmt.Sprintf(srvrFmt, v, s.Backend.String(), s.URL.GetHost())
+	return fmt.Sprintf(srvrFmt, v, s.Backend, s.URL.GetHost())
 }
-func (f Frontend) Key(v string) string         { return fmt.Sprintf(frntndFmt, v, f.ID.String()) }
+func (f Frontend) Key(v string) string         { return fmt.Sprintf(frntndFmt, v, f.ID) }
 func (f FrontendSettings) Key(v string) string { return "" }
 func (b BackendSettings) Key(v string) string  { return "" }
 
@@ -138,10 +138,10 @@ func (f FrontendSettings) Val() (string, error) { return "", nil }
 func (b BackendSettings) Val() (string, error)  { return "", nil }
 
 // DirKey returns the etcd directory key for this Backend
-func (b Backend) DirKey(v string) string { return fmt.Sprintf(bckndDirFmt, v, b.ID.String()) }
+func (b Backend) DirKey(v string) string { return fmt.Sprintf(bckndDirFmt, v, b.ID) }
 
 // DirKey returns the etcd directory key for this Frontend
-func (f Frontend) DirKey(v string) string { return fmt.Sprintf(frntndDirFmt, v, f.ID.String()) }
+func (f Frontend) DirKey(v string) string { return fmt.Sprintf(frntndDirFmt, v, f.ID) }
 
 func (f *FrontendSettings) String() string {
 	s, e := encode(f)

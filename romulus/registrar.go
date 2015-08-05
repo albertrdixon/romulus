@@ -66,7 +66,6 @@ type Registrar struct {
 	k  *client.Client
 	e  EtcdClient
 	vk string
-	rk string
 	v  string
 	s  ServiceSelector
 }
@@ -84,24 +83,58 @@ func NewRegistrar(c *Config) (*Registrar, error) {
 		v:  c.APIVersion,
 		s:  c.Selector,
 		vk: formatEtcdNamespace(c.VulcanEtcdNamespace),
-		rk: formatEtcdNamespace(c.RomulusEtcdNamespace),
 	}, nil
 }
 
 func (c *Registrar) initEndpoints() (watch.Interface, error) {
 	kf := "%s/backends"
-	ids, err := c.e.Keys(fmt.Sprintf(kf, c.rk))
+	ids, err := c.e.Keys(fmt.Sprintf(kf, c.vk))
 	if err != nil {
 		return nil, NewErr(err, "etcd error")
 	}
+
+	log().Debugf("Found current backends: %v", ids)
 	for _, id := range ids {
-		c.k.Endpoints(api.NamespaceAll)
+		name := strings.Split(id, ".")
+		if len(name) < 2 {
+			logf(fi{"bcknd-id": id}).Error("Invalid backend ID")
+			continue
+		}
+		if _, err := c.k.Endpoints(api.NamespaceAll).Get(name[0]); err != nil {
+			logf(fi{"bcknd-id": id}).Warnf("Did not find backend on API server: %v", err)
+			b := Backend{ID: id}
+			if err := c.e.Del(b.DirKey(c.vk)); err != nil {
+				logf(fi{"bcknd-id": id}).Warn("etcd error")
+			}
+		}
 	}
 
 	return c.k.Endpoints(api.NamespaceAll).Watch(labels.Everything(), fields.Everything(), "")
 }
 
-func (c *Registrar) serviceEventsChannel() (watch.Interface, error) {
+func (c *Registrar) initServices() (watch.Interface, error) {
+	kf := "%s/frontends"
+	ids, err := c.e.Keys(fmt.Sprintf(kf, c.vk))
+	if err != nil {
+		return nil, NewErr(err, "etcd error")
+	}
+
+	log().Debugf("Found current frontends: %v", ids)
+	for _, id := range ids {
+		name := strings.Split(id, ".")
+		if len(name) < 2 {
+			logf(fi{"frntnd-id": id}).Error("Invalid frontend ID")
+			continue
+		}
+		if _, err := c.k.Services(api.NamespaceAll).Get(name[0]); err != nil {
+			logf(fi{"frntnd-id": id}).Warnf("Did not find frontend on API server: %v", err)
+			b := Backend{ID: id}
+			if err := c.e.Del(b.DirKey(c.vk)); err != nil {
+				logf(fi{"frntnd-id": id}).Warn("etcd error")
+			}
+		}
+	}
+
 	return c.k.Services(api.NamespaceAll).Watch(labels.Everything(), fields.Everything(), "")
 }
 
@@ -121,8 +154,8 @@ func (c *Registrar) getEndpoint(name, ns string) (*api.Endpoints, error) {
 	return en, nil
 }
 
-func (c *Registrar) pruneServers(bid uuid.UUID, sm ServerMap) error {
-	k := fmt.Sprintf(srvrDirFmt, bid.String())
+func (c *Registrar) pruneServers(bid string, sm ServerMap) error {
+	k := fmt.Sprintf(srvrDirFmt, bid)
 	ips, e := c.e.Keys(k)
 	if e != nil {
 		if isKeyNotFound(e) {
@@ -131,7 +164,7 @@ func (c *Registrar) pruneServers(bid uuid.UUID, sm ServerMap) error {
 		return NewErr(e, "etcd error")
 	}
 
-	logf(fi{"servers": ips, "bcknd-id": bid.String()}).Debug("Gathered servers from etcd")
+	logf(fi{"servers": ips, "bcknd-id": bid}).Debug("Gathered servers from etcd")
 	for _, ip := range ips {
 		if _, ok := sm[ip]; !ok {
 			log().Debugf("Removing %s from etcd", ip)
@@ -144,26 +177,120 @@ func (c *Registrar) pruneServers(bid uuid.UUID, sm ServerMap) error {
 	return nil
 }
 
-func (reg *Registrar) handleDelete(r runtime.Object) error {
+func (reg *Registrar) delete(r runtime.Object) error {
 	switch o := r.(type) {
 	case *api.Endpoints:
-		return deregister(reg, o.ObjectMeta, false)
+		return deregisterEndpoints(reg, o)
 	case *api.Service:
-		return deregister(reg, o.ObjectMeta, true)
+		return deregisterService(reg, o)
 	default:
 		return NewErr(nil, "Unsupported api object: %v", r)
 	}
 }
 
-func (reg *Registrar) handleUpdate(r runtime.Object) error {
+func (reg *Registrar) update(r runtime.Object, s string) error {
 	switch o := r.(type) {
 	case *api.Service:
+		if s == "mod" {
+			return registerService(reg, o)
+		}
 		return nil
 	case *api.Endpoints:
-		return register(reg, o)
+		return registerEndpoint(reg, o)
 	default:
 		return NewErr(nil, "Unsupported api object: %v", r)
 	}
+}
+
+func (r *Registrar) registerBackends(s *api.Service, e *api.Endpoints) (BackendList, error) {
+	bnds := BackendList{}
+	for _, es := range e.Subsets {
+		for _, port := range es.Ports {
+			if port.Protocol != api.ProtocolTCP {
+				logf(fi{"service": e.Name, "namespace": e.Namespace}).Warnf("Unsupported protocol: %s", port.Protocol)
+				continue
+			}
+
+			sm := ServerMap{}
+			bid := getVulcanID(e.Name, e.Namespace, port.Name)
+			bnd := NewBackend(bid)
+			bnd.Type = "http"
+
+			if st, ok := s.Annotations[bckndSettingsAnnotation]; ok {
+				bnd.Settings = NewBackendSettings([]byte(st))
+			}
+			logf(fi{"bcknd-id": bnd.ID, "type": bnd.Type, "settings": bnd.Settings.String()}).Debug("Backend settings")
+
+			val, err := bnd.Val()
+			if err != nil {
+				return bnds, NewErr(err, "Could not encode backend for %q", e.Name)
+			}
+			if err := r.e.Add(bnd.Key(r.vk), val); err != nil {
+				return bnds, NewErr(err, "etcd error")
+			}
+			bnds[port.Port] = bnd
+
+			for _, ip := range es.Addresses {
+				ur := fmt.Sprintf("http://%s:%d", ip.IP, port.Port)
+				u, err := url.Parse(ur)
+				if err != nil {
+					// logf(fi{"bcknd-id": bid.String()}).Warnf("Bad URL: %s", ur)
+					continue
+				}
+				uu := (*URL)(u)
+				sm[uu.GetHost()] = Server{
+					Backend: bid,
+					URL:     uu,
+				}
+			}
+			if err := r.pruneServers(bid, sm); err != nil {
+				return bnds, NewErr(err, "Unable to prune servers for backend %q", bid)
+			}
+
+			for _, srv := range sm {
+				val, err := srv.Val()
+				if err != nil {
+					logf(fi{"service": e.Name, "namespace": e.Namespace,
+						"server": srv.URL.String(), "error": err}).
+						Warn("Unable to encode server")
+					continue
+				}
+				if err := r.e.Add(srv.Key(r.vk), val); err != nil {
+					return bnds, NewErr(err, "etcd error")
+				}
+			}
+		}
+	}
+	return bnds, nil
+}
+
+func (r *Registrar) registerFrontends(s *api.Service, bnds BackendList) error {
+	for _, port := range s.Spec.Ports {
+		bnd, ok := bnds[port.Port]
+		if !ok {
+			logf(fi{"service": s.Name, "namespace": s.Namespace}).Warnf("No backend for service port %d", port.Port)
+			continue
+		}
+
+		fid := getVulcanID(s.Name, s.Namespace, port.Name)
+		fnd := NewFrontend(fid, bnd.ID)
+		fnd.Type = "http"
+		fnd.Route = buildRoute(s.Annotations)
+		if st, ok := s.Annotations[frntndSettingsAnnotation]; ok {
+			fnd.Settings = NewFrontendSettings([]byte(st))
+		}
+		logf(fi{"frntnd-id": fnd.ID, "type": fnd.Type, "route": fnd.Route,
+			"settings": fnd.Settings.String()}).Debug("Frontend settings")
+
+		val, err := fnd.Val()
+		if err != nil {
+			return NewErr(err, "Could not encode frontend for %q", s.Name)
+		}
+		if err := r.e.Add(fnd.Key(r.vk), val); err != nil {
+			return NewErr(err, "etcd error")
+		}
+	}
+	return nil
 }
 
 func do(r *Registrar, e watch.Event) error {
@@ -179,43 +306,55 @@ func do(r *Registrar, e watch.Event) error {
 		}
 		return Error{"Unknown kubernetes api error", nil}
 	case watch.Deleted:
-		return r.handleDelete(e.Object)
-	case watch.Added, watch.Modified:
-		return r.handleUpdate(e.Object)
+		return r.delete(e.Object)
+	case watch.Added:
+		return r.update(e.Object, "add")
+	case watch.Modified:
+		return r.update(e.Object, "mod")
 	}
 }
 
-func expandEndpoints(bid uuid.UUID, e *api.Endpoints) ServerMap {
-	sm := ServerMap{}
-	for _, es := range e.Subsets {
-		for _, port := range es.Ports {
-			if port.Protocol != api.ProtocolTCP {
-				logf(fi{"bcknd-id": bid.String()}).Warnf("Unsupported protocol: %s", port.Protocol)
-				continue
-			}
+// func expandEndpoints(bid uuid.UUID, e *api.Endpoints) ServerMap {
+// 	sm := ServerMap{}
+// 	for _, es := range e.Subsets {
+// 		for _, port := range es.Ports {
+// 			if port.Protocol != api.ProtocolTCP {
+// 				logf(fi{"bcknd-id": bid.String()}).Warnf("Unsupported protocol: %s", port.Protocol)
+// 				continue
+// 			}
 
-			// TODO: Do we want to force ports to have a name?
-			// if port.Name != "vulcan" {
-			// 	log().Debugf("Not registering port %d", port.Port)
-			// 	continue
-			// }
+// 			// TODO: Do we want to force ports to have a name?
+// 			// if port.Name != "vulcan" {
+// 			// 	log().Debugf("Not registering port %d", port.Port)
+// 			// 	continue
+// 			// }
 
-			for _, ip := range es.Addresses {
-				ur := fmt.Sprintf("http://%s:%d", ip.IP, port.Port)
-				u, err := url.Parse(ur)
-				if err != nil {
-					logf(fi{"bcknd-id": bid.String()}).Warnf("Bad URL: %s", ur)
-					continue
-				}
-				uu := (*URL)(u)
-				sm[uu.GetHost()] = Server{
-					Backend: bid,
-					URL:     uu,
-				}
-			}
-		}
+// 			for _, ip := range es.Addresses {
+// 				ur := fmt.Sprintf("http://%s:%d", ip.IP, port.Port)
+// 				u, err := url.Parse(ur)
+// 				if err != nil {
+// 					logf(fi{"bcknd-id": bid.String()}).Warnf("Bad URL: %s", ur)
+// 					continue
+// 				}
+// 				uu := (*URL)(u)
+// 				sm[uu.GetHost()] = Server{
+// 					Backend: bid,
+// 					URL:     uu,
+// 				}
+// 			}
+// 		}
+// 	}
+// 	return sm
+// }
+
+func getVulcanID(name, ns, port string) string {
+	var id []string
+	if port != "" {
+		id = []string{name, port, ns}
+	} else {
+		id = []string{name, ns}
 	}
-	return sm
+	return strings.Join(id, ".")
 }
 
 func getUUID(o api.ObjectMeta) uuid.UUID {

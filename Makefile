@@ -16,14 +16,14 @@ container: dep-restore build-image publish
 help:
 	@echo "Available targets:"
 	@echo ""
-	@echo "  dep-save				- Save dependencies (godep save)"
-	@echo "  dep-restore		- Restore dependencies (godep restore)"
-	@echo "  test 					- Run package tests"
-	@echo "  test-verbose 	- Run package tests with verbose output"
-	@echo "  build 					- Build binary (go build)"
-	@echo "  build-image 		- Build binary and container image"
-	@echo "  install 				- Install binary (go install)"
-	@echo "	 publish 				- Publish container image to remote repo"
+	@echo "  dep-save       : Save dependencies (godep save)"
+	@echo "  dep-restore    : Restore dependencies (godep restore)"
+	@echo "  test           : Run package tests"
+	@echo "  test-verbose   : Run package tests with verbose output"
+	@echo "  build          : Build binary (go build)"
+	@echo "  build-image    : Build binary and container image"
+	@echo "  install        : Install binary (go install)"
+	@echo "  publish        : Publish container image to remote repo"
 
 dep-save:
 	@echo "==> Saving dependencies to ./Godeps"
