@@ -98,6 +98,10 @@
 			"Rev": "b965b613227fddccbfffe13eae360ed3fa822f8d"
 		},
 		{
+			"ImportPath": "github.com/cenkalti/backoff",
+			"Rev": "6c45d6bc1e78d94431dff8fc28a99f20bafa355a"
+		},
+		{
 			"ImportPath": "github.com/coreos/etcd/error",
 			"Comment": "v2.1.1-41-g5e3dc31",
 			"Rev": "5e3dc31e6fca0f0a94d2fbba7efd2d54434cd54d"

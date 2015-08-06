@@ -221,13 +221,14 @@ func (r *Registrar) pruneBackends() error {
 
 	log().Debugf("Found current backends: %v", ids)
 	for _, id := range ids {
-		bits := strings.Split(id, ".")
-		if len(bits) < 2 {
-			logf(fi{"id": id}).Error("Invalid backend ID")
-			continue
-		}
-		name, ns := bits[0], bits[len(bits)-1]
-		if _, err := r.getEndpoint(name, ns); err != nil && kubeIsNotFound(err) {
+		name, ns, e := parseVulcanID(id)
+		if e != nil {
+			logf(fi{"id": id}).Error("Invalid ID")
+			key := fmt.Sprintf(bckndDirFmt, r.vk, id)
+			if e := r.e.Del(key); e != nil {
+				logf(fi{"backend": id}).Warn("etcd error")
+			}
+		} else if _, err := r.getEndpoint(name, ns); err != nil && kubeIsNotFound(err) {
 			logf(fi{"id": id, "service": name, "namespace": ns}).Warnf("Did not find backend on API server: %v", err)
 			b := NewBackend(id)
 			if err := r.e.Del(b.DirKey(r.vk)); err != nil {
@@ -249,13 +250,14 @@ func (r *Registrar) pruneFrontends() error {
 
 	log().Debugf("Found current frontends: %v", ids)
 	for _, id := range ids {
-		bits := strings.Split(id, ".")
-		if len(bits) < 2 {
-			logf(fi{"id": id}).Error("Invalid frontend ID")
-			continue
-		}
-		name, ns := bits[0], bits[len(bits)-1]
-		if _, err := r.getService(name, ns); err != nil && kubeIsNotFound(err) {
+		name, ns, e := parseVulcanID(id)
+		if e != nil {
+			logf(fi{"id": id}).Error("Invalid ID")
+			key := fmt.Sprintf(frntndDirFmt, r.vk, id)
+			if e := r.e.Del(key); e != nil {
+				logf(fi{"frontend": id}).Warn("etcd error")
+			}
+		} else if _, err := r.getService(name, ns); err != nil && kubeIsNotFound(err) {
 			logf(fi{"id": id, "service": name, "namespace": ns}).Warnf("Did not find frontend on API server: %v", err)
 			f := NewFrontend(id, "")
 			if err := r.e.Del(f.DirKey(r.vk)); err != nil {
@@ -316,7 +318,7 @@ func (r *Registrar) registerBackends(s *api.Service, e *api.Endpoints) (BackendL
 			if err != nil {
 				return bnds, NewErr(err, "Could not encode backend for %q", e.Name)
 			}
-			logf(fi{"id": bnd.ID}).Info("Upserting backend")
+			logf(fi{"id": bnd.ID}).Debug("Upserting backend")
 			if err := r.e.Add(bnd.Key(r.vk), val); err != nil {
 				return bnds, NewErr(err, "etcd error")
 			}
@@ -347,7 +349,7 @@ func (r *Registrar) registerBackends(s *api.Service, e *api.Endpoints) (BackendL
 						Warn("Unable to encode server")
 					continue
 				}
-				logf(fi{"URL": srv.URL.String(), "backend": bnd.ID}).Info("Upserting server")
+				logf(fi{"URL": srv.URL.String(), "backend": bnd.ID}).Debug("Upserting server")
 				if err := r.e.Add(srv.Key(r.vk), val); err != nil {
 					return bnds, NewErr(err, "etcd error")
 				}
@@ -381,7 +383,7 @@ func (r *Registrar) registerFrontends(s *api.Service, bnds BackendList) error {
 		if err != nil {
 			return NewErr(err, "Could not encode frontend for %q", s.Name)
 		}
-		logf(fi{"id": fnd.ID, "backend": bnd.ID}).Info("Upserting frontend")
+		logf(fi{"id": fnd.ID, "backend": bnd.ID}).Debug("Upserting frontend")
 		if err := r.e.Add(fnd.Key(r.vk), val); err != nil {
 			return NewErr(err, "etcd error")
 		}
@@ -398,7 +400,7 @@ func do(r *Registrar, e watch.Event) error {
 	case watch.Error:
 		if a, ok := e.Object.(*api.Status); ok {
 			e := fmt.Errorf("[%d] %v", a.Code, a.Reason)
-			return Error{fmt.Sprintf("Kubernetes API failure: %s", a.Message), e}
+			return NewErr(e, "Kubernetes API failure: %s", a.Message)
 		}
 		return Error{"Unknown kubernetes api error", nil}
 	case watch.Deleted:
@@ -418,6 +420,14 @@ func getVulcanID(name, ns, port string) string {
 		id = []string{name, ns}
 	}
 	return strings.Join(id, ".")
+}
+
+func parseVulcanID(id string) (string, string, error) {
+	bits := strings.Split(id, ".")
+	if len(bits) < 2 {
+		return "", "", NewErr(nil, "Invalid vulcan ID %q", id)
+	}
+	return bits[0], bits[len(bits)-1], nil
 }
 
 func registerable(s *api.Service, sl ServiceSelector) bool {
