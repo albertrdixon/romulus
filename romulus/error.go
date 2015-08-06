@@ -26,6 +26,10 @@ func NewErr(e error, m string, s ...interface{}) error {
 	}
 }
 
+func NewKubeNotFound(k, n string) error {
+	return ke.NewNotFound(k, n)
+}
+
 func kubeIsNotFound(e error) bool {
 	return ke.IsNotFound(e) || ke.IsUnexpectedObjectError(e)
 }

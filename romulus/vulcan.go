@@ -16,11 +16,12 @@ var (
 	srvrFmt      = "%s/backends/%s/servers/%s"
 	frntndFmt    = "%s/frontends/%s/frontend"
 
-	routeAnnotations = map[string]string{
-		"romulus/host":   "Host(`%s`)",
-		"romulus/method": "Method(`%s`)",
-		"romulus/path":   "Path(`%s`)",
-		"romulus/header": "Header(`%s`)",
+	annotationFmt = "romulus%s/%s"
+	rteConv       = map[string]string{
+		"host":   "Host(`%s`)",
+		"method": "Method(`%s`)",
+		"path":   "Path(`%s`)",
+		"header": "Header(`%s`)",
 	}
 )
 
@@ -174,11 +175,21 @@ func encode(v VulcanObject) (string, error) {
 	return strings.TrimSpace(HTMLUnescape(b.String())), e
 }
 
-func buildRoute(a map[string]string) string {
+func buildRoute(ns string, a map[string]string) string {
 	rt := []string{}
-	for k, f := range routeAnnotations {
-		if v, ok := a[k]; ok {
-			if k == "romulus/method" {
+	if ns != "" {
+		ns = fmt.Sprintf(".%s", ns)
+	}
+	for k, f := range rteConv {
+		nsk := fmt.Sprintf(annotationFmt, ns, k)
+		pk := fmt.Sprintf(annotationFmt, "", k)
+		if v, ok := a[nsk]; ok {
+			if k == "method" {
+				v = strings.ToUpper(v)
+			}
+			rt = append(rt, fmt.Sprintf(f, v))
+		} else if v, ok := a[pk]; ok {
+			if k == "method" {
 				v = strings.ToUpper(v)
 			}
 			rt = append(rt, fmt.Sprintf(f, v))

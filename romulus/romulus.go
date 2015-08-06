@@ -67,8 +67,11 @@ func Stop() { stop <- struct{}{} }
 func registerService(r *Registrar, s *api.Service) error {
 	e, err := r.getEndpoint(s.Name, s.Namespace)
 	if err != nil {
-		logf(fi{"msg": err, "service": s.Name}).Warn("Service has no endpoint")
-		return nil
+		if kubeIsNotFound(err) {
+			logf(fi{"msg": err, "service": s.Name, "namespace": s.Namespace}).Warn("Service has no associated endpoint")
+			return nil
+		}
+		return NewErr(err, "kubernetes error")
 	}
 
 	return register(r, s, e)
@@ -77,8 +80,11 @@ func registerService(r *Registrar, s *api.Service) error {
 func registerEndpoint(r *Registrar, e *api.Endpoints) error {
 	s, err := r.getService(e.Name, e.Namespace)
 	if err != nil {
-		logf(fi{"msg": err, "endpoint": e.Name}).Warn("Could not get service to match endpoint")
-		return nil
+		if kubeIsNotFound(err) {
+			logf(fi{"msg": err, "endpoint": e.Name, "namespace": e.Namespace}).Warn("Could not get service to match endpoint")
+			return nil
+		}
+		return NewErr(err, "kubernetes error")
 	}
 
 	return register(r, s, e)
@@ -108,6 +114,10 @@ func deregisterService(r *Registrar, s *api.Service) error {
 		logf(fi{"service": s.Name, "namespace": s.Namespace, "id": fid}).Info("Deregistering frontend")
 		f := NewFrontend(fid, "")
 		if err := r.e.Del(f.DirKey(r.vk)); err != nil {
+			if isKeyNotFound(err) {
+				logf(fi{"service": s.Name, "namespace": s.Namespace, "id": fid}).Warn("Frontend key not found in etcd")
+				continue
+			}
 			return NewErr(err, "etcd error")
 		}
 	}
@@ -121,6 +131,10 @@ func deregisterEndpoints(r *Registrar, e *api.Endpoints) error {
 			logf(fi{"service": e.Name, "namespace": e.Namespace, "id": bid}).Info("Deregistering backend")
 			b := NewBackend(bid)
 			if err := r.e.Del(b.DirKey(r.vk)); err != nil {
+				if isKeyNotFound(err) {
+					logf(fi{"service": e.Name, "namespace": e.Namespace, "id": bid}).Warn("Backend key not found in etcd")
+					continue
+				}
 				return NewErr(err, "etcd error")
 			}
 		}
