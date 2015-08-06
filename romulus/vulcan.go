@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"strings"
 	"time"
-
-	"code.google.com/p/go-uuid/uuid"
 )
 
 var (
@@ -18,11 +16,12 @@ var (
 	srvrFmt      = "%s/backends/%s/servers/%s"
 	frntndFmt    = "%s/frontends/%s/frontend"
 
-	routeAnnotations = map[string]string{
-		"romulus/host":   "Host(`%s`)",
-		"romulus/method": "Method(`%s`)",
-		"romulus/path":   "Path(`%s`)",
-		"romulus/header": "Header(`%s`)",
+	annotationFmt = "romulus%s/%s"
+	rteConv       = map[string]string{
+		"host":   "Host(`%s`)",
+		"method": "Method(`%s`)",
+		"path":   "Path(`%s`)",
+		"header": "Header(`%s`)",
 	}
 )
 
@@ -34,9 +33,11 @@ type VulcanObject interface {
 	Val() (string, error)
 }
 
+type BackendList map[int]*Backend
+
 // Backend is a vulcand backend
 type Backend struct {
-	ID       uuid.UUID `json:"-"`
+	ID       string `json:"-"`
 	Type     string
 	Settings *BackendSettings `json:",omitempty"`
 }
@@ -65,15 +66,15 @@ type ServerMap map[string]Server
 
 // Server is a vulcand server
 type Server struct {
-	URL     *URL      `json:"URL"`
-	Backend uuid.UUID `json:"-"`
+	URL     *URL   `json:"URL"`
+	Backend string `json:"-"`
 }
 
 // Frontend is a vulcand frontend
 type Frontend struct {
-	ID        uuid.UUID `json:"-"`
+	ID        string `json:"-"`
 	Type      string
-	BackendID uuid.UUID `json:"BackendId"`
+	BackendID string `json:"BackendId"`
 	Route     string
 	Settings  *FrontendSettings `json:",omitempty"`
 }
@@ -93,14 +94,14 @@ type FrontendSettingsLimits struct {
 }
 
 // NewBackend returns a ref to a Backend object
-func NewBackend(id uuid.UUID) *Backend {
+func NewBackend(id string) *Backend {
 	return &Backend{
 		ID: id,
 	}
 }
 
 // NewFrontend returns a ref to a Frontend object
-func NewFrontend(id, bid uuid.UUID) *Frontend {
+func NewFrontend(id, bid string) *Frontend {
 	return &Frontend{
 		ID:        id,
 		BackendID: bid,
@@ -123,11 +124,11 @@ func NewFrontendSettings(p []byte) *FrontendSettings {
 	return &f
 }
 
-func (b Backend) Key(v string) string { return fmt.Sprintf(bckndFmt, v, b.ID.String()) }
+func (b Backend) Key(v string) string { return fmt.Sprintf(bckndFmt, v, b.ID) }
 func (s Server) Key(v string) string {
-	return fmt.Sprintf(srvrFmt, v, s.Backend.String(), s.URL.GetHost())
+	return fmt.Sprintf(srvrFmt, v, s.Backend, s.URL.GetHost())
 }
-func (f Frontend) Key(v string) string         { return fmt.Sprintf(frntndFmt, v, f.ID.String()) }
+func (f Frontend) Key(v string) string         { return fmt.Sprintf(frntndFmt, v, f.ID) }
 func (f FrontendSettings) Key(v string) string { return "" }
 func (b BackendSettings) Key(v string) string  { return "" }
 
@@ -138,10 +139,10 @@ func (f FrontendSettings) Val() (string, error) { return "", nil }
 func (b BackendSettings) Val() (string, error)  { return "", nil }
 
 // DirKey returns the etcd directory key for this Backend
-func (b Backend) DirKey(v string) string { return fmt.Sprintf(bckndDirFmt, v, b.ID.String()) }
+func (b Backend) DirKey(v string) string { return fmt.Sprintf(bckndDirFmt, v, b.ID) }
 
 // DirKey returns the etcd directory key for this Frontend
-func (f Frontend) DirKey(v string) string { return fmt.Sprintf(frntndDirFmt, v, f.ID.String()) }
+func (f Frontend) DirKey(v string) string { return fmt.Sprintf(frntndDirFmt, v, f.ID) }
 
 func (f *FrontendSettings) String() string {
 	s, e := encode(f)
@@ -174,11 +175,21 @@ func encode(v VulcanObject) (string, error) {
 	return strings.TrimSpace(HTMLUnescape(b.String())), e
 }
 
-func buildRoute(a map[string]string) string {
+func buildRoute(ns string, a map[string]string) string {
 	rt := []string{}
-	for k, f := range routeAnnotations {
-		if v, ok := a[k]; ok {
-			if k == "romulus/method" {
+	if ns != "" {
+		ns = fmt.Sprintf(".%s", ns)
+	}
+	for k, f := range rteConv {
+		nsk := fmt.Sprintf(annotationFmt, ns, k)
+		pk := fmt.Sprintf(annotationFmt, "", k)
+		if v, ok := a[nsk]; ok {
+			if k == "method" {
+				v = strings.ToUpper(v)
+			}
+			rt = append(rt, fmt.Sprintf(f, v))
+		} else if v, ok := a[pk]; ok {
+			if k == "method" {
 				v = strings.ToUpper(v)
 			}
 			rt = append(rt, fmt.Sprintf(f, v))

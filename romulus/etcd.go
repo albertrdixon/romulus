@@ -3,10 +3,14 @@ package romulus
 import (
 	"path/filepath"
 	"strings"
+	"time"
 
+	"github.com/cenkalti/backoff"
 	etcdErr "github.com/coreos/etcd/error"
 	"github.com/coreos/go-etcd/etcd"
 )
+
+var EtcdRetryLimit = 10 * time.Second
 
 type EtcdClient interface {
 	Add(key, val string) error
@@ -29,19 +33,44 @@ func NewFakeEtcdClient() EtcdClient {
 }
 
 func (r *realEtcdClient) Add(k, v string) error {
-	_, e := r.Set(k, v, 0)
-	return e
+	fn := func() error {
+		_, e := r.Set(k, v, 0)
+		return e
+	}
+
+	b := backoff.NewExponentialBackOff()
+	b.MaxElapsedTime = EtcdRetryLimit
+	return backoff.Retry(fn, b)
 }
 
 func (r *realEtcdClient) Del(k string) error {
-	_, e := r.Delete(k, true)
-	return e
+	fn := func() error {
+		_, e := r.Delete(k, true)
+		if isKeyNotFound(e) {
+			return nil
+		}
+		return e
+	}
+
+	b := backoff.NewExponentialBackOff()
+	b.MaxElapsedTime = EtcdRetryLimit
+	return backoff.Retry(fn, b)
 }
 
 func (re *realEtcdClient) Keys(p string) ([]string, error) {
 	var k []string
-	r, e := re.Get(p, true, false)
-	if e != nil {
+	var r *etcd.Response
+	var er error
+	fn := func() error {
+		r, er = re.Get(p, true, false)
+		if er != nil && isKeyNotFound(er) {
+			return nil
+		}
+		return er
+	}
+	b := backoff.NewExponentialBackOff()
+	b.MaxElapsedTime = EtcdRetryLimit
+	if e := backoff.Retry(fn, b); e != nil || er != nil {
 		return k, e
 	}
 

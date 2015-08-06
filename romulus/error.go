@@ -1,6 +1,10 @@
 package romulus
 
-import "fmt"
+import (
+	"fmt"
+
+	ke "github.com/GoogleCloudPlatform/kubernetes/pkg/api/errors"
+)
 
 // Error is a simple type to wrap an error
 type Error struct {
@@ -20,4 +24,12 @@ func NewErr(e error, m string, s ...interface{}) error {
 		m:  fmt.Sprintf(m, s...),
 		oe: e,
 	}
+}
+
+func NewKubeNotFound(k, n string) error {
+	return ke.NewNotFound(k, n)
+}
+
+func kubeIsNotFound(e error) bool {
+	return ke.IsNotFound(e) || ke.IsUnexpectedObjectError(e)
 }

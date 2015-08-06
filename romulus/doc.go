@@ -23,7 +23,7 @@
 package romulus
 
 var (
-	version = "v0.1.1"
+	version = "v0.1.2"
 
 	// SHA is the build sha
 	SHA string

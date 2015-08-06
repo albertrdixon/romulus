@@ -7,8 +7,8 @@ import (
 )
 
 var (
-	bckndSettingsAnnotation  = "backendSettings"
-	frntndSettingsAnnotation = "frontendSettings"
+	bckndSettingsAnnotation  = "romulus/backendSettings"
+	frntndSettingsAnnotation = "romulus/frontendSettings"
 
 	stop chan struct{}
 )
@@ -26,12 +26,15 @@ func Start(c *Registrar) error {
 	stop = make(chan struct{}, 1)
 	log().Debugf("Selecting objects that match: %s", c.s.String())
 	log().Debug("Setting watch on Endpoints")
-	ee, e := c.endpointsEventChannel()
+	ee, e := c.initEndpoints()
 	if e != nil {
 		return e
 	}
 	log().Debug("Setting watch on Services")
-	se, e := c.serviceEventsChannel()
+	se, e := c.initServices()
+	if e != nil {
+		return e
+	}
 	go func() {
 		for {
 			select {
@@ -61,101 +64,79 @@ func Start(c *Registrar) error {
 // Stop shuts down the daemon threads
 func Stop() { stop <- struct{}{} }
 
-func register(c *Registrar, e *api.Endpoints) error {
-	s, err := c.getService(e.Name, e.Namespace)
+func registerService(r *Registrar, s *api.Service) error {
+	e, err := r.getEndpoint(s.Name, s.Namespace)
 	if err != nil {
-		logf(fi{"msg": err, "endpoint": e.Name}).Warn("Could not get service to match endpoint")
-		return nil
+		if kubeIsNotFound(err) {
+			logf(fi{"msg": err, "service": s.Name, "namespace": s.Namespace}).Warn("Service has no associated endpoint")
+			return nil
+		}
+		return NewErr(err, "kubernetes error")
 	}
 
-	if !registerable(s, c.s) {
+	return register(r, s, e)
+}
+
+func registerEndpoint(r *Registrar, e *api.Endpoints) error {
+	s, err := r.getService(e.Name, e.Namespace)
+	if err != nil {
+		if kubeIsNotFound(err) {
+			logf(fi{"msg": err, "endpoint": e.Name, "namespace": e.Namespace}).Warn("Could not get service to match endpoint")
+			return nil
+		}
+		return NewErr(err, "kubernetes error")
+	}
+
+	return register(r, s, e)
+}
+
+func register(r *Registrar, s *api.Service, e *api.Endpoints) error {
+	if !registerable(s, r.s) {
 		logf(fi{"service": s.Name, "namespace": s.Namespace}).Debug("Service not registerable")
 		return nil
 	}
 
-	eid, sid := getUUID(e.ObjectMeta), getUUID(s.ObjectMeta)
-	if eid.String() == "" {
-		return fmt.Errorf("Endpoint %q has no uuid", e.Name)
-	}
-	if sid.String() == "" {
-		return fmt.Errorf("Service %q has no uuid", s.Name)
-	}
-
-	logf(fi{"service": s.Name, "namespace": s.Namespace,
-		"bcknd-id": eid.String(), "frntnd-id": sid.String()}).
-		Info("Registering service")
-	bnd := NewBackend(eid)
-	bnd.Type = "http"
-
-	if st, ok := s.Annotations[bckndSettingsAnnotation]; ok {
-		bnd.Settings = NewBackendSettings([]byte(st))
-	}
-	logf(fi{"bcknd-id": bnd.ID.String(), "type": bnd.Type, "settings": bnd.Settings.String()}).Debug("Backend settings")
-
-	val, err := bnd.Val()
+	bnds, err := r.registerBackends(s, e)
 	if err != nil {
-		return NewErr(err, "Could not encode backend for %q", e.Name)
-	}
-	if err := c.e.Add(bnd.Key(c.vk), val); err != nil {
-		return NewErr(err, "etcd error")
+		return NewErr(err, "Backend Error")
 	}
 
-	sm := expandEndpoints(eid, e)
-	logf(fi{"servers": sm.IPs(), "bcknd-id": eid.String()}).Debug("Expanded endpoints")
-	if err := c.pruneServers(eid, sm); err != nil {
-		return NewErr(err, "Unable to prune servers for backend %q", e.Name)
-	}
-
-	for _, srv := range sm {
-		val, err = srv.Val()
-		if err != nil {
-			logf(fi{"service": s.Name, "namespace": s.Namespace,
-				"server": srv.URL.String(), "error": err}).
-				Warn("Unable to encode server")
-			continue
-		}
-		if err := c.e.Add(srv.Key(c.vk), val); err != nil {
-			return NewErr(err, "etcd error")
-		}
-	}
-
-	fnd := NewFrontend(sid, eid)
-	fnd.Type = "http"
-	fnd.Route = buildRoute(s.Annotations)
-
-	if st, ok := s.Annotations[frntndSettingsAnnotation]; ok {
-		fnd.Settings = NewFrontendSettings([]byte(st))
-	}
-	logf(fi{"frntnd-id": fnd.ID.String(), "type": fnd.Type, "route": fnd.Route, "settings": fnd.Settings.String()}).Debug("Frontend settings")
-
-	val, err = fnd.Val()
-	if err != nil {
-		return NewErr(err, "Could not encode frontend for %q", s.Name)
-	}
-	if err := c.e.Add(fnd.Key(c.vk), val); err != nil {
-		return NewErr(err, "etcd error")
+	if err := r.registerFrontends(s, bnds); err != nil {
+		return NewErr(err, "Frontend Error")
 	}
 
 	return nil
 }
 
-func deregister(c *Registrar, o api.ObjectMeta, frontend bool) error {
-	id := getUUID(o)
-	if id.String() == "" {
-		return fmt.Errorf("Unable to get uuid for %q", o.Name)
-	}
-
-	if frontend {
-		logf(fi{"service": o.Name, "namespace": o.Namespace, "frntnd-id": id.String()}).Info("Deregistering frontend")
-		f := Frontend{ID: id}
-		if err := c.e.Del(f.DirKey(c.vk)); err != nil {
+func deregisterService(r *Registrar, s *api.Service) error {
+	for _, port := range s.Spec.Ports {
+		fid := getVulcanID(s.Name, s.Namespace, port.Name)
+		logf(fi{"service": s.Name, "namespace": s.Namespace, "id": fid}).Info("Deregistering frontend")
+		f := NewFrontend(fid, "")
+		if err := r.e.Del(f.DirKey(r.vk)); err != nil {
+			if isKeyNotFound(err) {
+				logf(fi{"service": s.Name, "namespace": s.Namespace, "id": fid}).Warn("Frontend key not found in etcd")
+				continue
+			}
 			return NewErr(err, "etcd error")
 		}
-	} else {
-		logf(fi{"service": o.Name, "namespace": o.Namespace, "bcknd-id": id.String()}).Info("Deregistering backend")
-		b := Backend{ID: id}
-		if err := c.e.Del(b.DirKey(c.vk)); err != nil {
-			return NewErr(err, "etcd error")
+	}
+	return nil
+}
+
+func deregisterEndpoints(r *Registrar, e *api.Endpoints) error {
+	for _, es := range e.Subsets {
+		for _, port := range es.Ports {
+			bid := getVulcanID(e.Name, e.Namespace, port.Name)
+			logf(fi{"service": e.Name, "namespace": e.Namespace, "id": bid}).Info("Deregistering backend")
+			b := NewBackend(bid)
+			if err := r.e.Del(b.DirKey(r.vk)); err != nil {
+				if isKeyNotFound(err) {
+					logf(fi{"service": e.Name, "namespace": e.Namespace, "id": bid}).Warn("Backend key not found in etcd")
+					continue
+				}
+				return NewErr(err, "etcd error")
+			}
 		}
 	}
 	return nil
