@@ -7,8 +7,8 @@ import (
 )
 
 var (
-	bckndSettingsAnnotation  = "backendSettings"
-	frntndSettingsAnnotation = "frontendSettings"
+	bckndSettingsAnnotation  = "romulus/backendSettings"
+	frntndSettingsAnnotation = "romulus/frontendSettings"
 
 	stop chan struct{}
 )
@@ -99,63 +99,6 @@ func register(r *Registrar, s *api.Service, e *api.Endpoints) error {
 		return NewErr(err, "Frontend Error")
 	}
 
-	// eid, sid := getVulcanID(e.ObjectMeta), getVulcanID(s.ObjectMeta)
-
-	// logf(fi{"service": s.Name, "namespace": s.Namespace,
-	// 	"bcknd-id": eid, "frntnd-id": sid}).
-	// 	Info("Registering service")
-	// bnd := NewBackend(eid)
-	// bnd.Type = "http"
-
-	// if st, ok := s.Annotations[bckndSettingsAnnotation]; ok {
-	// 	bnd.Settings = NewBackendSettings([]byte(st))
-	// }
-	// logf(fi{"bcknd-id": bnd.ID.String(), "type": bnd.Type, "settings": bnd.Settings.String()}).Debug("Backend settings")
-
-	// val, err := bnd.Val()
-	// if err != nil {
-	// 	return NewErr(err, "Could not encode backend for %q", e.Name)
-	// }
-	// if err := c.e.Add(bnd.Key(c.vk), val); err != nil {
-	// 	return NewErr(err, "etcd error")
-	// }
-
-	// sm := expandEndpoints(eid, e)
-	// logf(fi{"servers": sm.IPs(), "bcknd-id": eid.String()}).Debug("Expanded endpoints")
-	// if err := c.pruneServers(eid, sm); err != nil {
-	// 	return NewErr(err, "Unable to prune servers for backend %q", e.Name)
-	// }
-
-	// for _, srv := range sm {
-	// 	val, err = srv.Val()
-	// 	if err != nil {
-	// 		logf(fi{"service": s.Name, "namespace": s.Namespace,
-	// 			"server": srv.URL.String(), "error": err}).
-	// 			Warn("Unable to encode server")
-	// 		continue
-	// 	}
-	// 	if err := c.e.Add(srv.Key(c.vk), val); err != nil {
-	// 		return NewErr(err, "etcd error")
-	// 	}
-	// }
-
-	// fnd := NewFrontend(sid, eid)
-	// fnd.Type = "http"
-	// fnd.Route = buildRoute(s.Annotations)
-
-	// if st, ok := s.Annotations[frntndSettingsAnnotation]; ok {
-	// 	fnd.Settings = NewFrontendSettings([]byte(st))
-	// }
-	// logf(fi{"frntnd-id": fnd.ID.String(), "type": fnd.Type, "route": fnd.Route, "settings": fnd.Settings.String()}).Debug("Frontend settings")
-
-	// val, err = fnd.Val()
-	// if err != nil {
-	// 	return NewErr(err, "Could not encode frontend for %q", s.Name)
-	// }
-	// if err := c.e.Add(fnd.Key(c.vk), val); err != nil {
-	// 	return NewErr(err, "etcd error")
-	// }
-
 	return nil
 }
 
@@ -184,25 +127,3 @@ func deregisterEndpoints(r *Registrar, e *api.Endpoints) error {
 	}
 	return nil
 }
-
-// func deregister(c *Registrar, o api.ObjectMeta, frontend bool) error {
-// 	id := getUUID(o)
-// 	if id.String() == "" {
-// 		return fmt.Errorf("Unable to get uuid for %q", o.Name)
-// 	}
-
-// 	if frontend {
-// 		logf(fi{"service": o.Name, "namespace": o.Namespace, "frntnd-id": id.String()}).Info("Deregistering frontend")
-// 		f := Frontend{ID: id}
-// 		if err := c.e.Del(f.DirKey(c.vk)); err != nil {
-// 			return NewErr(err, "etcd error")
-// 		}
-// 	} else {
-// 		logf(fi{"service": o.Name, "namespace": o.Namespace, "bcknd-id": id.String()}).Info("Deregistering backend")
-// 		b := Backend{ID: id}
-// 		if err := c.e.Del(b.DirKey(c.vk)); err != nil {
-// 			return NewErr(err, "etcd error")
-// 		}
-// 	}
-// 	return nil
-// }

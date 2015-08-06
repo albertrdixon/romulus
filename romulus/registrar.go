@@ -5,8 +5,6 @@ import (
 	"net/url"
 	"strings"
 
-	"code.google.com/p/go-uuid/uuid"
-
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/api"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/client"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/fields"
@@ -70,6 +68,28 @@ type Registrar struct {
 	s  ServiceSelector
 }
 
+func (r *Registrar) serviceWatch() (watch.Interface, error) {
+	return r.k.Services(api.NamespaceAll).Watch(labels.Everything(), fields.Everything(), "")
+}
+
+func (r *Registrar) endpointsWatch() (watch.Interface, error) {
+	return r.k.Endpoints(api.NamespaceAll).Watch(labels.Everything(), fields.Everything(), "")
+}
+
+func (r *Registrar) getEndpoint(name, ns string) (*api.Endpoints, error) {
+	if ns == "" {
+		ns = api.NamespaceAll
+	}
+	return r.k.Endpoints(ns).Get(name)
+}
+
+func (r *Registrar) getService(name, ns string) (*api.Service, error) {
+	if ns == "" {
+		ns = api.NamespaceAll
+	}
+	return r.k.Services(ns).Get(name)
+}
+
 // NewRegistrar returns a ptr to a new Registrar from a Config
 func NewRegistrar(c *Config) (*Registrar, error) {
 	cf := c.kc()
@@ -81,15 +101,18 @@ func NewRegistrar(c *Config) (*Registrar, error) {
 		e:  NewEtcdClient(c.ps()),
 		k:  cl,
 		v:  c.APIVersion,
-		s:  c.Selector,
+		s:  c.Selector.fixNamespace(),
 		vk: formatEtcdNamespace(c.VulcanEtcdNamespace),
 	}, nil
 }
 
-func (c *Registrar) initEndpoints() (watch.Interface, error) {
+func (r *Registrar) initEndpoints() (watch.Interface, error) {
 	kf := "%s/backends"
-	ids, err := c.e.Keys(fmt.Sprintf(kf, c.vk))
+	ids, err := r.e.Keys(fmt.Sprintf(kf, r.vk))
 	if err != nil {
+		if isKeyNotFound(err) {
+			return r.endpointsWatch()
+		}
 		return nil, NewErr(err, "etcd error")
 	}
 
@@ -100,22 +123,25 @@ func (c *Registrar) initEndpoints() (watch.Interface, error) {
 			logf(fi{"bcknd-id": id}).Error("Invalid backend ID")
 			continue
 		}
-		if _, err := c.k.Endpoints(api.NamespaceAll).Get(name[0]); err != nil {
+		if _, err := r.getEndpoint(name[0], ""); err != nil && kubeIsNotFound(err) {
 			logf(fi{"bcknd-id": id}).Warnf("Did not find backend on API server: %v", err)
-			b := Backend{ID: id}
-			if err := c.e.Del(b.DirKey(c.vk)); err != nil {
+			b := NewBackend(id)
+			if err := r.e.Del(b.DirKey(r.vk)); err != nil {
 				logf(fi{"bcknd-id": id}).Warn("etcd error")
 			}
 		}
 	}
 
-	return c.k.Endpoints(api.NamespaceAll).Watch(labels.Everything(), fields.Everything(), "")
+	return r.endpointsWatch()
 }
 
-func (c *Registrar) initServices() (watch.Interface, error) {
+func (r *Registrar) initServices() (watch.Interface, error) {
 	kf := "%s/frontends"
-	ids, err := c.e.Keys(fmt.Sprintf(kf, c.vk))
+	ids, err := r.e.Keys(fmt.Sprintf(kf, r.vk))
 	if err != nil {
+		if isKeyNotFound(err) {
+			return r.serviceWatch()
+		}
 		return nil, NewErr(err, "etcd error")
 	}
 
@@ -126,32 +152,16 @@ func (c *Registrar) initServices() (watch.Interface, error) {
 			logf(fi{"frntnd-id": id}).Error("Invalid frontend ID")
 			continue
 		}
-		if _, err := c.k.Services(api.NamespaceAll).Get(name[0]); err != nil {
+		if _, err := r.getService(name[0], ""); err != nil {
 			logf(fi{"frntnd-id": id}).Warnf("Did not find frontend on API server: %v", err)
-			b := Backend{ID: id}
-			if err := c.e.Del(b.DirKey(c.vk)); err != nil {
+			f := NewFrontend(id, "")
+			if err := r.e.Del(f.DirKey(r.vk)); err != nil {
 				logf(fi{"frntnd-id": id}).Warn("etcd error")
 			}
 		}
 	}
 
-	return c.k.Services(api.NamespaceAll).Watch(labels.Everything(), fields.Everything(), "")
-}
-
-func (c *Registrar) getService(name, ns string) (*api.Service, error) {
-	s, e := c.k.Services(ns).Get(name)
-	if e != nil || s == nil {
-		return nil, Error{fmt.Sprintf("Unable to get service %q", name), e}
-	}
-	return s, nil
-}
-
-func (c *Registrar) getEndpoint(name, ns string) (*api.Endpoints, error) {
-	en, e := c.k.Endpoints(ns).Get(name)
-	if e != nil || en == nil {
-		return nil, Error{fmt.Sprintf("Unable to get endpoint %q", name), e}
-	}
-	return en, nil
+	return r.serviceWatch()
 }
 
 func (c *Registrar) pruneServers(bid string, sm ServerMap) error {
@@ -204,6 +214,7 @@ func (reg *Registrar) update(r runtime.Object, s string) error {
 
 func (r *Registrar) registerBackends(s *api.Service, e *api.Endpoints) (BackendList, error) {
 	bnds := BackendList{}
+	logf(fi{"service": e.Name, "namespace": e.Namespace}).Debug("Registering backend")
 	for _, es := range e.Subsets {
 		for _, port := range es.Ports {
 			if port.Protocol != api.ProtocolTCP {
@@ -234,7 +245,7 @@ func (r *Registrar) registerBackends(s *api.Service, e *api.Endpoints) (BackendL
 				ur := fmt.Sprintf("http://%s:%d", ip.IP, port.Port)
 				u, err := url.Parse(ur)
 				if err != nil {
-					// logf(fi{"bcknd-id": bid.String()}).Warnf("Bad URL: %s", ur)
+					logf(fi{"service": e.Name, "namespace": e.Namespace, "bcknd-id": bnd.ID}).Warnf("Bad URL: %s", ur)
 					continue
 				}
 				uu := (*URL)(u)
@@ -265,6 +276,7 @@ func (r *Registrar) registerBackends(s *api.Service, e *api.Endpoints) (BackendL
 }
 
 func (r *Registrar) registerFrontends(s *api.Service, bnds BackendList) error {
+	logf(fi{"service": s.Name, "namespace": s.Namespace}).Debug("Registering frontend")
 	for _, port := range s.Spec.Ports {
 		bnd, ok := bnds[port.Port]
 		if !ok {
@@ -314,39 +326,6 @@ func do(r *Registrar, e watch.Event) error {
 	}
 }
 
-// func expandEndpoints(bid uuid.UUID, e *api.Endpoints) ServerMap {
-// 	sm := ServerMap{}
-// 	for _, es := range e.Subsets {
-// 		for _, port := range es.Ports {
-// 			if port.Protocol != api.ProtocolTCP {
-// 				logf(fi{"bcknd-id": bid.String()}).Warnf("Unsupported protocol: %s", port.Protocol)
-// 				continue
-// 			}
-
-// 			// TODO: Do we want to force ports to have a name?
-// 			// if port.Name != "vulcan" {
-// 			// 	log().Debugf("Not registering port %d", port.Port)
-// 			// 	continue
-// 			// }
-
-// 			for _, ip := range es.Addresses {
-// 				ur := fmt.Sprintf("http://%s:%d", ip.IP, port.Port)
-// 				u, err := url.Parse(ur)
-// 				if err != nil {
-// 					logf(fi{"bcknd-id": bid.String()}).Warnf("Bad URL: %s", ur)
-// 					continue
-// 				}
-// 				uu := (*URL)(u)
-// 				sm[uu.GetHost()] = Server{
-// 					Backend: bid,
-// 					URL:     uu,
-// 				}
-// 			}
-// 		}
-// 	}
-// 	return sm
-// }
-
 func getVulcanID(name, ns, port string) string {
 	var id []string
 	if port != "" {
@@ -355,10 +334,6 @@ func getVulcanID(name, ns, port string) string {
 		id = []string{name, ns}
 	}
 	return strings.Join(id, ".")
-}
-
-func getUUID(o api.ObjectMeta) uuid.UUID {
-	return uuid.Parse((string)(o.UID))
 }
 
 func registerable(s *api.Service, sl ServiceSelector) bool {
