@@ -3,7 +3,11 @@ package romulus
 import (
 	"fmt"
 
-	ke "github.com/GoogleCloudPlatform/kubernetes/pkg/api/errors"
+	ke "k8s.io/kubernetes/pkg/api/errors"
+)
+
+var (
+	UnknownKubeErr = NewErr(nil, "Unknown kubernetes api error")
 )
 
 // Error is a simple type to wrap an error

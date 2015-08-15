@@ -16,12 +16,16 @@ var (
 	srvrFmt      = "%s/backends/%s/servers/%s"
 	frntndFmt    = "%s/frontends/%s/frontend"
 
-	annotationFmt = "romulus%s/%s"
+	annotationFmt = "romulus/%s%s"
 	rteConv       = map[string]string{
-		"host":   "Host(`%s`)",
-		"method": "Method(`%s`)",
-		"path":   "Path(`%s`)",
-		"header": "Header(`%s`)",
+		"host":          "Host(`%s`)",
+		"method":        "Method(`%s`)",
+		"path":          "Path(`%s`)",
+		"header":        "Header(`%s`)",
+		"host.regexp":   "HostRegexp(`%s`)",
+		"method.regexp": "MethodRegexp(`%s`)",
+		"path.regexp":   "PathRegexp(`%s`)",
+		"header.regexp": "HeaderRegexp(`%s`)",
 	}
 )
 
@@ -181,14 +185,8 @@ func buildRoute(ns string, a map[string]string) string {
 		ns = fmt.Sprintf(".%s", ns)
 	}
 	for k, f := range rteConv {
-		nsk := fmt.Sprintf(annotationFmt, ns, k)
-		pk := fmt.Sprintf(annotationFmt, "", k)
-		if v, ok := a[nsk]; ok {
-			if k == "method" {
-				v = strings.ToUpper(v)
-			}
-			rt = append(rt, fmt.Sprintf(f, v))
-		} else if v, ok := a[pk]; ok {
+		pk := fmt.Sprintf(annotationFmt, k, ns)
+		if v, ok := a[pk]; ok {
 			if k == "method" {
 				v = strings.ToUpper(v)
 			}
