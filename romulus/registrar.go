@@ -173,7 +173,7 @@ func (r *Registrar) pruneBackends() error {
 		name, ns, e := parseVulcanID(id)
 		if e != nil {
 			logf(fi{"id": id}).Error("Invalid ID")
-			key := fmt.Sprintf(bckndDirFmt, r.vk, id)
+			key := fmt.Sprintf(bckndDirFmt, id)
 			if e := r.e.Del(key); e != nil {
 				logf(fi{"backend": id}).Warn("etcd error")
 			}
@@ -202,7 +202,7 @@ func (r *Registrar) pruneFrontends() error {
 		name, ns, e := parseVulcanID(id)
 		if e != nil {
 			logf(fi{"id": id}).Error("Invalid ID")
-			key := fmt.Sprintf(frntndDirFmt, r.vk, id)
+			key := fmt.Sprintf(frntndDirFmt, id)
 			if e := r.e.Del(key); e != nil {
 				logf(fi{"frontend": id}).Warn("etcd error")
 			}
@@ -312,9 +312,10 @@ func (r *Registrar) registerFrontends(s *api.Service, bnds BackendList) error {
 	logf(fi{"service": s.Name, "namespace": s.Namespace}).Info("Registering frontend")
 	r.pruneFrontends()
 	for _, port := range s.Spec.Ports {
-		bnd, ok := bnds[port.Port]
+		bnd, ok := bnds[port.TargetPort.IntVal]
 		if !ok {
-			logf(fi{"service": s.Name, "namespace": s.Namespace}).Warnf("No backend for service port %d", port.Port)
+			logf(fi{"service": s.Name, "namespace": s.Namespace}).
+				Warnf("No backend for service port %d (target: %d)", port.Port, port.TargetPort.IntVal)
 			continue
 		}
 
@@ -343,7 +344,7 @@ func (r *Registrar) registerFrontends(s *api.Service, bnds BackendList) error {
 func getVulcanID(name, ns, port string) string {
 	var id []string
 	if port != "" {
-		id = []string{name, port, ns}
+		id = []string{port, name, ns}
 	} else {
 		id = []string{name, ns}
 	}
@@ -355,7 +356,7 @@ func parseVulcanID(id string) (string, string, error) {
 	if len(bits) < 2 {
 		return "", "", NewErr(nil, "Invalid vulcan ID %q", id)
 	}
-	return bits[0], bits[len(bits)-1], nil
+	return bits[len(bits)-2], bits[len(bits)-1], nil
 }
 
 func registerable(s *api.Service, sl ServiceSelector) bool {
