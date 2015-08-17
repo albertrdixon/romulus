@@ -43,7 +43,7 @@ type BackendList map[int]*Backend
 
 // Backend is a vulcand backend
 type Backend struct {
-	ID       string `json:"-"`
+	ID       string `json:"Id"`
 	Type     string
 	Settings *BackendSettings `json:",omitempty"`
 }
@@ -78,7 +78,7 @@ type Server struct {
 
 // Frontend is a vulcand frontend
 type Frontend struct {
-	ID        string `json:"-"`
+	ID        string `json:"Id"`
 	Type      string
 	BackendID string `json:"BackendId"`
 	Route     string
