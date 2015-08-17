@@ -3,14 +3,13 @@ package romulus
 import (
 	"fmt"
 
-	"github.com/GoogleCloudPlatform/kubernetes/pkg/api"
+	"golang.org/x/net/context"
+	"k8s.io/kubernetes/pkg/api"
 )
 
 var (
 	bckndSettingsAnnotation  = "romulus/backendSettings"
 	frntndSettingsAnnotation = "romulus/frontendSettings"
-
-	stop chan struct{}
 )
 
 // Version returns the current software version
@@ -22,47 +21,26 @@ func Version() string {
 }
 
 // Start boots up the daemon
-func Start(c *Registrar) error {
-	stop = make(chan struct{}, 1)
-	log().Debugf("Selecting objects that match: %s", c.s.String())
-	log().Debug("Setting watch on Endpoints")
-	ee, e := c.initEndpoints()
-	if e != nil {
-		return e
+func Start(r *Registrar, c context.Context) error {
+	log().Debugf("Selecting objects that match: %s", r.s.String())
+	w, er := initEvents(r, c)
+	if er != nil {
+		return er
 	}
-	log().Debug("Setting watch on Services")
-	se, e := c.initServices()
-	if e != nil {
-		return e
-	}
-	go func() {
-		for {
-			select {
-			case e := <-ee.ResultChan():
-				go func() {
-					if er := do(c, e); er != nil {
-						logf(fi{"error": er}).Error("Error!")
-					}
-				}()
-			case e := <-se.ResultChan():
-				go func() {
-					if er := do(c, e); er != nil {
-						logf(fi{"error": er}).Error("Error!")
-					}
-				}()
-			case <-stop:
-				log().Info("Received stop, closing watch channels")
-				ee.Stop()
-				se.Stop()
-				return
-			}
-		}
-	}()
+	go start(r, w, c)
 	return nil
 }
 
-// Stop shuts down the daemon threads
-func Stop() { stop <- struct{}{} }
+func start(r *Registrar, w <-chan Event, c context.Context) {
+	for {
+		select {
+		case <-c.Done():
+			return
+		case e := <-w:
+			go event(r, e)
+		}
+	}
+}
 
 func registerService(r *Registrar, s *api.Service) error {
 	e, err := r.getEndpoint(s.Name, s.Namespace)

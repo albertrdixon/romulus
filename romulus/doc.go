@@ -19,7 +19,7 @@
 //
 // vulcan proxy documentation: https://docs.vulcand.io/index.html
 //
-// kubernetes documentation: https://github.com/GoogleCloudPlatform/kubernetes/tree/master/docs
+// kubernetes documentation: http://kubernetes.io/v1.0/
 package romulus
 
 var (

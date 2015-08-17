@@ -10,6 +10,7 @@ import (
 	l "github.com/Sirupsen/logrus"
 	"github.com/ghodss/yaml"
 	"github.com/timelinelabs/romulus/romulus"
+	"golang.org/x/net/context"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
@@ -24,13 +25,18 @@ var (
 	kv = kingpin.Flag("kube-api", "kubernetes api version").Default("v1").OverrideDefaultFromEnvar("KUBE_API_VER").String()
 	kc = kingpin.Flag("kubecfg", "path to kubernetes cfg file").Short('C').PlaceHolder("/path/to/.kubecfg").ExistingFile()
 	sl = kingpin.Flag("svc-selector", "service selectors. Leave blank for Everything(). Form: key=value").Short('s').PlaceHolder("key=value[,key=value]").OverrideDefaultFromEnvar("SVC_SELECTOR").StringMap()
+	db = kingpin.Flag("debug", "Enable debug logging. e.g. --log-level debug").Short('d').Bool()
 	lv = kingpin.Flag("log-level", "log level. One of: fatal, error, warn, info, debug").Short('l').Default("info").OverrideDefaultFromEnvar("LOG_LEVEL").Enum(logLevels...)
 )
 
 func main() {
 	kingpin.Version(romulus.Version())
 	kingpin.Parse()
-	LogLevel(*lv)
+	if *db {
+		LogLevel("debug")
+	} else {
+		LogLevel(*lv)
+	}
 
 	eps := []string{}
 	kcc := romulus.KubeClientConfig{
@@ -63,19 +69,22 @@ func main() {
 		os.Exit(2)
 	}
 
-	if e := romulus.Start(r); e != nil {
-		logf(fi{"err": e}).Error("Runtime Error!")
-		romulus.Stop()
+	ctx, cancel := context.WithCancel(context.Background())
+	if e := romulus.Start(r, ctx); e != nil {
+		cancel()
+		logf(fi{"err": e}).Fatal("Runtime Error!")
 		os.Exit(1)
 	}
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT)
-	<-sig
-	log().Info("Received interrupt, shutting down")
-	romulus.Stop()
-	time.Sleep(1)
-	os.Exit(0)
+	select {
+	case <-sig:
+		l.Info("Recieved interrupt, shutting down")
+		cancel()
+		time.Sleep(100 * time.Millisecond)
+		os.Exit(0)
+	}
 }
 
 // F is just a simple type for adding tags to logs

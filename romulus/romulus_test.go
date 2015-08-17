@@ -4,8 +4,8 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/kubernetes/pkg/api"
 	"github.com/ghodss/yaml"
+	"k8s.io/kubernetes/pkg/api"
 )
 
 var (

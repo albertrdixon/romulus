@@ -6,13 +6,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/GoogleCloudPlatform/kubernetes/pkg/api"
-	"github.com/GoogleCloudPlatform/kubernetes/pkg/client"
-	"github.com/GoogleCloudPlatform/kubernetes/pkg/fields"
-	"github.com/GoogleCloudPlatform/kubernetes/pkg/labels"
-	"github.com/GoogleCloudPlatform/kubernetes/pkg/runtime"
-	"github.com/GoogleCloudPlatform/kubernetes/pkg/watch"
 	"github.com/cenkalti/backoff"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/client"
+	"k8s.io/kubernetes/pkg/runtime"
 )
 
 var (
@@ -77,44 +74,6 @@ type Registrar struct {
 	s  ServiceSelector
 }
 
-func (r *Registrar) serviceWatch() (watch.Interface, error) {
-	var w watch.Interface
-	fn := func() error {
-		wa, e := r.k.Services(api.NamespaceAll).Watch(labels.Everything(), fields.Everything(), "")
-		if e != nil {
-			return e
-		}
-		w = wa
-		return nil
-	}
-
-	b := backoff.NewExponentialBackOff()
-	b.MaxElapsedTime = KubeRetryLimit
-	if e := backoff.Retry(fn, b); e != nil {
-		return nil, NewErr(e, "kubernetes error")
-	}
-	return w, nil
-}
-
-func (r *Registrar) endpointsWatch() (watch.Interface, error) {
-	var w watch.Interface
-	fn := func() error {
-		wa, e := r.k.Endpoints(api.NamespaceAll).Watch(labels.Everything(), fields.Everything(), "")
-		if e != nil {
-			return e
-		}
-		w = wa
-		return nil
-	}
-
-	b := backoff.NewExponentialBackOff()
-	b.MaxElapsedTime = KubeRetryLimit
-	if e := backoff.Retry(fn, b); e != nil {
-		return nil, NewErr(e, "kubernetes error")
-	}
-	return w, nil
-}
-
 func (r *Registrar) getEndpoint(name, ns string) (en *api.Endpoints, er error) {
 	if ns == "" {
 		return nil, NewKubeNotFound("Endpoints", name)
@@ -173,23 +132,9 @@ func NewRegistrar(c *Config) (*Registrar, error) {
 	}, nil
 }
 
-func (r *Registrar) initEndpoints() (watch.Interface, error) {
-	if e := r.pruneBackends(); e != nil {
-		return nil, NewErr(e, "Failed to start Endpoints watch")
-	}
-	return r.endpointsWatch()
-}
-
-func (r *Registrar) initServices() (watch.Interface, error) {
-	if e := r.pruneFrontends(); e != nil {
-		return nil, NewErr(e, "Failed to start Service watch")
-	}
-	return r.serviceWatch()
-}
-
-func (c *Registrar) pruneServers(bid string, sm ServerMap) error {
-	k := fmt.Sprintf(srvrDirFmt, bid)
-	ips, e := c.e.Keys(k)
+func (r *Registrar) pruneServers(bid string, sm ServerMap) error {
+	k := fmt.Sprintf(srvrDirFmt, r.vk, bid)
+	ips, e := r.e.Keys(k)
 	if e != nil {
 		if isKeyNotFound(e) {
 			return nil
@@ -202,7 +147,7 @@ func (c *Registrar) pruneServers(bid string, sm ServerMap) error {
 		if _, ok := sm[ip]; !ok {
 			log().Debugf("Removing %s from etcd", ip)
 			key := fmt.Sprintf("%s/%s", k, ip)
-			if e := c.e.Del(key); e != nil {
+			if e := r.e.Del(key); e != nil {
 				return Error{"etcd error", e}
 			}
 		}
@@ -389,27 +334,6 @@ func (r *Registrar) registerFrontends(s *api.Service, bnds BackendList) error {
 		}
 	}
 	return nil
-}
-
-func do(r *Registrar, e watch.Event) error {
-	logf(fi{"event": e.Type}).Debug("Got a kubernetes API event")
-	switch e.Type {
-	default:
-		log().Debugf("Unsupported event type %q", e.Type)
-		return nil
-	case watch.Error:
-		if a, ok := e.Object.(*api.Status); ok {
-			e := fmt.Errorf("[%d] %v", a.Code, a.Reason)
-			return NewErr(e, "Kubernetes API failure: %s", a.Message)
-		}
-		return Error{"Unknown kubernetes api error", nil}
-	case watch.Deleted:
-		return r.delete(e.Object)
-	case watch.Added:
-		return r.update(e.Object, "add")
-	case watch.Modified:
-		return r.update(e.Object, "mod")
-	}
 }
 
 func getVulcanID(name, ns, port string) string {
