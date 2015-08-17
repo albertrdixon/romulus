@@ -20,14 +20,14 @@ var (
 
 	annotationFmt = "romulus/%s%s"
 	rteConv       = map[string]string{
-		"host":          "Host(`%s`)",
-		"method":        "Method(`%s`)",
-		"path":          "Path(`%s`)",
-		"header":        "Header(`%s`)",
-		"host.regexp":   "HostRegexp(`%s`)",
-		"method.regexp": "MethodRegexp(`%s`)",
-		"path.regexp":   "PathRegexp(`%s`)",
-		"header.regexp": "HeaderRegexp(`%s`)",
+		"host":         "Host(`%s`)",
+		"method":       "Method(`%s`)",
+		"path":         "Path(`%s`)",
+		"header":       "Header(`%s`)",
+		"hostRegexp":   "HostRegexp(`%s`)",
+		"methodRegexp": "MethodRegexp(`%s`)",
+		"pathRegexp":   "PathRegexp(`%s`)",
+		"headerRegexp": "HeaderRegexp(`%s`)",
 	}
 )
 
