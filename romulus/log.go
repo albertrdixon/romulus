@@ -11,6 +11,10 @@ func LogLevel(lvl string) {
 	}
 }
 
+func IsDebug() bool {
+	return l.GetLevel() == l.DebugLevel
+}
+
 type fieldSet interface {
 	fields() map[string]interface{}
 }

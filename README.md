@@ -16,6 +16,8 @@ Flags:
                    vulcand etcd key
   -e, --etcd=http://127.0.0.1:2379
                    etcd peers
+  -t, --etcd-timeout=5s
+                   etcd request timeout
   -k, --kube=http://127.0.0.1:8080
                    kubernetes endpoint
   -U, --kube-user=KUBE-USER
@@ -27,8 +29,10 @@ Flags:
                    path to kubernetes cfg file
   -s, --svc-selector=key=value[,key=value]
                    service selectors. Leave blank for Everything(). Form: key=value
+  -d, --debug      Enable debug logging. e.g. --log-level debug
   -l, --log-level=info
                    log level. One of: fatal, error, warn, info, debug
+  --debug-etcd     Enable cURL debug logging for etcd
   --version        Show application version.
 ```
 
@@ -43,7 +47,7 @@ metadata:
   name: example
   annotations:
     romulus/host: 'www.example.com'
-    romulus/path: '/guestbook'
+    romulus/pathRegexp: '/guestbook/.*'
     romulus/frontendSettings: '{"FailoverPredicate":"(IsNetworkError() || ResponseCode() == 503) && Attempts() <= 2"}}'
     romulus/backendSettings: '{"KeepAlive": {"MaxIdleConnsPerHost": 128, "Period": "4s"}}'
   labels:
@@ -55,7 +59,7 @@ spec:
 
 When you create the service, romulusd will create keys in etcd for vulcan!
 
-*NOTE*: IDs for backends and frontends are constructed as follows: `<kube resource name>[.<port name>].<namespace>`
+*NOTE*: IDs for backends and frontends are constructed as follows: `[<port name>.]<kube resource name>.<namespace>`
 
 ```
 $ kubectl.sh get svc,endpoints -l romulus/type=external
@@ -65,10 +69,10 @@ NAME           ENDPOINTS
 frontend       10.246.1.7:80,10.246.1.8:80,10.246.1.9:80
 
 $ etcdctl get /vulcan/backends/example.default/backend
-{"Type":"http","Settings":{"KeepAlive":{"MaxIdleConnsPerHost":128,"Period": "4s"}}}
+{"Id":"example.default","Type":"http","Settings":{"KeepAlive":{"MaxIdleConnsPerHost":128,"Period": "4s"}}}
 
 $ etcdctl get /vulcan/frontends/example.default/frontend
-{"Type":"http","BackendId":"example.default","Route":"Host(`www.example.com`) && Path(`/guestbook`)","Settings":{"FailoverPredicate":"(IsNetworkError() || ResponseCode() == 503) && Attempts() <= 2"}}
+{"Id": "example.default","Type":"http","BackendId":"example.default","Route":"Host(`www.example.com`) && PathRegexp(`/guestbook/.*`)","Settings":{"FailoverPredicate":"(IsNetworkError() || ResponseCode() == 503) && Attempts() <= 2"}}
 
 $ etcdctl ls /vulcan/backends/example.default/servers
 /vulcan/backends/example.default/servers/10.246.1.8
@@ -80,7 +84,7 @@ $ etcdctl ls /vulcan/backends/example.default/servers
 
 If your service has multiple ports, romulusd will create a frontend for each.
 
-Separate options by putting them under the prefix `romulus.<port name>/`. If no matching `romulus.<port name>/` option exists, then the `romulus/` option will be used.
+Separate options by appending the port name as a suffix (e.g. `romulus/path.api`). If no matching `romulus/<opt>.<port_name>` option exists, then the `romulus/<opt>` option will be used.
 
 ```yaml
 apiVersion: v1
@@ -105,13 +109,13 @@ spec:
 
 ```
 $ etcdctl ls /vulcand/backends
-/vulcand/backends/example.api.default
-/vulcand/backends/example.web.default
+/vulcand/backends/api.example.default
+/vulcand/backends/web.example.default
 
 $ etcdctl ls /vulcand/frontends
-/vulcand/frontends/example.web.default
-/vulcand/frontends/example.api.default
+/vulcand/frontends/web.example.default
+/vulcand/frontends/api.example.default
 
-$ etcdctl get /vulcand/frontends/example.api.default/frontend
-{"Type":"http","BackendId":"example.api.default","Route":"Host(`www.example.com`) && Path(`/api`)"}
+$ etcdctl get /vulcand/frontends/api.example.default/frontend
+{"Id":"api.example.default","Type":"http","BackendId":"api.example.default","Route":"Host(`www.example.com`) && Path(`/api`)"}
 ```

@@ -46,12 +46,12 @@ func formatEtcdNamespace(v string) string {
 
 // Config is used to configure the Registrar
 type Config struct {
-	PeerList             EtcdPeerList
-	KubeConfig           KubeClientConfig
-	APIVersion           string
-	Selector             ServiceSelector
-	VulcanEtcdNamespace  string
-	RomulusEtcdNamespace string
+	PeerList            EtcdPeerList
+	EtcdTimeout         time.Duration
+	KubeConfig          KubeClientConfig
+	APIVersion          string
+	Selector            ServiceSelector
+	VulcanEtcdNamespace string
 }
 
 func (c *Config) kc() client.Config { return (client.Config)(c.KubeConfig) }
@@ -72,6 +72,26 @@ type Registrar struct {
 	vk string
 	v  string
 	s  ServiceSelector
+}
+
+// NewRegistrar returns a ptr to a new Registrar from a Config
+func NewRegistrar(c *Config) (*Registrar, error) {
+	cf := c.kc()
+	kc, err := client.New(&cf)
+	if err != nil {
+		return nil, err
+	}
+	ec, err := NewEtcdClient(c.ps(), formatEtcdNamespace(c.VulcanEtcdNamespace), c.EtcdTimeout)
+	if err != nil {
+		return nil, err
+	}
+	return &Registrar{
+		e:  ec,
+		k:  kc,
+		v:  c.APIVersion,
+		s:  c.Selector.fixNamespace(),
+		vk: formatEtcdNamespace(c.VulcanEtcdNamespace),
+	}, nil
 }
 
 func (r *Registrar) getEndpoint(name, ns string) (en *api.Endpoints, er error) {
@@ -116,24 +136,8 @@ func (r *Registrar) getService(name, ns string) (s *api.Service, er error) {
 	return
 }
 
-// NewRegistrar returns a ptr to a new Registrar from a Config
-func NewRegistrar(c *Config) (*Registrar, error) {
-	cf := c.kc()
-	cl, err := client.New(&cf)
-	if err != nil {
-		return nil, err
-	}
-	return &Registrar{
-		e:  NewEtcdClient(c.ps()),
-		k:  cl,
-		v:  c.APIVersion,
-		s:  c.Selector.fixNamespace(),
-		vk: formatEtcdNamespace(c.VulcanEtcdNamespace),
-	}, nil
-}
-
 func (r *Registrar) pruneServers(bid string, sm ServerMap) error {
-	k := fmt.Sprintf(srvrDirFmt, r.vk, bid)
+	k := fmt.Sprintf(srvrDirFmt, bid)
 	ips, e := r.e.Keys(k)
 	if e != nil {
 		if isKeyNotFound(e) {
@@ -156,7 +160,7 @@ func (r *Registrar) pruneServers(bid string, sm ServerMap) error {
 }
 
 func (r *Registrar) pruneBackends() error {
-	ids, err := r.e.Keys(fmt.Sprintf(bckndsKeyFmt, r.vk))
+	ids, err := r.e.Keys(bcknds)
 	if err != nil {
 		if isKeyNotFound(err) {
 			return nil
@@ -169,14 +173,14 @@ func (r *Registrar) pruneBackends() error {
 		name, ns, e := parseVulcanID(id)
 		if e != nil {
 			logf(fi{"id": id}).Error("Invalid ID")
-			key := fmt.Sprintf(bckndDirFmt, r.vk, id)
+			key := fmt.Sprintf(bckndDirFmt, id)
 			if e := r.e.Del(key); e != nil {
 				logf(fi{"backend": id}).Warn("etcd error")
 			}
 		} else if _, err := r.getEndpoint(name, ns); err != nil && kubeIsNotFound(err) {
 			logf(fi{"id": id, "service": name, "namespace": ns}).Warnf("Did not find backend on API server: %v", err)
 			b := NewBackend(id)
-			if err := r.e.Del(b.DirKey(r.vk)); err != nil {
+			if err := r.e.Del(b.DirKey()); err != nil {
 				logf(fi{"backend": id}).Warn("etcd error")
 			}
 		}
@@ -185,7 +189,7 @@ func (r *Registrar) pruneBackends() error {
 }
 
 func (r *Registrar) pruneFrontends() error {
-	ids, err := r.e.Keys(fmt.Sprintf(frntndsKeyFmt, r.vk))
+	ids, err := r.e.Keys(frntnds)
 	if err != nil {
 		if isKeyNotFound(err) {
 			return nil
@@ -198,14 +202,14 @@ func (r *Registrar) pruneFrontends() error {
 		name, ns, e := parseVulcanID(id)
 		if e != nil {
 			logf(fi{"id": id}).Error("Invalid ID")
-			key := fmt.Sprintf(frntndDirFmt, r.vk, id)
+			key := fmt.Sprintf(frntndDirFmt, id)
 			if e := r.e.Del(key); e != nil {
 				logf(fi{"frontend": id}).Warn("etcd error")
 			}
 		} else if _, err := r.getService(name, ns); err != nil && kubeIsNotFound(err) {
 			logf(fi{"id": id, "service": name, "namespace": ns}).Warnf("Did not find frontend on API server: %v", err)
 			f := NewFrontend(id, "")
-			if err := r.e.Del(f.DirKey(r.vk)); err != nil {
+			if err := r.e.Del(f.DirKey()); err != nil {
 				logf(fi{"frontend": id}).Warn("etcd error")
 			}
 		}
@@ -264,7 +268,7 @@ func (r *Registrar) registerBackends(s *api.Service, e *api.Endpoints) (BackendL
 				return bnds, NewErr(err, "Could not encode backend for %q", e.Name)
 			}
 			logf(fi{"id": bnd.ID}).Debug("Upserting backend")
-			if err := r.e.Add(bnd.Key(r.vk), val); err != nil {
+			if err := r.e.Add(bnd.Key(), val); err != nil {
 				return bnds, NewErr(err, "etcd error")
 			}
 			bnds[port.Port] = bnd
@@ -295,7 +299,7 @@ func (r *Registrar) registerBackends(s *api.Service, e *api.Endpoints) (BackendL
 					continue
 				}
 				logf(fi{"URL": srv.URL.String(), "backend": bnd.ID}).Debug("Upserting server")
-				if err := r.e.Add(srv.Key(r.vk), val); err != nil {
+				if err := r.e.Add(srv.Key(), val); err != nil {
 					return bnds, NewErr(err, "etcd error")
 				}
 			}
@@ -308,9 +312,10 @@ func (r *Registrar) registerFrontends(s *api.Service, bnds BackendList) error {
 	logf(fi{"service": s.Name, "namespace": s.Namespace}).Info("Registering frontend")
 	r.pruneFrontends()
 	for _, port := range s.Spec.Ports {
-		bnd, ok := bnds[port.Port]
+		bnd, ok := bnds[port.TargetPort.IntVal]
 		if !ok {
-			logf(fi{"service": s.Name, "namespace": s.Namespace}).Warnf("No backend for service port %d", port.Port)
+			logf(fi{"service": s.Name, "namespace": s.Namespace}).
+				Warnf("No backend for service port %d (target: %d)", port.Port, port.TargetPort.IntVal)
 			continue
 		}
 
@@ -329,7 +334,7 @@ func (r *Registrar) registerFrontends(s *api.Service, bnds BackendList) error {
 			return NewErr(err, "Could not encode frontend for %q", s.Name)
 		}
 		logf(fi{"id": fnd.ID, "backend": bnd.ID}).Debug("Upserting frontend")
-		if err := r.e.Add(fnd.Key(r.vk), val); err != nil {
+		if err := r.e.Add(fnd.Key(), val); err != nil {
 			return NewErr(err, "etcd error")
 		}
 	}
@@ -339,7 +344,7 @@ func (r *Registrar) registerFrontends(s *api.Service, bnds BackendList) error {
 func getVulcanID(name, ns, port string) string {
 	var id []string
 	if port != "" {
-		id = []string{name, port, ns}
+		id = []string{port, name, ns}
 	} else {
 		id = []string{name, ns}
 	}
@@ -351,7 +356,7 @@ func parseVulcanID(id string) (string, string, error) {
 	if len(bits) < 2 {
 		return "", "", NewErr(nil, "Invalid vulcan ID %q", id)
 	}
-	return bits[0], bits[len(bits)-1], nil
+	return bits[len(bits)-2], bits[len(bits)-1], nil
 }
 
 func registerable(s *api.Service, sl ServiceSelector) bool {

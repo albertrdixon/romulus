@@ -9,30 +9,32 @@ import (
 )
 
 var (
-	bckndDirFmt  = "%s/backends/%s"
-	frntndDirFmt = "%s/frontends/%s"
-	bckndFmt     = "%s/backends/%s/backend"
-	srvrDirFmt   = "%s/backends/%s/servers"
-	srvrFmt      = "%s/backends/%s/servers/%s"
-	frntndFmt    = "%s/frontends/%s/frontend"
+	bcknds       = "backends"
+	frntnds      = "frontends"
+	bckndDirFmt  = "backends/%s"
+	frntndDirFmt = "frontends/%s"
+	bckndFmt     = "backends/%s/backend"
+	srvrDirFmt   = "backends/%s/servers"
+	srvrFmt      = "backends/%s/servers/%s"
+	frntndFmt    = "frontends/%s/frontend"
 
 	annotationFmt = "romulus/%s%s"
 	rteConv       = map[string]string{
-		"host":          "Host(`%s`)",
-		"method":        "Method(`%s`)",
-		"path":          "Path(`%s`)",
-		"header":        "Header(`%s`)",
-		"host.regexp":   "HostRegexp(`%s`)",
-		"method.regexp": "MethodRegexp(`%s`)",
-		"path.regexp":   "PathRegexp(`%s`)",
-		"header.regexp": "HeaderRegexp(`%s`)",
+		"host":         "Host(`%s`)",
+		"method":       "Method(`%s`)",
+		"path":         "Path(`%s`)",
+		"header":       "Header(`%s`)",
+		"hostRegexp":   "HostRegexp(`%s`)",
+		"methodRegexp": "MethodRegexp(`%s`)",
+		"pathRegexp":   "PathRegexp(`%s`)",
+		"headerRegexp": "HeaderRegexp(`%s`)",
 	}
 )
 
 // VulcanObject represents a vulcand component
 type VulcanObject interface {
 	// Key returns the etcd key for this object
-	Key(v string) string
+	Key() string
 	// Val returns the (JSON-ified) value to store in etcd
 	Val() (string, error)
 }
@@ -41,7 +43,7 @@ type BackendList map[int]*Backend
 
 // Backend is a vulcand backend
 type Backend struct {
-	ID       string `json:"-"`
+	ID       string `json:"Id,omitempty"`
 	Type     string
 	Settings *BackendSettings `json:",omitempty"`
 }
@@ -50,6 +52,7 @@ type Backend struct {
 type BackendSettings struct {
 	Timeouts  *BackendSettingsTimeouts  `json:",omitempty"`
 	KeepAlive *BackendSettingsKeepAlive `json:",omitempty"`
+	TLS       *TLSSettings              `json:",omitempty"`
 }
 
 // BackendSettingsTimeouts is vulcand settings for backend timeouts
@@ -65,6 +68,25 @@ type BackendSettingsKeepAlive struct {
 	MaxIdleConnsPerHost int           `json:",omitempty"`
 }
 
+type TLSSettings struct {
+	PreferServerCipherSuites bool          `json:",omitempty"`
+	InsecureSkipVerify       bool          `json:",omitempty"`
+	SessionTicketsDisabled   bool          `json:",omitempty"`
+	SessionCache             *SessionCache `json:",omitempty"`
+	CipherSuites             []string      `json:",omitempty"`
+	MinVersion               string        `json:",omitempty"`
+	MaxVersion               string        `json:",omitempty"`
+}
+
+type SessionCache struct {
+	Type     string
+	Settings *SessionCacheSettings
+}
+
+type SessionCacheSettings struct {
+	Capacity int
+}
+
 // ServerMap is a map of IPs (string) -> Server
 type ServerMap map[string]Server
 
@@ -76,7 +98,7 @@ type Server struct {
 
 // Frontend is a vulcand frontend
 type Frontend struct {
-	ID        string `json:"-"`
+	ID        string `json:"Id,omitempty"`
 	Type      string
 	BackendID string `json:"BackendId"`
 	Route     string
@@ -128,13 +150,13 @@ func NewFrontendSettings(p []byte) *FrontendSettings {
 	return &f
 }
 
-func (b Backend) Key(v string) string { return fmt.Sprintf(bckndFmt, v, b.ID) }
-func (s Server) Key(v string) string {
-	return fmt.Sprintf(srvrFmt, v, s.Backend, s.URL.GetHost())
+func (b Backend) Key() string { return fmt.Sprintf(bckndFmt, b.ID) }
+func (s Server) Key() string {
+	return fmt.Sprintf(srvrFmt, s.Backend, s.URL.GetHost())
 }
-func (f Frontend) Key(v string) string         { return fmt.Sprintf(frntndFmt, v, f.ID) }
-func (f FrontendSettings) Key(v string) string { return "" }
-func (b BackendSettings) Key(v string) string  { return "" }
+func (f Frontend) Key() string         { return fmt.Sprintf(frntndFmt, f.ID) }
+func (f FrontendSettings) Key() string { return "" }
+func (b BackendSettings) Key() string  { return "" }
 
 func (b Backend) Val() (string, error)          { return encode(b) }
 func (s Server) Val() (string, error)           { return encode(s) }
@@ -143,10 +165,10 @@ func (f FrontendSettings) Val() (string, error) { return "", nil }
 func (b BackendSettings) Val() (string, error)  { return "", nil }
 
 // DirKey returns the etcd directory key for this Backend
-func (b Backend) DirKey(v string) string { return fmt.Sprintf(bckndDirFmt, v, b.ID) }
+func (b Backend) DirKey() string { return fmt.Sprintf(bckndDirFmt, b.ID) }
 
 // DirKey returns the etcd directory key for this Frontend
-func (f Frontend) DirKey(v string) string { return fmt.Sprintf(frntndDirFmt, v, f.ID) }
+func (f Frontend) DirKey() string { return fmt.Sprintf(frntndDirFmt, f.ID) }
 
 func (f *FrontendSettings) String() string {
 	s, e := encode(f)
