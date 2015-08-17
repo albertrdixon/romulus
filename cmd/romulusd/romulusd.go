@@ -19,6 +19,7 @@ var (
 
 	vk = kingpin.Flag("vulcand-key", "vulcand etcd key").Short('v').Default("vulcand").OverrideDefaultFromEnvar("VULCAND_KEY").String()
 	ep = kingpin.Flag("etcd", "etcd peers").Short('e').Default("http://127.0.0.1:2379").OverrideDefaultFromEnvar("ETCD_PEERS").URLList()
+	et = kingpin.Flag("etcd-timeout", "etcd request timeout").Short('t').Default("5s").OverrideDefaultFromEnvar("ETCD_TIMEOUT").Duration()
 	km = kingpin.Flag("kube", "kubernetes endpoint").Short('k').Default("http://127.0.0.1:8080").OverrideDefaultFromEnvar("KUBE_MASTER").URL()
 	ku = kingpin.Flag("kube-user", "kubernetes username").Short('U').Default("").OverrideDefaultFromEnvar("KUBE_USER").String()
 	kp = kingpin.Flag("kube-pass", "kubernetes password").Short('P').Default("").OverrideDefaultFromEnvar("KUBE_PASS").String()
@@ -27,6 +28,7 @@ var (
 	sl = kingpin.Flag("svc-selector", "service selectors. Leave blank for Everything(). Form: key=value").Short('s').PlaceHolder("key=value[,key=value]").OverrideDefaultFromEnvar("SVC_SELECTOR").StringMap()
 	db = kingpin.Flag("debug", "Enable debug logging. e.g. --log-level debug").Short('d').Bool()
 	lv = kingpin.Flag("log-level", "log level. One of: fatal, error, warn, info, debug").Short('l').Default("info").OverrideDefaultFromEnvar("LOG_LEVEL").Enum(logLevels...)
+	ed = kingpin.Flag("debug-etcd", "Enable cURL debug logging for etcd").Bool()
 )
 
 func main() {
@@ -36,6 +38,9 @@ func main() {
 		LogLevel("debug")
 	} else {
 		LogLevel(*lv)
+	}
+	if *ed {
+		romulus.DebugEtcd()
 	}
 
 	eps := []string{}
@@ -59,6 +64,7 @@ func main() {
 	log().Info("Starting up romulusd")
 	r, e := romulus.NewRegistrar(&romulus.Config{
 		PeerList:            eps,
+		EtcdTimeout:         *et,
 		APIVersion:          *kv,
 		KubeConfig:          kcc,
 		Selector:            *sl,

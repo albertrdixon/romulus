@@ -3,14 +3,17 @@ package romulus
 import (
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
-	"github.com/cenkalti/backoff"
-	etcdErr "github.com/coreos/etcd/error"
-	"github.com/coreos/go-etcd/etcd"
+	"golang.org/x/net/context"
+
+	"github.com/coreos/etcd/client"
 )
 
-var EtcdRetryLimit = 10 * time.Second
+var (
+	EtcdDebug = false
+)
 
 type EtcdClient interface {
 	Add(key, val string) error
@@ -19,62 +22,90 @@ type EtcdClient interface {
 }
 
 type realEtcdClient struct {
-	*etcd.Client
+	client.KeysAPI
+	*sync.RWMutex
+	p string
+	t time.Duration
 }
 
 type fakeEtcdClient map[string]string
 
-func NewEtcdClient(peers []string) EtcdClient {
-	return &realEtcdClient{etcd.NewClient(peers)}
+func DebugEtcd() {
+	EtcdDebug = true
+}
+
+func NewEtcdClient(peers []string, prefix string, timeout time.Duration) (EtcdClient, error) {
+	if EtcdDebug {
+		client.EnablecURLDebug()
+	}
+	ec, er := client.New(client.Config{Endpoints: peers})
+	if er != nil {
+		return nil, er
+	}
+	return &realEtcdClient{client.NewKeysAPI(ec), new(sync.RWMutex), prefix, timeout}, nil
 }
 
 func NewFakeEtcdClient() EtcdClient {
 	return &fakeEtcdClient{"/": ""}
 }
 
-func (r *realEtcdClient) Add(k, v string) error {
-	fn := func() error {
-		_, e := r.Set(k, v, 0)
-		return e
-	}
+func (r *realEtcdClient) addPrefix(k string) string {
+	return strings.Join([]string{r.p, k}, "/")
+}
 
-	b := backoff.NewExponentialBackOff()
-	b.MaxElapsedTime = EtcdRetryLimit
-	return backoff.Retry(fn, b)
+func (r *realEtcdClient) Add(k, v string) error {
+	r.Lock()
+	defer r.Unlock()
+	return r.add(r.addPrefix(k), v)
+}
+
+func (r *realEtcdClient) add(k, v string) error {
+	c, q := context.WithTimeout(context.Background(), r.t)
+	defer q()
+
+	_, e := r.Set(c, k, v, nil)
+	return e
 }
 
 func (r *realEtcdClient) Del(k string) error {
-	fn := func() error {
-		_, e := r.Delete(k, true)
-		if isKeyNotFound(e) {
-			return nil
-		}
-		return e
-	}
-
-	b := backoff.NewExponentialBackOff()
-	b.MaxElapsedTime = EtcdRetryLimit
-	return backoff.Retry(fn, b)
+	r.Lock()
+	defer r.Unlock()
+	return r.del(r.addPrefix(k))
 }
 
-func (re *realEtcdClient) Keys(p string) ([]string, error) {
-	var k []string
-	var r *etcd.Response
-	var er error
-	fn := func() error {
-		r, er = re.Get(p, true, false)
-		if er != nil && isKeyNotFound(er) {
-			return nil
-		}
-		return er
+func (r *realEtcdClient) del(k string) error {
+	c, q := context.WithTimeout(context.Background(), r.t)
+	defer q()
+
+	_, e := r.Delete(c, k, &client.DeleteOptions{Recursive: true})
+	if isKeyNotFound(e) {
+		return nil
 	}
-	b := backoff.NewExponentialBackOff()
-	b.MaxElapsedTime = EtcdRetryLimit
-	if e := backoff.Retry(fn, b); e != nil || er != nil {
-		return k, e
+	return e
+}
+
+func (r *realEtcdClient) Keys(k string) ([]string, error) {
+	r.RLock()
+	defer r.RUnlock()
+	return r.keys(r.addPrefix(k))
+}
+
+func (re *realEtcdClient) keys(p string) ([]string, error) {
+	c, q := context.WithTimeout(context.Background(), re.t)
+	defer q()
+
+	r, e := re.Get(c, p, &client.GetOptions{Recursive: true, Sort: true, Quorum: true})
+	if e != nil {
+		if isKeyNotFound(e) {
+			return []string{}, nil
+		}
+		return []string{}, e
+	}
+	if r.Node == nil {
+		return []string{}, nil
 	}
 
-	k = make([]string, 0, len(r.Node.Nodes))
+	k := make([]string, 0, len(r.Node.Nodes))
 	for _, n := range r.Node.Nodes {
 		k = append(k, strings.TrimLeft(strings.TrimPrefix(n.Key, p), "/"))
 	}
@@ -101,7 +132,17 @@ func (f fakeEtcdClient) Keys(p string) ([]string, error) {
 	return r, nil
 }
 
-func isKeyNotFound(err error) bool {
-	e, ok := err.(*etcd.EtcdError)
-	return ok && e.ErrorCode == etcdErr.EcodeKeyNotFound
+func isKeyNotFound(e error) bool {
+	if e == nil {
+		return false
+	}
+	switch e := e.(type) {
+	default:
+		return false
+	case client.Error:
+		if e.Code == client.ErrorCodeKeyNotFound {
+			return true
+		}
+		return false
+	}
 }
