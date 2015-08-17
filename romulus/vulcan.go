@@ -43,7 +43,7 @@ type BackendList map[int]*Backend
 
 // Backend is a vulcand backend
 type Backend struct {
-	ID       string `json:"Id"`
+	ID       string `json:"Id,omitempty"`
 	Type     string
 	Settings *BackendSettings `json:",omitempty"`
 }
@@ -52,6 +52,7 @@ type Backend struct {
 type BackendSettings struct {
 	Timeouts  *BackendSettingsTimeouts  `json:",omitempty"`
 	KeepAlive *BackendSettingsKeepAlive `json:",omitempty"`
+	TLS       *TLSSettings              `json:",omitempty"`
 }
 
 // BackendSettingsTimeouts is vulcand settings for backend timeouts
@@ -67,6 +68,25 @@ type BackendSettingsKeepAlive struct {
 	MaxIdleConnsPerHost int           `json:",omitempty"`
 }
 
+type TLSSettings struct {
+	PreferServerCipherSuites bool          `json:",omitempty"`
+	InsecureSkipVerify       bool          `json:",omitempty"`
+	SessionTicketsDisabled   bool          `json:",omitempty"`
+	SessionCache             *SessionCache `json:",omitempty"`
+	CipherSuites             []string      `json:",omitempty"`
+	MinVersion               string        `json:",omitempty"`
+	MaxVersion               string        `json:",omitempty"`
+}
+
+type SessionCache struct {
+	Type     string
+	Settings *SessionCacheSettings
+}
+
+type SessionCacheSettings struct {
+	Capacity int
+}
+
 // ServerMap is a map of IPs (string) -> Server
 type ServerMap map[string]Server
 
@@ -78,7 +98,7 @@ type Server struct {
 
 // Frontend is a vulcand frontend
 type Frontend struct {
-	ID        string `json:"Id"`
+	ID        string `json:"Id,omitempty"`
 	Type      string
 	BackendID string `json:"BackendId"`
 	Route     string
