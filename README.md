@@ -89,8 +89,8 @@ metadata:
   name: example
   annotations:
     romulus/host: 'www.example.com'
-    romulus.api/path: '/api'
-    romulus.web/path: '/web'
+    romulus/path.api: '/api'
+    romulus/path.web: '/web'
   labels:
     name: example
     romulus/type: external
