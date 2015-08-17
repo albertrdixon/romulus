@@ -9,12 +9,14 @@ import (
 )
 
 var (
-	bckndDirFmt  = "%s/backends/%s"
-	frntndDirFmt = "%s/frontends/%s"
-	bckndFmt     = "%s/backends/%s/backend"
-	srvrDirFmt   = "%s/backends/%s/servers"
-	srvrFmt      = "%s/backends/%s/servers/%s"
-	frntndFmt    = "%s/frontends/%s/frontend"
+	bcknds       = "backends"
+	frntnds      = "frontends"
+	bckndDirFmt  = "backends/%s"
+	frntndDirFmt = "frontends/%s"
+	bckndFmt     = "backends/%s/backend"
+	srvrDirFmt   = "backends/%s/servers"
+	srvrFmt      = "backends/%s/servers/%s"
+	frntndFmt    = "frontends/%s/frontend"
 
 	annotationFmt = "romulus/%s%s"
 	rteConv       = map[string]string{
@@ -32,7 +34,7 @@ var (
 // VulcanObject represents a vulcand component
 type VulcanObject interface {
 	// Key returns the etcd key for this object
-	Key(v string) string
+	Key() string
 	// Val returns the (JSON-ified) value to store in etcd
 	Val() (string, error)
 }
@@ -128,13 +130,13 @@ func NewFrontendSettings(p []byte) *FrontendSettings {
 	return &f
 }
 
-func (b Backend) Key(v string) string { return fmt.Sprintf(bckndFmt, v, b.ID) }
-func (s Server) Key(v string) string {
-	return fmt.Sprintf(srvrFmt, v, s.Backend, s.URL.GetHost())
+func (b Backend) Key() string { return fmt.Sprintf(bckndFmt, b.ID) }
+func (s Server) Key() string {
+	return fmt.Sprintf(srvrFmt, s.Backend, s.URL.GetHost())
 }
-func (f Frontend) Key(v string) string         { return fmt.Sprintf(frntndFmt, v, f.ID) }
-func (f FrontendSettings) Key(v string) string { return "" }
-func (b BackendSettings) Key(v string) string  { return "" }
+func (f Frontend) Key() string         { return fmt.Sprintf(frntndFmt, f.ID) }
+func (f FrontendSettings) Key() string { return "" }
+func (b BackendSettings) Key() string  { return "" }
 
 func (b Backend) Val() (string, error)          { return encode(b) }
 func (s Server) Val() (string, error)           { return encode(s) }
@@ -143,10 +145,10 @@ func (f FrontendSettings) Val() (string, error) { return "", nil }
 func (b BackendSettings) Val() (string, error)  { return "", nil }
 
 // DirKey returns the etcd directory key for this Backend
-func (b Backend) DirKey(v string) string { return fmt.Sprintf(bckndDirFmt, v, b.ID) }
+func (b Backend) DirKey() string { return fmt.Sprintf(bckndDirFmt, b.ID) }
 
 // DirKey returns the etcd directory key for this Frontend
-func (f Frontend) DirKey(v string) string { return fmt.Sprintf(frntndDirFmt, v, f.ID) }
+func (f Frontend) DirKey() string { return fmt.Sprintf(frntndDirFmt, f.ID) }
 
 func (f *FrontendSettings) String() string {
 	s, e := encode(f)

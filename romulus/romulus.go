@@ -37,7 +37,11 @@ func start(r *Registrar, w <-chan Event, c context.Context) {
 		case <-c.Done():
 			return
 		case e := <-w:
-			go event(r, e)
+			go func() {
+				if er := event(r, e); er != nil {
+					log().Error(er.Error())
+				}
+			}()
 		}
 	}
 }
@@ -91,7 +95,7 @@ func deregisterService(r *Registrar, s *api.Service) error {
 		fid := getVulcanID(s.Name, s.Namespace, port.Name)
 		logf(fi{"service": s.Name, "namespace": s.Namespace, "id": fid}).Info("Deregistering frontend")
 		f := NewFrontend(fid, "")
-		if err := r.e.Del(f.DirKey(r.vk)); err != nil {
+		if err := r.e.Del(f.DirKey()); err != nil {
 			if isKeyNotFound(err) {
 				logf(fi{"service": s.Name, "namespace": s.Namespace, "id": fid}).Warn("Frontend key not found in etcd")
 				continue
@@ -108,7 +112,7 @@ func deregisterEndpoints(r *Registrar, e *api.Endpoints) error {
 			bid := getVulcanID(e.Name, e.Namespace, port.Name)
 			logf(fi{"service": e.Name, "namespace": e.Namespace, "id": bid}).Info("Deregistering backend")
 			b := NewBackend(bid)
-			if err := r.e.Del(b.DirKey(r.vk)); err != nil {
+			if err := r.e.Del(b.DirKey()); err != nil {
 				if isKeyNotFound(err) {
 					logf(fi{"service": e.Name, "namespace": e.Namespace, "id": bid}).Warn("Backend key not found in etcd")
 					continue
