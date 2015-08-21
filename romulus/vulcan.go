@@ -216,7 +216,7 @@ func buildRoute(ns string, a map[string]string) string {
 		}
 	}
 	if len(rt) < 1 {
-		rt = []string{"Path('/')"}
+		rt = []string{"Path(`/`)"}
 	}
 	return strings.Join(rt, " && ")
 }
