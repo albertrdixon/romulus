@@ -37,11 +37,13 @@ func start(r *Registrar, w <-chan Event, c context.Context) {
 		case <-c.Done():
 			return
 		case e := <-w:
-			go func() {
-				if er := event(r, e); er != nil {
-					log().Error(er.Error())
-				}
-			}()
+			if registerable(e.Object, r.s) {
+				go func() {
+					if er := event(r, e); er != nil {
+						log().Error(er.Error())
+					}
+				}()
+			}
 		}
 	}
 }

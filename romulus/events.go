@@ -61,7 +61,6 @@ func setWatch(wf WatchFunc) (watch.Interface, error) {
 }
 
 func event(r *Registrar, e Event) error {
-	logf(e).Debug("Got a kubernetes API event")
 	switch e.Type {
 	default:
 		logf(e).Debugf("Unsupported event type")

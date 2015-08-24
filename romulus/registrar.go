@@ -8,6 +8,7 @@ import (
 
 	"github.com/cenkalti/backoff"
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/meta"
 	"k8s.io/kubernetes/pkg/client"
 	"k8s.io/kubernetes/pkg/runtime"
 )
@@ -359,13 +360,18 @@ func parseVulcanID(id string) (string, string, error) {
 	return bits[len(bits)-2], bits[len(bits)-1], nil
 }
 
-func registerable(s *api.Service, sl ServiceSelector) bool {
+func registerable(o runtime.Object, sl ServiceSelector) bool {
+	m := meta.NewAccessor()
+	la, er := m.Labels(o)
+	if er != nil {
+		log().Debugf("Failed to access labels: %v", er)
+		return false
+	}
+
 	for k, v := range sl.fixNamespace() {
-		if sv, ok := s.Labels[k]; !ok || sv != v {
-			if sv, ok := s.Annotations[k]; !ok || sv != v {
-				return false
-			}
+		if val, ok := la[k]; !ok || val != v {
+			return false
 		}
 	}
-	return api.IsServiceIPSet(s)
+	return true
 }

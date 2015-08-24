@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	EtcdDebug = false
+	etcdDebug = false
 )
 
 type EtcdClient interface {
@@ -31,11 +31,11 @@ type realEtcdClient struct {
 type fakeEtcdClient map[string]string
 
 func DebugEtcd() {
-	EtcdDebug = true
+	etcdDebug = true
 }
 
 func NewEtcdClient(peers []string, prefix string, timeout time.Duration) (EtcdClient, error) {
-	if EtcdDebug {
+	if etcdDebug {
 		client.EnablecURLDebug()
 	}
 	ec, er := client.New(client.Config{Endpoints: peers})
