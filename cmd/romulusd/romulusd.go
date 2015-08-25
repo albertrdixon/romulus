@@ -17,23 +17,25 @@ import (
 var (
 	logLevels = []string{"fatal", "error", "warn", "info", "debug"}
 
-	vk = kingpin.Flag("vulcand-key", "vulcand etcd key").Short('v').Default("vulcand").OverrideDefaultFromEnvar("VULCAND_KEY").String()
-	ep = kingpin.Flag("etcd", "etcd peers").Short('e').Default("http://127.0.0.1:2379").OverrideDefaultFromEnvar("ETCD_PEERS").URLList()
-	et = kingpin.Flag("etcd-timeout", "etcd request timeout").Short('t').Default("5s").OverrideDefaultFromEnvar("ETCD_TIMEOUT").Duration()
-	km = kingpin.Flag("kube", "kubernetes endpoint").Short('k').Default("http://127.0.0.1:8080").OverrideDefaultFromEnvar("KUBE_MASTER").URL()
-	ku = kingpin.Flag("kube-user", "kubernetes username").Short('U').Default("").OverrideDefaultFromEnvar("KUBE_USER").String()
-	kp = kingpin.Flag("kube-pass", "kubernetes password").Short('P').Default("").OverrideDefaultFromEnvar("KUBE_PASS").String()
-	kv = kingpin.Flag("kube-api", "kubernetes api version").Default("v1").OverrideDefaultFromEnvar("KUBE_API_VER").String()
-	kc = kingpin.Flag("kubecfg", "path to kubernetes cfg file").Short('C').PlaceHolder("/path/to/.kubecfg").ExistingFile()
-	sl = kingpin.Flag("svc-selector", "service selectors. Leave blank for Everything(). Form: key=value").Short('s').PlaceHolder("key=value[,key=value]").OverrideDefaultFromEnvar("SVC_SELECTOR").StringMap()
-	db = kingpin.Flag("debug", "Enable debug logging. e.g. --log-level debug").Short('d').Bool()
-	lv = kingpin.Flag("log-level", "log level. One of: fatal, error, warn, info, debug").Short('l').Default("info").OverrideDefaultFromEnvar("LOG_LEVEL").Enum(logLevels...)
-	ed = kingpin.Flag("debug-etcd", "Enable cURL debug logging for etcd").Bool()
+	ro = kingpin.New("romulusd", "A utility for automatically registering Kubernetes services in Vulcand")
+
+	vk = ro.Flag("vulcan-key", "default vulcand etcd key").Default("vulcand").OverrideDefaultFromEnvar("VULCAND_KEY").String()
+	ep = ro.Flag("etcd", "etcd peers").Short('e').Default("http://127.0.0.1:2379").OverrideDefaultFromEnvar("ETCD_PEERS").URLList()
+	et = ro.Flag("etcd-timeout", "etcd request timeout").Short('t').Default("5s").OverrideDefaultFromEnvar("ETCD_TIMEOUT").Duration()
+	km = ro.Flag("kube", "kubernetes endpoint").Short('k').Default("http://127.0.0.1:8080").OverrideDefaultFromEnvar("KUBE_MASTER").URL()
+	ku = ro.Flag("kube-user", "kubernetes username").Short('U').Default("").OverrideDefaultFromEnvar("KUBE_USER").String()
+	kp = ro.Flag("kube-pass", "kubernetes password").Short('P').Default("").OverrideDefaultFromEnvar("KUBE_PASS").String()
+	kv = ro.Flag("kube-api", "kubernetes api version").Default("v1").OverrideDefaultFromEnvar("KUBE_API_VER").String()
+	kc = ro.Flag("kubecfg", "path to kubernetes cfg file").Short('C').PlaceHolder("/path/to/.kubecfg").ExistingFile()
+	sl = ro.Flag("svc-selector", "service selectors. Leave blank for Everything(). Form: key=value").Short('s').PlaceHolder("key=value[,key=value]").OverrideDefaultFromEnvar("SVC_SELECTOR").StringMap()
+	db = ro.Flag("debug", "Enable debug logging. e.g. --log-level debug").Short('d').Bool()
+	lv = ro.Flag("log-level", "log level. One of: fatal, error, warn, info, debug").Short('l').Default("info").OverrideDefaultFromEnvar("LOG_LEVEL").Enum(logLevels...)
+	ed = ro.Flag("debug-etcd", "Enable cURL debug logging for etcd").Bool()
 )
 
 func main() {
 	kingpin.Version(romulus.Version())
-	kingpin.Parse()
+	kingpin.MustParse(ro.Parse(os.Args[1:]))
 	if *db {
 		LogLevel("debug")
 	} else {

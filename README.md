@@ -10,10 +10,12 @@ Automagically register your kubernetes services in vulcan proxy!
 $ romulusd --help
 usage: romulusd [<flags>]
 
+A utility for automatically registering Kubernetes services in Vulcand
+
 Flags:
   --help           Show help (also see --help-long and --help-man).
-  -v, --vulcand-key="vulcand"
-                   vulcand etcd key
+  --vulcan-key="vulcand"
+                   default vulcand etcd key
   -e, --etcd=http://127.0.0.1:2379
                    etcd peers
   -t, --etcd-timeout=5s
@@ -33,12 +35,12 @@ Flags:
   -l, --log-level=info
                    log level. One of: fatal, error, warn, info, debug
   --debug-etcd     Enable cURL debug logging for etcd
-  --version        Show application version.
 ```
 
 Set up your kubernetes service with a label and some options annotations:
 
 *NOTE*: all labels and annotations are under the prefix `romulus/`
+*NOTE 2*: set the etcd vulcand prefix with the label `romulus/vulcanKey`. If not set, then the default key is used (see flag `--vulcan-key`)
 
 ```yaml
 apiVersion: v1
@@ -52,7 +54,8 @@ metadata:
     romulus/backendSettings: '{"KeepAlive": {"MaxIdleConnsPerHost": 128, "Period": "4s"}}'
   labels:
     name: example
-    romulus/type: external # <-- Will ensure SVC-SELECTORs specified (e.g. 'type=external') are present in either Labels or Annotations.
+    romulus/vulcanKey: 'vulcand-test'
+    romulus/type: external # <-- Will ensure SVC-SELECTORs specified (e.g. 'type=external') are present in Labels.
 spec: 
 ...
 ```
@@ -68,16 +71,16 @@ frontend       name=frontend,type=external       name=frontend       10.247.242.
 NAME           ENDPOINTS
 frontend       10.246.1.7:80,10.246.1.8:80,10.246.1.9:80
 
-$ etcdctl get /vulcan/backends/example.default/backend
+$ etcdctl get /vulcand-test/backends/example.default/backend
 {"Id":"example.default","Type":"http","Settings":{"KeepAlive":{"MaxIdleConnsPerHost":128,"Period": "4s"}}}
 
-$ etcdctl get /vulcan/frontends/example.default/frontend
+$ etcdctl get /vulcand-test/frontends/example.default/frontend
 {"Id": "example.default","Type":"http","BackendId":"example.default","Route":"Host(`www.example.com`) && PathRegexp(`/guestbook/.*`)","Settings":{"FailoverPredicate":"(IsNetworkError() || ResponseCode() == 503) && Attempts() <= 2"}}
 
-$ etcdctl ls /vulcan/backends/example.default/servers
-/vulcan/backends/example.default/servers/10.246.1.8
-/vulcan/backends/example.default/servers/10.246.1.9
-/vulcan/backends/example.default/servers/10.246.1.7
+$ etcdctl ls /vulcand-test/backends/example.default/servers
+/vulcand-test/backends/example.default/servers/10.246.1.8
+/vulcand-test/backends/example.default/servers/10.246.1.9
+/vulcand-test/backends/example.default/servers/10.246.1.7
 ```
 
 ## Multi Port Services

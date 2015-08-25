@@ -19,6 +19,7 @@ type EtcdClient interface {
 	Add(key, val string) error
 	Keys(pre string) ([]string, error)
 	Del(key string) error
+	SetPrefix(pre string)
 }
 
 type realEtcdClient struct {
@@ -28,7 +29,10 @@ type realEtcdClient struct {
 	t time.Duration
 }
 
-type fakeEtcdClient map[string]string
+type fakeEtcdClient struct {
+	k map[string]string
+	p string
+}
 
 func DebugEtcd() {
 	etcdDebug = true
@@ -42,21 +46,22 @@ func NewEtcdClient(peers []string, prefix string, timeout time.Duration) (EtcdCl
 	if er != nil {
 		return nil, er
 	}
-	return &realEtcdClient{client.NewKeysAPI(ec), new(sync.RWMutex), prefix, timeout}, nil
+	return &realEtcdClient{client.NewKeysAPI(ec), new(sync.RWMutex),
+		prefix, timeout}, nil
 }
 
-func NewFakeEtcdClient() EtcdClient {
-	return &fakeEtcdClient{"/": ""}
+func NewFakeEtcdClient(prefix string) EtcdClient {
+	return &fakeEtcdClient{map[string]string{"/": ""}, prefix}
 }
 
-func (r *realEtcdClient) addPrefix(k string) string {
-	return strings.Join([]string{r.p, k}, "/")
+func (r *realEtcdClient) SetPrefix(pre string) {
+	r.p = pre
 }
 
 func (r *realEtcdClient) Add(k, v string) error {
 	r.Lock()
 	defer r.Unlock()
-	return r.add(r.addPrefix(k), v)
+	return r.add(prefix(r.p, k), v)
 }
 
 func (r *realEtcdClient) add(k, v string) error {
@@ -70,7 +75,7 @@ func (r *realEtcdClient) add(k, v string) error {
 func (r *realEtcdClient) Del(k string) error {
 	r.Lock()
 	defer r.Unlock()
-	return r.del(r.addPrefix(k))
+	return r.del(prefix(r.p, k))
 }
 
 func (r *realEtcdClient) del(k string) error {
@@ -87,7 +92,7 @@ func (r *realEtcdClient) del(k string) error {
 func (r *realEtcdClient) Keys(k string) ([]string, error) {
 	r.RLock()
 	defer r.RUnlock()
-	return r.keys(r.addPrefix(k))
+	return r.keys(prefix(r.p, k))
 }
 
 func (re *realEtcdClient) keys(p string) ([]string, error) {
@@ -112,21 +117,27 @@ func (re *realEtcdClient) keys(p string) ([]string, error) {
 	return k, nil
 }
 
-func (f fakeEtcdClient) Add(k, v string) (e error) { f[k] = v; return }
+func (f *fakeEtcdClient) SetPrefix(pre string) { f.p = pre }
+func (f fakeEtcdClient) Add(k, v string) (e error) {
+	f.k[prefix(f.p, k)] = v
+	return
+}
 func (f fakeEtcdClient) Del(k string) error {
-	delete(f, k)
-	for key := range f {
-		if strings.HasPrefix(key, k) {
-			delete(f, key)
+	ke := prefix(f.p, k)
+	delete(f.k, ke)
+	for key := range f.k {
+		if strings.HasPrefix(key, ke) {
+			delete(f.k, key)
 		}
 	}
 	return nil
 }
-func (f fakeEtcdClient) Keys(p string) ([]string, error) {
+func (f fakeEtcdClient) Keys(k string) ([]string, error) {
+	key := prefix(f.p, k)
 	r := []string{}
-	for k := range f {
-		if p == filepath.Dir(k) {
-			r = append(r, filepath.Base(k))
+	for ke := range f.k {
+		if key == filepath.Dir(ke) {
+			r = append(r, filepath.Base(ke))
 		}
 	}
 	return r, nil
@@ -145,4 +156,13 @@ func isKeyNotFound(e error) bool {
 		}
 		return false
 	}
+}
+
+func prefix(p, s string) string {
+	// s := k
+	// if strings.HasPrefix(s, r.p) {
+	// 	s = strings.TrimLeft(s, r.p)
+	// }
+	// s = strings.TrimLeft(s, "/")
+	return strings.Join([]string{p, s}, "/")
 }

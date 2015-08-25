@@ -14,8 +14,9 @@ import (
 )
 
 var (
-	bckndsKeyFmt  = "%s/backends"
-	frntndsKeyFmt = "%s/frontends"
+	bckndsKeyFmt   = "%s/backends"
+	frntndsKeyFmt  = "%s/frontends"
+	vulcanKeyLabel = "romulus/vulcanKey"
 
 	KubeRetryLimit = 10 * time.Second
 )
@@ -93,6 +94,20 @@ func NewRegistrar(c *Config) (*Registrar, error) {
 		s:  c.Selector.fixNamespace(),
 		vk: formatEtcdNamespace(c.VulcanEtcdNamespace),
 	}, nil
+}
+
+func (r *Registrar) setVulcanKey(o runtime.Object) {
+	m := meta.NewAccessor()
+	la, er := m.Labels(o)
+	if er != nil {
+		r.e.SetPrefix(r.vk)
+		return
+	}
+	if val, ok := la[vulcanKeyLabel]; ok {
+		r.e.SetPrefix(formatEtcdNamespace(val))
+		return
+	}
+	r.e.SetPrefix(r.vk)
 }
 
 func (r *Registrar) getEndpoint(name, ns string) (en *api.Endpoints, er error) {
@@ -219,6 +234,7 @@ func (r *Registrar) pruneFrontends() error {
 }
 
 func (reg *Registrar) delete(r runtime.Object) error {
+	reg.setVulcanKey(r)
 	switch o := r.(type) {
 	case *api.Endpoints:
 		return deregisterEndpoints(reg, o)
@@ -230,6 +246,7 @@ func (reg *Registrar) delete(r runtime.Object) error {
 }
 
 func (reg *Registrar) update(r runtime.Object, s string) error {
+	reg.setVulcanKey(r)
 	switch o := r.(type) {
 	case *api.Service:
 		if s == "mod" {
@@ -361,6 +378,9 @@ func parseVulcanID(id string) (string, string, error) {
 }
 
 func registerable(o runtime.Object, sl ServiceSelector) bool {
+	if _, ok := o.(*api.Status); ok {
+		return true
+	}
 	m := meta.NewAccessor()
 	la, er := m.Labels(o)
 	if er != nil {
