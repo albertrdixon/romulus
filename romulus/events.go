@@ -2,14 +2,16 @@ package romulus
 
 import (
 	"fmt"
+	"time"
 
-	"github.com/cenkalti/backoff"
 	"golang.org/x/net/context"
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/fields"
 	"k8s.io/kubernetes/pkg/labels"
 	"k8s.io/kubernetes/pkg/watch"
 )
+
+var WatchRetryInterval = 2 * time.Second
 
 type Event struct {
 	watch.Event
@@ -23,41 +25,18 @@ type WatchFunc func() (watch.Interface, error)
 
 func initEvents(r *Registrar, c context.Context) (<-chan Event, error) {
 	out := make(chan Event, 100)
-	s, er := setWatch(func() (watch.Interface, error) {
+	s := func() (watch.Interface, error) {
+		log().Debug("Attempting to set watch on Services")
 		return r.k.Services(api.NamespaceAll).Watch(labels.Everything(), fields.Everything(), "")
-	})
-	if er != nil {
-		return nil, er
 	}
-	e, er := setWatch(func() (watch.Interface, error) {
+	e := func() (watch.Interface, error) {
+		log().Debug("Attempting to set watch on Endpoints")
 		return r.k.Endpoints(api.NamespaceAll).Watch(labels.Everything(), fields.Everything(), "")
-	})
-	if er != nil {
-		return nil, er
 	}
 
-	go ingester("Services").ingest(s, out, c)
-	go ingester("Endpoints").ingest(e, out, c)
+	go ingester{"Services", s}.ingest(out, c)
+	go ingester{"Endpoints", e}.ingest(out, c)
 	return out, nil
-}
-
-func setWatch(wf WatchFunc) (watch.Interface, error) {
-	var w watch.Interface
-	fn := func() error {
-		wa, e := wf()
-		if e != nil {
-			return e
-		}
-		w = wa
-		return nil
-	}
-
-	b := backoff.NewExponentialBackOff()
-	b.MaxElapsedTime = KubeRetryLimit
-	if e := backoff.Retry(fn, b); e != nil {
-		return nil, NewErr(e, "kubernetes error")
-	}
-	return w, nil
 }
 
 func event(r *Registrar, e Event) error {
@@ -80,20 +59,72 @@ func event(r *Registrar, e Event) error {
 	}
 }
 
-type ingester string
-
-func (i ingester) fields() map[string]interface{} {
-	return map[string]interface{}{"channel": (string)(i)}
+type ingester struct {
+	name string
+	fn   WatchFunc
 }
 
-func (i ingester) ingest(in watch.Interface, out chan<- Event, c context.Context) {
+func (i ingester) fields() map[string]interface{} {
+	return map[string]interface{}{"channel": i.name}
+}
+
+func (i ingester) watch(out chan<- watch.Interface, c context.Context) {
+	t := time.NewTicker(WatchRetryInterval)
+	defer t.Stop()
+
+	if w, e := i.fn(); e == nil {
+		out <- w
+		return
+	} else {
+		logf(i).Debugf("Setting watch failed, retry in (%v): %v", WatchRetryInterval, e)
+	}
 	for {
 		select {
 		case <-c.Done():
-			logf(i).Debug("Closing ingest channel")
 			return
-		case e := <-in.ResultChan():
-			out <- Event{e}
+		case <-t.C:
+			if w, e := i.fn(); e == nil {
+				out <- w
+				return
+			} else {
+				logf(i).Debugf("Setting watch failed, retry in (%v): %v", WatchRetryInterval, e)
+			}
 		}
 	}
+}
+
+func (i ingester) ingest(out chan<- Event, c context.Context) {
+	var w watch.Interface
+	var wc = make(chan watch.Interface, 1)
+	defer close(wc)
+
+	for {
+		go i.watch(wc, c)
+		select {
+		case <-c.Done():
+			logf(i).Info("Closing ingest channel")
+			return
+		case w = <-wc:
+			logf(i).Debug("Watch set")
+		}
+
+	EventLoop:
+		for {
+			select {
+			case <-c.Done():
+				logf(i).Info("Closing ingest channel")
+				return
+			case e := <-w.ResultChan():
+				if isClosed(e) {
+					logf(i).Warnf("Watch closed: %+v", e)
+					break EventLoop
+				}
+				out <- Event{e}
+			}
+		}
+	}
+}
+
+func isClosed(e watch.Event) bool {
+	return e.Type == watch.Error || e == watch.Event{}
 }

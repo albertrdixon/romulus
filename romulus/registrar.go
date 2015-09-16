@@ -9,7 +9,7 @@ import (
 	"github.com/cenkalti/backoff"
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/meta"
-	"k8s.io/kubernetes/pkg/client"
+	"k8s.io/kubernetes/pkg/client/unversioned"
 	"k8s.io/kubernetes/pkg/runtime"
 )
 
@@ -25,7 +25,7 @@ var (
 type EtcdPeerList []string
 
 // KubeClientConfig is an alias for kubernetes/pkg/client.Config
-type KubeClientConfig client.Config
+type KubeClientConfig unversioned.Config
 
 // ServiceSelector is a map of labels for selecting services
 type ServiceSelector map[string]string
@@ -56,8 +56,8 @@ type Config struct {
 	VulcanEtcdNamespace string
 }
 
-func (c *Config) kc() client.Config { return (client.Config)(c.KubeConfig) }
-func (c *Config) ps() []string      { return ([]string)(c.PeerList) }
+func (c *Config) kc() unversioned.Config { return (unversioned.Config)(c.KubeConfig) }
+func (c *Config) ps() []string           { return ([]string)(c.PeerList) }
 
 func (sl ServiceSelector) String() string {
 	s := []string{}
@@ -69,7 +69,7 @@ func (sl ServiceSelector) String() string {
 
 // Registrar holds the kubernetes/pkg/client.Client and etcd.Client
 type Registrar struct {
-	k  *client.Client
+	k  *unversioned.Client
 	e  EtcdClient
 	vk string
 	v  string
@@ -79,7 +79,7 @@ type Registrar struct {
 // NewRegistrar returns a ptr to a new Registrar from a Config
 func NewRegistrar(c *Config) (*Registrar, error) {
 	cf := c.kc()
-	kc, err := client.New(&cf)
+	kc, err := unversioned.New(&cf)
 	if err != nil {
 		return nil, err
 	}

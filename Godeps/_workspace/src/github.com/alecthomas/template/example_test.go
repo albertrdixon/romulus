@@ -5,9 +5,9 @@
 package template_test
 
 import (
+	"github.com/alecthomas/template"
 	"log"
 	"os"
-	"github.com/alecthomas/template"
 )
 
 func ExampleTemplate() {
