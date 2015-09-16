@@ -26,6 +26,7 @@ var (
 	ku = ro.Flag("kube-user", "kubernetes username").Short('U').Default("").OverrideDefaultFromEnvar("KUBE_USER").String()
 	kp = ro.Flag("kube-pass", "kubernetes password").Short('P').Default("").OverrideDefaultFromEnvar("KUBE_PASS").String()
 	kv = ro.Flag("kube-api", "kubernetes api version").Default("v1").OverrideDefaultFromEnvar("KUBE_API_VER").String()
+	kr = ro.Flag("kube-retry-interval", "interval between attempts to set watches").Default("2s").OverrideDefaultFromEnvar("KUBE_RETRY").Duration()
 	kc = ro.Flag("kubecfg", "path to kubernetes cfg file").Short('C').PlaceHolder("/path/to/.kubecfg").ExistingFile()
 	sl = ro.Flag("svc-selector", "service selectors. Leave blank for Everything(). Form: key=value").Short('s').PlaceHolder("key=value[,key=value]").OverrideDefaultFromEnvar("SVC_SELECTOR").StringMap()
 	db = ro.Flag("debug", "Enable debug logging. e.g. --log-level debug").Short('d').Bool()
@@ -44,6 +45,7 @@ func main() {
 	if *ed {
 		romulus.DebugEtcd()
 	}
+	romulus.WatchRetryInterval = *kr
 
 	eps := []string{}
 	kcc := romulus.KubeClientConfig{

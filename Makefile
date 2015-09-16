@@ -5,7 +5,7 @@ EXECUTABLE = "romulusd"
 BINARY = cmd/romulusd/romulusd.go
 IMAGE = romulusd
 REMOTE_REPO = quay.io/timeline_labs/romulusd
-LDFLAGS = "-s -X $(PROJECT)/romulus.SHA $(REV)"
+LDFLAGS = "-s -X $(PROJECT)/romulus.SHA=$(REV)"
 TEST_COMMAND = godep go test
 
 .PHONY: dep-save dep-restore test test-verbose build build-image install publish
@@ -27,7 +27,7 @@ help:
 
 dep-save:
 	@echo "==> Saving dependencies to ./Godeps"
-	@godep save ./...
+	godep save -v ./...
 
 dep-restore:
 	@echo "==> Restoring dependencies from ./Godeps"
