@@ -197,8 +197,10 @@ func (s ServerMap) IPs() []string {
 
 func encode(v VulcanObject) (string, error) {
 	b := new(bytes.Buffer)
-	e := json.NewEncoder(b).Encode(v)
-	return strings.TrimSpace(HTMLUnescape(b.String())), e
+	if e := json.NewEncoder(b).Encode(v); e != nil {
+		return "", e
+	}
+	return strings.TrimSpace(HTMLUnescape(b.String())), nil
 }
 
 func buildRoute(ns string, a map[string]string) string {
@@ -209,7 +211,7 @@ func buildRoute(ns string, a map[string]string) string {
 	for k, f := range rteConv {
 		pk := fmt.Sprintf(annotationFmt, k, ns)
 		if v, ok := a[pk]; ok {
-			if k == "method" {
+			if k == "method" || k == "methodRegexp" {
 				v = strings.ToUpper(v)
 			}
 			rt = append(rt, fmt.Sprintf(f, v))
