@@ -19,5 +19,5 @@ actions:
       - go get github.com/tools/godep && go install github.com/tools/godep
       - docker login -e="." -u="$VAR_QUAY_USER" -p="$VAR_QUAY_AUTH" quay.io
       - REV="$SG_HEAD" BRANCH=$(echo "$SG_REF" | tr / _) make container
-    container: golang:1.4
+    container: golang:1.5
     containerDir: /go/src/github.com/timelinelabs/romulus
