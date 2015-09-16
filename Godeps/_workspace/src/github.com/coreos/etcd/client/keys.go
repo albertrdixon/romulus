@@ -14,28 +14,32 @@
 
 package client
 
+//go:generate codecgen -r "Node|Response|Nodes" -o keys.generated.go keys.go
+
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
-	"path"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/coreos/etcd/pkg/pathutil"
+	"github.com/ugorji/go/codec"
 	"golang.org/x/net/context"
 )
 
 const (
-	ErrorCodeKeyNotFound = 100
-	ErrorCodeTestFailed  = 101
-	ErrorCodeNotFile     = 102
-	ErrorCodeNotDir      = 104
-	ErrorCodeNodeExist   = 105
-	ErrorCodeRootROnly   = 107
-	ErrorCodeDirNotEmpty = 108
+	ErrorCodeKeyNotFound  = 100
+	ErrorCodeTestFailed   = 101
+	ErrorCodeNotFile      = 102
+	ErrorCodeNotDir       = 104
+	ErrorCodeNodeExist    = 105
+	ErrorCodeRootROnly    = 107
+	ErrorCodeDirNotEmpty  = 108
+	ErrorCodeUnauthorized = 110
 
 	ErrorCodePrevValueRequired = 201
 	ErrorCodeTTLNaN            = 202
@@ -136,7 +140,7 @@ type WatcherOptions struct {
 	// index, whatever that may be.
 	AfterIndex uint64
 
-	// Recursive specifices whether or not the Watcher should emit
+	// Recursive specifies whether or not the Watcher should emit
 	// events that occur in children of the given keyspace. If set
 	// to false (default), events will be limited to those that
 	// occur for the exact key.
@@ -252,7 +256,7 @@ type Response struct {
 	Node *Node `json:"node"`
 
 	// PrevNode represents the previous state of the Node. PrevNode is non-nil
-	// only if the Node existed before the action occured and the action
+	// only if the Node existed before the action occurred and the action
 	// caused a change to the Node.
 	PrevNode *Node `json:"prevNode"`
 
@@ -275,7 +279,7 @@ type Node struct {
 	// Nodes holds the children of this Node, only if this Node is a directory.
 	// This slice of will be arbitrarily deep (children, grandchildren, great-
 	// grandchildren, etc.) if a recursive Get or Watch request were made.
-	Nodes []*Node `json:"nodes"`
+	Nodes Nodes `json:"nodes"`
 
 	// CreatedIndex is the etcd index at-which this Node was created.
 	CreatedIndex uint64 `json:"createdIndex"`
@@ -298,6 +302,13 @@ func (n *Node) String() string {
 func (n *Node) TTLDuration() time.Duration {
 	return time.Duration(n.TTL) * time.Second
 }
+
+type Nodes []*Node
+
+// interfaces for sorting
+func (ns Nodes) Len() int           { return len(ns) }
+func (ns Nodes) Less(i, j int) bool { return ns[i].Key < ns[j].Key }
+func (ns Nodes) Swap(i, j int)      { ns[i], ns[j] = ns[j], ns[i] }
 
 type httpKeysAPI struct {
 	client httpClient
@@ -445,7 +456,16 @@ func (hw *httpWatcher) Next(ctx context.Context) (*Response, error) {
 // provided endpoint's path to the root of the keys API
 // (typically "/v2/keys").
 func v2KeysURL(ep url.URL, prefix, key string) *url.URL {
-	ep.Path = path.Join(ep.Path, prefix, key)
+	// We concatenate all parts together manually. We cannot use
+	// path.Join because it does not reserve trailing slash.
+	// We call CanonicalURLPath to further cleanup the path.
+	if prefix != "" && prefix[0] != '/' {
+		prefix = "/" + prefix
+	}
+	if key != "" && key[0] != '/' {
+		key = "/" + key
+	}
+	ep.Path = pathutil.CanonicalURLPath(ep.Path + prefix + key)
 	return &ep
 }
 
@@ -609,7 +629,7 @@ func unmarshalHTTPResponse(code int, header http.Header, body []byte) (res *Resp
 
 func unmarshalSuccessfulKeysResponse(header http.Header, body []byte) (*Response, error) {
 	var res Response
-	err := json.Unmarshal(body, &res)
+	err := codec.NewDecoderBytes(body, new(codec.JsonHandle)).Decode(&res)
 	if err != nil {
 		return nil, ErrInvalidJSON
 	}

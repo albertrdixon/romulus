@@ -37,6 +37,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -245,7 +246,7 @@ func writeStruct(w *textWriter, sv reflect.Value) error {
 		}
 		if fv.Kind() == reflect.Map {
 			// Map fields are rendered as a repeated struct with key/value fields.
-			keys := fv.MapKeys() // TODO: should we sort these for deterministic output?
+			keys := fv.MapKeys()
 			sort.Sort(mapKeys(keys))
 			for _, key := range keys {
 				val := fv.MapIndex(key)
@@ -317,26 +318,33 @@ func writeStruct(w *textWriter, sv reflect.Value) error {
 		}
 		if fv.Kind() != reflect.Ptr && fv.Kind() != reflect.Slice {
 			// proto3 non-repeated scalar field; skip if zero value
-			switch fv.Kind() {
-			case reflect.Bool:
-				if !fv.Bool() {
+			if isProto3Zero(fv) {
+				continue
+			}
+		}
+
+		if fv.Kind() == reflect.Interface {
+			// Check if it is a oneof.
+			if st.Field(i).Tag.Get("protobuf_oneof") != "" {
+				// fv is nil, or holds a pointer to generated struct.
+				// That generated struct has exactly one field,
+				// which has a protobuf struct tag.
+				if fv.IsNil() {
 					continue
 				}
-			case reflect.Int32, reflect.Int64:
-				if fv.Int() == 0 {
-					continue
-				}
-			case reflect.Uint32, reflect.Uint64:
-				if fv.Uint() == 0 {
-					continue
-				}
-			case reflect.Float32, reflect.Float64:
-				if fv.Float() == 0 {
-					continue
-				}
-			case reflect.String:
-				if fv.String() == "" {
-					continue
+				inner := fv.Elem().Elem() // interface -> *T -> T
+				tag := inner.Type().Field(0).Tag.Get("protobuf")
+				props.Parse(tag) // Overwrite the outer props.
+				// Write the value in the oneof, not the oneof itself.
+				fv = inner.Field(0)
+
+				// Special case to cope with malformed messages gracefully:
+				// If the value in the oneof is a nil pointer, don't panic
+				// in writeAny.
+				if fv.Kind() == reflect.Ptr && fv.IsNil() {
+					// Use errors.New so writeAny won't render quotes.
+					msg := errors.New("/* nil */")
+					fv = reflect.ValueOf(&msg).Elem()
 				}
 			}
 		}

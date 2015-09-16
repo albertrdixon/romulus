@@ -152,7 +152,7 @@ var unMarshalTextTests = []UnmarshalTextTest{
 	// Bad quoted string
 	{
 		in:  `inner: < host: "\0" >` + "\n",
-		err: `line 1.15: invalid quoted string "\0"`,
+		err: `line 1.15: invalid quoted string "\0": \0 requires 2 following digits`,
 	},
 
 	// Number too large for int64
@@ -478,6 +478,18 @@ func TestMapParsing(t *testing.T) {
 			true: []byte("so be it"),
 		},
 	}
+	if err := UnmarshalText(in, m); err != nil {
+		t.Fatal(err)
+	}
+	if !Equal(m, want) {
+		t.Errorf("\n got %v\nwant %v", m, want)
+	}
+}
+
+func TestOneofParsing(t *testing.T) {
+	const in = `name:"Shrek"`
+	m := new(Communique)
+	want := &Communique{Union: &Communique_Name{"Shrek"}}
 	if err := UnmarshalText(in, m); err != nil {
 		t.Fatal(err)
 	}
