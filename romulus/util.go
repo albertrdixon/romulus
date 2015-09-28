@@ -21,20 +21,26 @@ func HTMLUnescape(s string) string {
 	return r
 }
 
+const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+const (
+	charBits = 6
+	charMask = 1<<charBits - 1
+	charMax  = 63 / charBits
+)
+
 var src = rand.NewSource(time.Now().UnixNano())
 
 func RandStr(n int) string {
 	b := make([]byte, n)
-	// A src.Int63() generates 63 random bits, enough for letterIdxMax characters!
-	for i, cache, remain := n-1, src.Int63(), letterIdxMax; i >= 0; {
+	for i, cache, remain := n-1, src.Int63(), charMax; i >= 0; {
 		if remain == 0 {
-			cache, remain = src.Int63(), letterIdxMax
+			cache, remain = src.Int63(), charMax
 		}
-		if idx := int(cache & letterIdxMask); idx < len(letterBytes) {
-			b[i] = letterBytes[idx]
+		if idx := int(cache & charMask); idx < len(chars) {
+			b[i] = chars[idx]
 			i--
 		}
-		cache >>= letterIdxBits
+		cache >>= charBits
 		remain--
 	}
 
