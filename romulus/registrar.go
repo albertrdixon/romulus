@@ -300,6 +300,7 @@ func (r *Registrar) registerBackends(s *api.Service, e *api.Endpoints) (BackendL
 				}
 				uu := (*URL)(u)
 				sm[uu.GetHost()] = Server{
+					ID:      fmt.Sprintf("%s-%s", bid, RandStr(5)),
 					Backend: bid,
 					URL:     uu,
 				}

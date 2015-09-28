@@ -92,6 +92,7 @@ type ServerMap map[string]Server
 
 // Server is a vulcand server
 type Server struct {
+	ID      string `json:"-"`
 	URL     *URL   `json:"URL"`
 	Backend string `json:"-"`
 }
@@ -152,7 +153,7 @@ func NewFrontendSettings(p []byte) *FrontendSettings {
 
 func (b Backend) Key() string { return fmt.Sprintf(bckndFmt, b.ID) }
 func (s Server) Key() string {
-	return fmt.Sprintf(srvrFmt, s.Backend, s.URL.GetHost())
+	return fmt.Sprintf(srvrFmt, s.Backend, s.ID)
 }
 func (f Frontend) Key() string         { return fmt.Sprintf(frntndFmt, f.ID) }
 func (f FrontendSettings) Key() string { return "" }

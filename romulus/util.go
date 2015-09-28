@@ -1,6 +1,10 @@
 package romulus
 
-import "strings"
+import (
+	"math/rand"
+	"strings"
+	"time"
+)
 
 var unicodeReplacements = map[string]string{
 	`\u003c`: "<",
@@ -15,4 +19,24 @@ func HTMLUnescape(s string) string {
 		r = strings.Replace(r, k, v, -1)
 	}
 	return r
+}
+
+var src = rand.NewSource(time.Now().UnixNano())
+
+func RandStr(n int) string {
+	b := make([]byte, n)
+	// A src.Int63() generates 63 random bits, enough for letterIdxMax characters!
+	for i, cache, remain := n-1, src.Int63(), letterIdxMax; i >= 0; {
+		if remain == 0 {
+			cache, remain = src.Int63(), letterIdxMax
+		}
+		if idx := int(cache & letterIdxMask); idx < len(letterBytes) {
+			b[i] = letterBytes[idx]
+			i--
+		}
+		cache >>= letterIdxBits
+		remain--
+	}
+
+	return string(b)
 }

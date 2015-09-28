@@ -75,10 +75,10 @@ func (i ingester) watch(out chan<- watch.Interface, c context.Context) {
 	if w, e := i.fn(); e == nil {
 		out <- w
 		return
-	} else {
-		logf(i).Debugf("Setting watch failed, retry in (%v): %v", WatchRetryInterval, e)
 	}
+
 	for {
+		logf(i).Debugf("Setting watch failed, retry in (%v): %v", WatchRetryInterval, e)
 		select {
 		case <-c.Done():
 			return
@@ -86,8 +86,6 @@ func (i ingester) watch(out chan<- watch.Interface, c context.Context) {
 			if w, e := i.fn(); e == nil {
 				out <- w
 				return
-			} else {
-				logf(i).Debugf("Setting watch failed, retry in (%v): %v", WatchRetryInterval, e)
 			}
 		}
 	}
