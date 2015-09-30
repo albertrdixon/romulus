@@ -281,16 +281,6 @@ func (r *Registrar) registerBackends(s *api.Service, e *api.Endpoints) (BackendL
 			}
 			logf(fi{"id": bnd.ID, "type": bnd.Type, "settings": bnd.Settings.String()}).Debug("Backend settings")
 
-			val, err := bnd.Val()
-			if err != nil {
-				return bnds, NewErr(err, "Could not encode backend for %q", e.Name)
-			}
-			logf(fi{"id": bnd.ID}).Debug("Upserting backend")
-			if err := r.e.Add(bnd.Key(), val); err != nil {
-				return bnds, NewErr(err, "etcd error")
-			}
-			bnds[port.Port] = bnd
-
 			for _, ip := range es.Addresses {
 				ur := fmt.Sprintf("http://%s:%d", ip.IP, port.Port)
 				u, err := url.Parse(ur)
@@ -308,6 +298,16 @@ func (r *Registrar) registerBackends(s *api.Service, e *api.Endpoints) (BackendL
 			if err := r.pruneServers(bid, sm); err != nil {
 				return bnds, NewErr(err, "Unable to prune servers for backend %q", bid)
 			}
+
+			val, err := bnd.Val()
+			if err != nil {
+				return bnds, NewErr(err, "Could not encode backend for %q", e.Name)
+			}
+			logf(fi{"id": bnd.ID}).Debug("Upserting backend")
+			if err := r.e.Add(bnd.Key(), val); err != nil {
+				return bnds, NewErr(err, "etcd error")
+			}
+			bnds[port.Port] = bnd
 
 			for _, srv := range sm {
 				val, err := srv.Val()

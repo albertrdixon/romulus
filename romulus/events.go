@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/cenkalti/backoff"
 	"golang.org/x/net/context"
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/fields"
@@ -11,7 +12,10 @@ import (
 	"k8s.io/kubernetes/pkg/watch"
 )
 
-var WatchRetryInterval = 2 * time.Second
+var(
+	WatchRetryInterval = 2 * time.Second
+	MaxEvent
+	)
 
 type Event struct {
 	watch.Event
@@ -23,7 +27,7 @@ func (e Event) fields() map[string]interface{} {
 
 type WatchFunc func() (watch.Interface, error)
 
-func initEvents(r *Registrar, c context.Context) (<-chan Event, error) {
+func initEvents(r *Registrar, c context.Context) (chan Event, error) {
 	out := make(chan Event, 100)
 	s := func() (watch.Interface, error) {
 		log().Debug("Attempting to set watch on Services")
