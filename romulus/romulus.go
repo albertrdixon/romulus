@@ -2,6 +2,7 @@ package romulus
 
 import (
 	"fmt"
+	"time"
 
 	"golang.org/x/net/context"
 	"k8s.io/kubernetes/pkg/api"
@@ -31,7 +32,7 @@ func Start(r *Registrar, c context.Context) error {
 	return nil
 }
 
-func start(r *Registrar, w <-chan Event, c context.Context) {
+func start(r *Registrar, w chan Event, c context.Context) {
 	for {
 		select {
 		case <-c.Done():
@@ -41,6 +42,8 @@ func start(r *Registrar, w <-chan Event, c context.Context) {
 				go func() {
 					if er := event(r, e); er != nil {
 						log().Error(er.Error())
+						time.Sleep(2 * time.Second)
+						w <- e
 					}
 				}()
 			}

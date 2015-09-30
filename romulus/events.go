@@ -23,7 +23,7 @@ func (e Event) fields() map[string]interface{} {
 
 type WatchFunc func() (watch.Interface, error)
 
-func initEvents(r *Registrar, c context.Context) (<-chan Event, error) {
+func initEvents(r *Registrar, c context.Context) (chan Event, error) {
 	out := make(chan Event, 100)
 	s := func() (watch.Interface, error) {
 		log().Debug("Attempting to set watch on Services")
