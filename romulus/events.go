@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/cenkalti/backoff"
 	"golang.org/x/net/context"
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/fields"
@@ -12,10 +11,7 @@ import (
 	"k8s.io/kubernetes/pkg/watch"
 )
 
-var(
-	WatchRetryInterval = 2 * time.Second
-	MaxEvent
-	)
+var WatchRetryInterval = 2 * time.Second
 
 type Event struct {
 	watch.Event
