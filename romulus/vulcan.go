@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 )
 
 var (
+	TypeHTTP = "http"
+
 	bcknds       = "backends"
 	frntnds      = "frontends"
 	bckndDirFmt  = "backends/%s"
@@ -39,7 +42,27 @@ type VulcanObject interface {
 	Val() (string, error)
 }
 
-type BackendList map[int]*Backend
+type BackendList struct {
+	s map[string]*Backend
+	i map[int]*Backend
+}
+
+func NewBackendList() *BackendList {
+	return &BackendList{make(map[string]*Backend), make(map[int]*Backend)}
+}
+func (b BackendList) Add(port int, name string, ba *Backend) {
+	b.s[name] = ba
+	b.i[port] = ba
+}
+
+func (b BackendList) Lookup(port int, name string) (ba *Backend, ok bool) {
+	ba, ok = b.i[port]
+	if ok {
+		return
+	}
+	ba, ok = b.s[name]
+	return
+}
 
 // Backend is a vulcand backend
 type Backend struct {
@@ -123,15 +146,20 @@ type FrontendSettingsLimits struct {
 // NewBackend returns a ref to a Backend object
 func NewBackend(id string) *Backend {
 	return &Backend{
-		ID: id,
+		ID:   id,
+		Type: TypeHTTP,
 	}
 }
 
 // NewFrontend returns a ref to a Frontend object
-func NewFrontend(id, bid string) *Frontend {
+func NewFrontend(id, bid string, route ...string) *Frontend {
+	sort.StringSlice(route).Sort()
+	rt := strings.Join(route, " && ")
 	return &Frontend{
 		ID:        id,
 		BackendID: bid,
+		Type:      TypeHTTP,
+		Route:     rt,
 	}
 }
 
@@ -187,6 +215,32 @@ func (b *BackendSettings) String() string {
 	return s
 }
 
+func (s Server) fields() map[string]interface{} {
+	return map[string]interface{}{
+		"server":  s.ID,
+		"url":     s.URL.String(),
+		"backend": s.Backend,
+	}
+}
+
+func (f Frontend) fields() map[string]interface{} {
+	return map[string]interface{}{
+		"id":       f.ID,
+		"backend":  f.BackendID,
+		"type":     f.Type,
+		"route":    f.Route,
+		"settings": f.Settings.String(),
+	}
+}
+
+func (b Backend) fields() map[string]interface{} {
+	return map[string]interface{}{
+		"id":       b.ID,
+		"type":     b.Type,
+		"settings": b.Settings.String(),
+	}
+}
+
 // IPs returns the ServerMap IPs
 func (s ServerMap) IPs() []string {
 	st := []string{}
@@ -204,15 +258,24 @@ func encode(v VulcanObject) (string, error) {
 	return strings.TrimSpace(HTMLUnescape(b.String())), nil
 }
 
+func decode(v VulcanObject, p []byte) error {
+	return json.Unmarshal(p, v)
+}
+
 func buildRoute(ns string, a map[string]string) string {
 	rt := []string{}
 	if ns != "" {
 		ns = fmt.Sprintf(".%s", ns)
 	}
 	for k, f := range rteConv {
-		pk := fmt.Sprintf(annotationFmt, k, ns)
+		pk, ppk := fmt.Sprintf(annotationFmt, k, ns), fmt.Sprintf(annotationFmt, k, "")
 		if v, ok := a[pk]; ok {
-			if k == "method" || k == "methodRegexp" {
+			if k == "method" {
+				v = strings.ToUpper(v)
+			}
+			rt = append(rt, fmt.Sprintf(f, v))
+		} else if v, ok := a[ppk]; ok {
+			if k == "method" {
 				v = strings.ToUpper(v)
 			}
 			rt = append(rt, fmt.Sprintf(f, v))
@@ -221,5 +284,6 @@ func buildRoute(ns string, a map[string]string) string {
 	if len(rt) < 1 {
 		rt = []string{"Path(`/`)"}
 	}
+	sort.StringSlice(rt).Sort()
 	return strings.Join(rt, " && ")
 }

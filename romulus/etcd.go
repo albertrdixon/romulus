@@ -19,6 +19,7 @@ type EtcdClient interface {
 	Add(key, val string) error
 	Keys(pre string) ([]string, error)
 	Del(key string) error
+	Val(key string) (string, error)
 	SetPrefix(pre string)
 }
 
@@ -117,12 +118,36 @@ func (re *realEtcdClient) keys(p string) ([]string, error) {
 	return k, nil
 }
 
+func (r *realEtcdClient) Val(key string) (string, error) {
+	r.RLock()
+	defer r.RUnlock()
+	return r.get(prefix(r.p, key))
+}
+
+func (r *realEtcdClient) get(key string) (string, error) {
+	c, q := context.WithTimeout(context.Background(), r.t)
+	defer q()
+
+	resp, e := r.Get(c, key, &client.GetOptions{Recursive: false, Quorum: true})
+	if e != nil {
+		if isKeyNotFound(e) {
+			return "", nil
+		}
+		return "", e
+	}
+	if resp.Node == nil || resp.Node.Dir {
+		return "", nil
+	}
+
+	return resp.Node.Value, nil
+}
+
 func (f *fakeEtcdClient) SetPrefix(pre string) { f.p = pre }
-func (f fakeEtcdClient) Add(k, v string) (e error) {
+func (f *fakeEtcdClient) Add(k, v string) (e error) {
 	f.k[prefix(f.p, k)] = v
 	return
 }
-func (f fakeEtcdClient) Del(k string) error {
+func (f *fakeEtcdClient) Del(k string) error {
 	ke := prefix(f.p, k)
 	delete(f.k, ke)
 	for key := range f.k {
@@ -132,7 +157,7 @@ func (f fakeEtcdClient) Del(k string) error {
 	}
 	return nil
 }
-func (f fakeEtcdClient) Keys(k string) ([]string, error) {
+func (f *fakeEtcdClient) Keys(k string) ([]string, error) {
 	key := prefix(f.p, k)
 	r := []string{}
 	for ke := range f.k {
@@ -141,6 +166,19 @@ func (f fakeEtcdClient) Keys(k string) ([]string, error) {
 		}
 	}
 	return r, nil
+}
+func (f *fakeEtcdClient) get(k string) (v string, b bool) {
+	v, b = f.k[k]
+	return
+}
+
+func (f *fakeEtcdClient) Val(k string) (string, error) {
+	key := prefix(f.p, k)
+	v, ok := f.k[key]
+	if !ok {
+		return "", NewErr(nil, "%q not found", key)
+	}
+	return v, nil
 }
 
 func isKeyNotFound(e error) bool {

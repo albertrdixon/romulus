@@ -1,15 +1,18 @@
 apiVersion: v1
 kind: Endpoints
 metadata:
-  name: test
-  namespace: test-ns
+  name: singlePort
+  namespace: test
   uid: bae33058-3254-11e5-b010-0208a78baa45
   labels:
-    type: external
+    name: simglePort
+    namespace: test
+    romulus/type: public
 subsets:
   - addresses:
       - ip: 1.2.3.4
       - ip: 2.3.4.5
     ports:
-      - port: 1234
+      - name: web
+        port: 8080
         protocol: TCP

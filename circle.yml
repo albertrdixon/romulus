@@ -8,7 +8,7 @@ dependencies:
 
 test:
   override:
-    - cd ~/.go_workspace/src/github.com/timelinelabs/romulus && make test
+    - cd ~/.go_workspace/src/github.com/timelinelabs/romulus && make test-verbose
 
 notify:
   webhooks:
