@@ -6,6 +6,7 @@ import (
 
 	"golang.org/x/net/context"
 	"k8s.io/kubernetes/pkg/api"
+	unvApi "k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/fields"
 	"k8s.io/kubernetes/pkg/labels"
 	"k8s.io/kubernetes/pkg/watch"
@@ -45,7 +46,7 @@ func event(r *Registrar, e Event) error {
 		logf(e).Debugf("Unsupported event type")
 		return nil
 	case watch.Error:
-		if a, ok := e.Object.(*api.Status); ok {
+		if a, ok := e.Object.(*unvApi.Status); ok {
 			e := fmt.Errorf("[%d] %v", a.Code, a.Reason)
 			return NewErr(e, "Kubernetes API failure: %s", a.Message)
 		}

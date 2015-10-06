@@ -9,6 +9,7 @@ import (
 	"github.com/cenkalti/backoff"
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/meta"
+	unvApi "k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/client/unversioned"
 	"k8s.io/kubernetes/pkg/runtime"
 )
@@ -416,7 +417,7 @@ func parseVulcanID(id string) (string, string, error) {
 }
 
 func registerable(o runtime.Object, sl ServiceSelector) bool {
-	if _, ok := o.(*api.Status); ok {
+	if _, ok := o.(*unvApi.Status); ok {
 		return true
 	}
 	m := meta.NewAccessor()

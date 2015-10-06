@@ -22,6 +22,7 @@ import (
 	"os"
 	"strings"
 
+	"k8s.io/kubernetes/pkg/api"
 	_ "k8s.io/kubernetes/pkg/api/install"
 	_ "k8s.io/kubernetes/pkg/apis/experimental/install"
 
@@ -63,10 +64,10 @@ func init() {
 	if _, ok := Groups[""]; !ok {
 		// TODO: The second latest.GroupOrDie("").Version will be latest.GroupVersion after we
 		// have multiple group support
-		Groups[""] = TestGroup{"", latest.GroupOrDie("").Version, latest.GroupOrDie("").Version}
+		Groups[""] = TestGroup{"", latest.GroupOrDie("").Version, latest.GroupOrDie("").GroupVersion}
 	}
 	if _, ok := Groups["experimental"]; !ok {
-		Groups["experimental"] = TestGroup{"experimental", latest.GroupOrDie("experimental").Version, latest.GroupOrDie("experimental").Version}
+		Groups["experimental"] = TestGroup{"experimental", latest.GroupOrDie("experimental").Version, latest.GroupOrDie("experimental").GroupVersion}
 	}
 
 	Default = Groups[""]
@@ -90,14 +91,14 @@ func (g TestGroup) GroupAndVersion() string {
 func (g TestGroup) Codec() runtime.Codec {
 	// TODO: caesarxuchao: Restructure the body once we have a central `latest`.
 	if g.Group == "" {
-		interfaces, err := latest.GroupOrDie("").InterfacesFor(g.VersionUnderTest)
+		interfaces, err := latest.GroupOrDie("").InterfacesFor(g.GroupVersionUnderTest)
 		if err != nil {
 			panic(err)
 		}
 		return interfaces.Codec
 	}
 	if g.Group == "experimental" {
-		interfaces, err := latest.GroupOrDie("experimental").InterfacesFor(g.VersionUnderTest)
+		interfaces, err := latest.GroupOrDie("experimental").InterfacesFor(g.GroupVersionUnderTest)
 		if err != nil {
 			panic(err)
 		}
@@ -162,9 +163,9 @@ func (g TestGroup) SelfLink(resource, name string) string {
 		// TODO: will need a /apis prefix once we have proper multi-group
 		// support
 		if name == "" {
-			return fmt.Sprintf("/%s/%s/%s", g.Group, g.Version(), resource)
+			return fmt.Sprintf("/apis/%s/%s/%s", g.Group, g.Version(), resource)
 		}
-		return fmt.Sprintf("/%s/%s/%s/%s", g.Group, g.Version(), resource, name)
+		return fmt.Sprintf("/apis/%s/%s/%s/%s", g.Group, g.Version(), resource, name)
 	}
 }
 
@@ -178,7 +179,7 @@ func (g TestGroup) ResourcePathWithPrefix(prefix, resource, namespace, name stri
 	} else {
 		// TODO: switch back once we have proper multiple group support
 		// path = "/apis/" + g.Group + "/" + Version(group...)
-		path = "/" + g.Group + "/" + g.Version()
+		path = "/apis/" + g.Group + "/" + g.Version()
 	}
 
 	if prefix != "" {
@@ -207,4 +208,22 @@ func (g TestGroup) ResourcePath(resource, namespace, name string) string {
 
 func (g TestGroup) RESTMapper() meta.RESTMapper {
 	return latest.GroupOrDie(g.Group).RESTMapper
+}
+
+// Get codec based on runtime.Object
+func GetCodecForObject(obj runtime.Object) (runtime.Codec, error) {
+	_, kind, err := api.Scheme.ObjectVersionAndKind(obj)
+	if err != nil {
+		return nil, fmt.Errorf("unexpected encoding error: %v", err)
+	}
+	// TODO: caesarxuchao: we should detect which group an object belongs to
+	// by using the version returned by Schem.ObjectVersionAndKind() once we
+	// split the schemes for internal objects.
+	// TODO: caesarxuchao: we should add a map from kind to group in Scheme.
+	for _, group := range Groups {
+		if api.Scheme.Recognizes(group.GroupAndVersion(), kind) {
+			return group.Codec(), nil
+		}
+	}
+	return nil, fmt.Errorf("unexpected kind: %v", kind)
 }

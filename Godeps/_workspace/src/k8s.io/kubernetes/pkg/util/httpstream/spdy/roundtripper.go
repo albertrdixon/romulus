@@ -27,6 +27,7 @@ import (
 
 	"k8s.io/kubernetes/pkg/api"
 	apierrors "k8s.io/kubernetes/pkg/api/errors"
+	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/util/httpstream"
 	"k8s.io/kubernetes/third_party/golang/netutil"
 )
@@ -86,6 +87,11 @@ func (s *SpdyRoundTripper) dial(req *http.Request) (net.Conn, error) {
 		return nil, err
 	}
 
+	// Return if we were configured to skip validation
+	if s.tlsConfig != nil && s.tlsConfig.InsecureSkipVerify {
+		return conn, nil
+	}
+
 	host, _, err := net.SplitHostPort(dialAddr)
 	if err != nil {
 		return nil, err
@@ -141,7 +147,7 @@ func (s *SpdyRoundTripper) NewConnection(resp *http.Response) (httpstream.Connec
 			responseError = "unable to read error from server response"
 		} else {
 			if obj, err := api.Scheme.Decode(responseErrorBytes); err == nil {
-				if status, ok := obj.(*api.Status); ok {
+				if status, ok := obj.(*unversioned.Status); ok {
 					return nil, &apierrors.StatusError{ErrStatus: *status}
 				}
 			}

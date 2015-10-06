@@ -30,7 +30,7 @@ import (
 // certain fields with metadata that indicates whether the elements of JSON
 // lists should be merged or replaced.
 //
-// For more information, see the PATCH section of docs/api-conventions.md.
+// For more information, see the PATCH section of docs/devel/api-conventions.md.
 //
 // Some of the content of this package was borrowed with minor adaptations from
 // evanphx/json-patch and openshift/origin.
@@ -826,4 +826,45 @@ func sliceElementType(slices ...[]interface{}) (reflect.Type, error) {
 	}
 
 	return prevType, nil
+}
+
+// HasConflicts returns true if the left and right JSON interface objects overlap with
+// different values in any key.  The code will panic if an unrecognized type is passed
+// (anything not returned by a JSON decode).  All keys are required to be strings.
+// Since patches of the same Type have congruent keys, this is valid for multiple patch
+// types.
+func HasConflicts(left, right interface{}) (bool, error) {
+	switch typedLeft := left.(type) {
+	case map[string]interface{}:
+		switch typedRight := right.(type) {
+		case map[string]interface{}:
+			for key, leftValue := range typedLeft {
+				rightValue, ok := typedRight[key]
+				if !ok {
+					return false, nil
+				}
+				return HasConflicts(leftValue, rightValue)
+			}
+			return false, nil
+		default:
+			return true, nil
+		}
+	case []interface{}:
+		switch typedRight := right.(type) {
+		case []interface{}:
+			if len(typedLeft) != len(typedRight) {
+				return true, nil
+			}
+			for i := range typedLeft {
+				return HasConflicts(typedLeft[i], typedRight[i])
+			}
+			return false, nil
+		default:
+			return true, nil
+		}
+	case string, float64, bool, int, int64, nil:
+		return !reflect.DeepEqual(left, right), nil
+	default:
+		return true, fmt.Errorf("unknown type: %v", reflect.TypeOf(left))
+	}
 }
