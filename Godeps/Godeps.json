@@ -90,8 +90,8 @@
 		},
 		{
 			"ImportPath": "github.com/prometheus/client_golang/prometheus",
-			"Comment": "0.7.0-32-g29939ec",
-			"Rev": "29939ec9083b296e28284e29a9ab473a87ae981d"
+			"Comment": "0.7.0-41-gb6cad5e",
+			"Rev": "b6cad5edaf0b3c84797ebeedfb590cbc540382e8"
 		},
 		{
 			"ImportPath": "github.com/prometheus/client_model/go",
@@ -100,15 +100,15 @@
 		},
 		{
 			"ImportPath": "github.com/prometheus/common/expfmt",
-			"Rev": "4c9032a3f7aceade2585f2bbe302bf8c9ea3e9a9"
+			"Rev": "1cc3e4c3b28fd42633a8c389c98cfbadf42621b1"
 		},
 		{
 			"ImportPath": "github.com/prometheus/common/model",
-			"Rev": "4c9032a3f7aceade2585f2bbe302bf8c9ea3e9a9"
+			"Rev": "1cc3e4c3b28fd42633a8c389c98cfbadf42621b1"
 		},
 		{
 			"ImportPath": "github.com/prometheus/procfs",
-			"Rev": "3b231703e7dd0ca93302b5242ad6aeb4b5c603a2"
+			"Rev": "454a56f35412459b5e684fd5ec0f9211b94f002a"
 		},
 		{
 			"ImportPath": "github.com/spf13/pflag",

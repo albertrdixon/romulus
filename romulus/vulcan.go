@@ -111,7 +111,7 @@ type SessionCacheSettings struct {
 }
 
 // ServerMap is a map of IPs (string) -> Server
-type ServerMap map[string]Server
+type ServerMap map[string]*Server
 
 // Server is a vulcand server
 type Server struct {

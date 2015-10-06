@@ -184,11 +184,12 @@ func (r *Registrar) pruneServers(bid string, sm ServerMap) error {
 			}
 		}
 
-		if nSrv, ok := sm[srv.URL.String()]; ok {
-			logf(srv).Debug("Server exists, matching ID")
+		sTag := md5Hash(bid, srv.URL.String())[:serverTagLen]
+		if nSrv, ok := sm[sTag]; ok {
+			logf(srv, nSrv).Debug("Server exists, syncing IDs")
 			nSrv.ID = srv.ID
 		} else {
-			logf(srv).Debugf("Server does not exist, removing from etcd")
+			logf(srv).Info("Removing Server")
 			if e := r.e.Del(key); e != nil {
 				logf(srv).Errorf("Error removing server: %v", e)
 				continue
@@ -313,7 +314,7 @@ func (r *Registrar) registerBackends(s *api.Service, e *api.Endpoints) (*Backend
 				}
 				uu := (*URL)(u)
 				sTag := md5Hash(bid, uu.String())[:serverTagLen]
-				sm[uu.String()] = Server{
+				sm[sTag] = &Server{
 					ID:      fmt.Sprintf("%s-%s", bid, sTag),
 					Backend: bid,
 					URL:     uu,
