@@ -18,6 +18,11 @@ type Event struct {
 	watch.Event
 }
 
+type writeEvent struct {
+	kind   string
+	object VulcanObject
+}
+
 func (e Event) fields() map[string]interface{} {
 	return map[string]interface{}{"event": e.Type}
 }
@@ -65,8 +70,14 @@ type ingester struct {
 	fn   WatchFunc
 }
 
+type writer string
+
 func (i ingester) fields() map[string]interface{} {
 	return map[string]interface{}{"channel": i.name}
+}
+
+func (w writer) fields() map[string]interface{} {
+	return map[string]interface{}{"channel": "etcd writer"}
 }
 
 func (i ingester) watch(out chan<- watch.Interface, c context.Context) {
@@ -125,6 +136,8 @@ func (i ingester) ingest(out chan<- Event, c context.Context) {
 		}
 	}
 }
+
+func writer(c context.Context)
 
 func isClosed(e watch.Event) bool {
 	return e.Type == watch.Error || e == watch.Event{}
