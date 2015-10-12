@@ -15,7 +15,7 @@ var (
 	etcdDebug = false
 )
 
-type EtcdClient interface {
+type etcdInterface interface {
 	Add(key, val string) error
 	Keys(pre string) ([]string, error)
 	Del(key string) error

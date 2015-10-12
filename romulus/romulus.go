@@ -4,13 +4,22 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/coreos/pkg/capnslog"
 	"golang.org/x/net/context"
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/client/unversioned"
 )
 
 var (
 	bckndSettingsAnnotation  = "romulus/backendSettings"
 	frntndSettingsAnnotation = "romulus/frontendSettings"
+
+	log = capnslog.NewPackageLogger("github.com/timelinelabs/romulus", "romulus")
+
+	conf       *Config
+	cache      *cMap
+	kubeClient unversioned.Interface
+	etcdClient etcdInterface
 )
 
 // Version returns the current software version
@@ -22,9 +31,11 @@ func Version() string {
 }
 
 // Start boots up the daemon
-func Start(r *Registrar, c context.Context) error {
-	log().Debugf("Selecting objects that match: %s", r.s.String())
-	w, er := initEvents(r, c)
+func Start(cfg *Config, c context.Context) error {
+	configure(cfg)
+	log.Debugf("Selecting objects that match: %s", r.s.String())
+	cache = newCache()
+	w, er := initEvents(c)
 	if er != nil {
 		return er
 	}

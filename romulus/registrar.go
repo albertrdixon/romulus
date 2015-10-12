@@ -51,16 +51,13 @@ func formatEtcdNamespace(v string) string {
 
 // Config is used to configure the Registrar
 type Config struct {
-	PeerList            EtcdPeerList
-	EtcdTimeout         time.Duration
-	KubeConfig          KubeClientConfig
-	APIVersion          string
-	Selector            ServiceSelector
-	VulcanEtcdNamespace string
+	PeerList      []string
+	EtcdTimeout   time.Duration
+	KubeConfig    *unversioned.Config
+	APIVersion    string
+	Selector      map[string]string
+	VulcanEtcdKey string
 }
-
-func (c *Config) kc() unversioned.Config { return (unversioned.Config)(c.KubeConfig) }
-func (c *Config) ps() []string           { return ([]string)(c.PeerList) }
 
 func (sl ServiceSelector) String() string {
 	s := []string{}
@@ -71,7 +68,7 @@ func (sl ServiceSelector) String() string {
 }
 
 // Registrar holds the kubernetes/pkg/client.Client and etcd.Client
-type Registrar struct {
+type registrar struct {
 	k  unversioned.Interface
 	e  EtcdClient
 	vk string
@@ -95,7 +92,7 @@ func NewRegistrar(c *Config) (*Registrar, error) {
 		k:  kc,
 		v:  c.APIVersion,
 		s:  c.Selector.fixNamespace(),
-		vk: formatEtcdNamespace(c.VulcanEtcdNamespace),
+		vk: formatEtcdNamespace(c.VulcanEtcdKey),
 	}, nil
 }
 

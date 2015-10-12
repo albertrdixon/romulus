@@ -14,30 +14,20 @@ import (
 
 var WatchRetryInterval = 2 * time.Second
 
-type Event struct {
-	watch.Event
-}
+type Event watch.Event
 
-type writeEvent struct {
-	kind   string
-	object VulcanObject
-}
+type watchFunc func() (watch.Interface, error)
 
-func (e Event) fields() map[string]interface{} {
-	return map[string]interface{}{"event": e.Type}
-}
-
-type WatchFunc func() (watch.Interface, error)
-
-func initEvents(r *Registrar, c context.Context) (chan Event, error) {
-	out := make(chan Event, 100)
+func initEvents(c context.Context) (chan watch.Event, error) {
+	out := make(chan watch.Event, 100)
+	k := unversioned.New(conf.KubeConfig)
 	s := func() (watch.Interface, error) {
 		log().Debug("Attempting to set watch on Services")
-		return r.k.Services(api.NamespaceAll).Watch(labels.Everything(), fields.Everything(), "")
+		return k.Services(api.NamespaceAll).Watch(labels.Everything(), fields.Everything(), "")
 	}
 	e := func() (watch.Interface, error) {
 		log().Debug("Attempting to set watch on Endpoints")
-		return r.k.Endpoints(api.NamespaceAll).Watch(labels.Everything(), fields.Everything(), "")
+		return k.Endpoints(api.NamespaceAll).Watch(labels.Everything(), fields.Everything(), "")
 	}
 
 	go ingester{"Services", s}.ingest(out, c)
@@ -137,7 +127,11 @@ func (i ingester) ingest(out chan<- Event, c context.Context) {
 	}
 }
 
-func writer(c context.Context)
+func writer(c context.Context) chan writeEvent {
+	go func() {
+		
+	}
+}
 
 func isClosed(e watch.Event) bool {
 	return e.Type == watch.Error || e == watch.Event{}
