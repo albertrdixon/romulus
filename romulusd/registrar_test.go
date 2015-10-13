@@ -1,4 +1,4 @@
-package romulus
+package main
 
 import (
 	"testing"

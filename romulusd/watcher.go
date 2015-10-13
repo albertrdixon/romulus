@@ -1,13 +1,13 @@
-package romulus
+package main
 
 import (
 	"time"
 
-	"github.com/prometheus/common/log"
 	"golang.org/x/net/context"
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/fields"
 	"k8s.io/kubernetes/pkg/labels"
+	"k8s.io/kubernetes/pkg/watch"
 )
 
 type watchFunc func() (watch.Interface, error)
@@ -24,7 +24,7 @@ func acquireWatch(fn watchFunc, out chan<- watch.Interface, c context.Context) {
 	}
 
 	for {
-		log.Debugf("Setting watch failed, retry in (%v): %v", retry, e)
+		debugL("Setting watch failed, retry in (%v): %v", retry, e)
 		select {
 		case <-c.Done():
 			return
@@ -38,24 +38,27 @@ func acquireWatch(fn watchFunc, out chan<- watch.Interface, c context.Context) {
 	}
 }
 
-func startWatches(c context.Context) <-chan watch.Event {
+func startWatches(c context.Context) (chan watch.Event, error) {
 	out := make(chan watch.Event, 100)
-	kc := kubeClient()
+	kc, er := kubeClient()
+	if er != nil {
+		return out, er
+	}
 	sv := func() (watch.Interface, error) {
-		log.Debug("Attempting to set watch on Services")
+		debugL("Attempting to set watch on Services")
 		return kc.Services(api.NamespaceAll).Watch(labels.Everything(), fields.Everything(), "")
 	}
 	en := func() (watch.Interface, error) {
-		log.Debug("Attempting to set watch on Endpoints")
+		debugL("Attempting to set watch on Endpoints")
 		return kc.Endpoints(api.NamespaceAll).Watch(labels.Everything(), fields.Everything(), "")
 	}
 
-	go watch("Services", sv, out, c)
-	go watch("Endpoints", en, out, c)
-	return out
+	go watcher("Services", sv, out, c)
+	go watcher("Endpoints", en, out, c)
+	return out, nil
 }
 
-func watch(name string, fn watchFunc, out chan<- watch.Event, c context.Context) {
+func watcher(name string, fn watchFunc, out chan<- watch.Event, c context.Context) {
 	var w watch.Interface
 	var wc = make(chan watch.Interface, 1)
 	defer close(wc)
@@ -64,24 +67,27 @@ Acquire:
 	go acquireWatch(fn, wc, c)
 	select {
 	case <-c.Done():
-		log.Infof("Closing %s watch channel", name)
+		infoL("Closing %s watch channel", name)
 		return
 	case w = <-wc:
-		log.Debug("%s watch set", name)
+		debugL("%s watch set", name)
 	}
 
 	for {
 		select {
 		case <-c.Done():
-			log.Infof("Closing %s watch channel", name)
+			infoL("Closing %s watch channel", name)
 			return
 		case e := <-w.ResultChan():
 			if isClosed(e) {
-				log.Warnf("%s watch closed: %+v", name, e)
+				warnL("%s watch closed: %+v", name, e)
 				goto Acquire
 			}
 			out <- e
 		}
 	}
+}
 
+func isClosed(e watch.Event) bool {
+	return e.Type == watch.Error || e == watch.Event{}
 }

@@ -1,8 +1,6 @@
-package romulus
+package main
 
 import (
-	"bytes"
-
 	"k8s.io/kubernetes/pkg/api/meta"
 	"k8s.io/kubernetes/pkg/runtime"
 	// "encoding/json"
@@ -15,30 +13,7 @@ import (
 	"github.com/albertrdixon/gearbox/url"
 )
 
-var (
-	TypeHTTP = "http"
-
-	bcknds       = "backends"
-	frntnds      = "frontends"
-	bckndDirFmt  = "backends/%s"
-	frntndDirFmt = "frontends/%s"
-	bckndFmt     = "backends/%s/backend"
-	srvrDirFmt   = "backends/%s/servers"
-	srvrFmt      = "backends/%s/servers/%s"
-	frntndFmt    = "frontends/%s/frontend"
-
-	annotationFmt = "romulus/%s%s"
-	rteConv       = map[string]string{
-		"host":         "Host(`%s`)",
-		"method":       "Method(`%s`)",
-		"path":         "Path(`%s`)",
-		"header":       "Header(`%s`)",
-		"hostRegexp":   "HostRegexp(`%s`)",
-		"methodRegexp": "MethodRegexp(`%s`)",
-		"pathRegexp":   "PathRegexp(`%s`)",
-		"headerRegexp": "HeaderRegexp(`%s`)",
-	}
-)
+const ProtoHTTP = "http"
 
 // VulcanObject represents a vulcand component
 type VulcanObject interface {
@@ -153,7 +128,7 @@ type FrontendSettingsLimits struct {
 func NewBackend(id string) *Backend {
 	return &Backend{
 		ID:   id,
-		Type: TypeHTTP,
+		Type: ProtoHTTP,
 	}
 }
 
@@ -164,7 +139,7 @@ func NewFrontend(id, bid string, route ...string) *Frontend {
 	return &Frontend{
 		ID:        id,
 		BackendID: bid,
-		Type:      TypeHTTP,
+		Type:      ProtoHTTP,
 		Route:     rt,
 	}
 }
@@ -172,16 +147,18 @@ func NewFrontend(id, bid string, route ...string) *Frontend {
 // NewBackendSettings returns BackendSettings from raw JSON
 func NewBackendSettings(p []byte) *BackendSettings {
 	var ba BackendSettings
-	b := bytes.NewBuffer(p)
-	json.NewDecoder(b).Decode(&ba)
+	// b := bytes.NewBuffer(p)
+	// json.NewDecoder(b).Decode(&ba)
+	json.Decode(&ba, p)
 	return &ba
 }
 
 // NewFrontendSettings returns FrontendSettings from raw JSON
 func NewFrontendSettings(p []byte) *FrontendSettings {
 	var f FrontendSettings
-	b := bytes.NewBuffer(p)
-	json.NewDecoder(b).Decode(&f)
+	// b := bytes.NewBuffer(p)
+	// json.NewDecoder(b).Decode(&f)
+	json.Decode(&f, p)
 	return &f
 }
 
@@ -257,7 +234,7 @@ func (s ServerMap) IPs() []string {
 }
 
 func encode(v VulcanObject) (string, error) {
-	s, e = json.Encode(v)
+	s, e := json.Encode(v)
 	// b := new(bytes.Buffer)
 	// if e := json.NewEncoder(b).Encode(v); e != nil {
 	// 	return "", e

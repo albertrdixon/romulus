@@ -2,7 +2,6 @@ PROJECT = github.com/timelinelabs/romulus
 REV ?= $$(git rev-parse --short=8 HEAD)
 BRANCH ?= $$(git rev-parse --abbrev-ref HEAD | tr / _)
 EXECUTABLE = romulusd
-BINARY = romulusd.go
 IMAGE = romulusd
 REMOTE_REPO = quay.io/timeline_labs/romulusd
 LDFLAGS = "-s -X $(PROJECT)/romulus.SHA=$(REV)"
@@ -45,7 +44,7 @@ test-verbose:
 
 build:
 	@echo "==> Building $(EXECUTABLE) with ldflags '$(LDFLAGS)'"
-	@godep go build -ldflags $(LDFLAGS) -o bin/$(EXECUTABLE) $(BINARY)
+	@godep go build -ldflags $(LDFLAGS) -o bin/$(EXECUTABLE) romulusd/*
 
 build-image:
 	@echo "==> Building linux binary"

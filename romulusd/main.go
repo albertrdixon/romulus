@@ -1,4 +1,4 @@
-package romulus
+package main
 
 import (
 	"os"
@@ -10,7 +10,8 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/coreos/pkg/capnslog"
+	// "github.com/coreos/pkg/capnslog"
+
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
@@ -21,8 +22,7 @@ var (
 	test        = false
 	tKubeClient unversioned.Interface
 
-	log       = capnslog.NewPackageLogger("github.com/timelinelabs/romulus", "romulus")
-	logLevels = []string{"fatal", "error", "warn", "info", "debug"}
+	// log       = capnslog.NewPackageLogger("github.com/timelinelabs/romulus", "romulus")
 
 	ro = kingpin.New("romulusd", "A utility for automatically registering Kubernetes services in Vulcand")
 
@@ -41,8 +41,9 @@ var (
 	kubeConfig   = ro.Flag("kubecfg", "path to kubernetes cfg file").Short('C').PlaceHolder("/path/to/.kubecfg").ExistingFile()
 	svcSel       = ro.Flag("svc-selector", "service selectors. Leave blank for Everything(). Form: key=value").Short('s').PlaceHolder("key=value[,key=value]").OverrideDefaultFromEnvar("SVC_SELECTOR").StringMap()
 	debug        = ro.Flag("debug", "Enable debug logging. e.g. --log-level debug").Short('d').Bool()
-	logLevel     = LogLevel(ro.Flag("log-level", "log level. One of: fatal, error, warn, info, debug").Short('l').Default("info").OverrideDefaultFromEnvar("LOG_LEVEL"))
-	etcdDebug    = ro.Flag("debug-etcd", "Enable cURL debug logging for etcd").Bool()
+	logLevel     = ro.Flag("log-level", "log level. One of: fatal, error, warn, info, debug").Short('l').Default("info").OverrideDefaultFromEnvar("LOG_LEVEL").Enum(logLevels...)
+	// logLevel     = LogLevel(ro.Flag("log-level", "log level. One of: fatal, error, warn, info, debug").Short('l').Default("info").OverrideDefaultFromEnvar("LOG_LEVEL"))
+	etcdDebug = ro.Flag("debug-etcd", "Enable cURL debug logging for etcd").Bool()
 
 	serverTagLen = 8
 	typeHTTP     = "http"
@@ -51,17 +52,16 @@ var (
 	bckndSettingsAnnotation  = "romulus/backendSettings"
 	frntndSettingsAnnotation = "romulus/frontendSettings"
 
-	bcknds         = "backends"
-	frntnds        = "frontends"
-	bckndDirFmt    = "backends/%s"
-	frntndDirFmt   = "frontends/%s"
-	bckndFmt       = "backends/%s/backend"
-	srvrDirFmt     = "backends/%s/servers"
-	srvrFmt        = "backends/%s/servers/%s"
-	frntndFmt      = "frontends/%s/frontend"
-	bckndsKeyFmt   = "%s/backends"
-	frntndsKeyFmt  = "%s/frontends"
-	vulcanKeyLabel = "romulus/vulcanKey"
+	bcknds        = "backends"
+	frntnds       = "frontends"
+	bckndDirFmt   = "backends/%s"
+	frntndDirFmt  = "frontends/%s"
+	bckndFmt      = "backends/%s/backend"
+	srvrDirFmt    = "backends/%s/servers"
+	srvrFmt       = "backends/%s/servers/%s"
+	frntndFmt     = "frontends/%s/frontend"
+	bckndsKeyFmt  = "%s/backends"
+	frntndsKeyFmt = "%s/frontends"
 
 	annotationFmt = "romulus/%s%s"
 	rteConv       = map[string]string{
@@ -77,30 +77,37 @@ var (
 )
 
 func main() {
-	kingpin.Version(version())
+	kingpin.Version(getVersion())
 	kingpin.MustParse(ro.Parse(os.Args[1:]))
-	capnslog.SetGlobalLogLevel(lv)
-	capnslog.SetFormatter(capnslog.NewDefaultFormatter(os.Stdout))
-	log.Infof("Starting up romulus version=%s", version())
+	setupLog()
+	// capnslog.SetGlobalLogLevel(lv)
+	// capnslog.SetFormatter(capnslog.NewDefaultFormatter(os.Stdout))
+	infoL("Starting up romulusd version=%s", getVersion())
 
 	cache = newCache()
 	peers := []string{}
 	for _, p := range *etcdPeers {
 		peers = append(peers, p.String())
 	}
-	if etcd, er := NewEtcdClient(peers, *vulcanKey, *etcdTimeout); er != nil {
-		log.Fatalf("Failed to get etcd client: %v", er)
+
+	var er error
+	etcd, er = NewEtcdClient(peers, *vulcanKey, *etcdTimeout)
+	if er != nil {
+		fatalL("Failed to get etcd client: %v", er)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	w := startWatches(ctx)
+	w, er := startWatches(ctx)
+	if er != nil {
+		fatalL("Failed to get kubernetes client: %v", er)
+	}
 	go processor(w, ctx)
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT)
 	select {
 	case <-sig:
-		log.Info("Recieved interrupt, shutting down")
+		infoL("Recieved interrupt, shutting down")
 		cancel()
 		time.Sleep(100 * time.Millisecond)
 		os.Exit(0)

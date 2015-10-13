@@ -1,22 +1,20 @@
-package romulus
+package main
 
 import (
 	"crypto/md5"
 	"fmt"
 	"io"
+	"strings"
 
 	"k8s.io/kubernetes/pkg/client/unversioned"
 	"k8s.io/kubernetes/pkg/client/unversioned/testclient"
-
-	"github.com/coreos/pkg/capnslog"
-	"gopkg.in/alecthomas/kingpin.v2"
 )
 
-func LogLevel(s kingpin.Settings) (lvl *capnslog.LogLevel) {
-	lvl = new(capnslog.LogLevel)
-	s.SetValue(lvl)
-	return
-}
+// func LogLevel(s kingpin.Settings) (lvl *capnslog.LogLevel) {
+// 	lvl = new(capnslog.LogLevel)
+// 	s.SetValue(lvl)
+// 	return
+// }
 
 func md5Hash(ss ...interface{}) string {
 	if len(ss) < 1 {
@@ -30,9 +28,9 @@ func md5Hash(ss ...interface{}) string {
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
-func kubeClient() unversioned.Interface {
+func kubeClient() (unversioned.Interface, error) {
 	if test {
-		return &testclient.Fake{}
+		return &testclient.Fake{}, nil
 	}
 
 	cfg := &unversioned.Config{
@@ -57,4 +55,16 @@ func kubeClient() unversioned.Interface {
 
 func useTLS() bool {
 	return *kubeCert != "" && (*kubeKey != "" || *kubeCA != "")
+}
+
+func formatSelectors() {
+	ss := make(map[string]string, len(*svcSel))
+	for k := range *svcSel {
+		key := k
+		if !strings.HasPrefix(k, "romulus/") {
+			key = fmt.Sprintf("romulus/%s", key)
+		}
+		ss[key] = (*svcSel)[k]
+	}
+	*svcSel = ss
 }

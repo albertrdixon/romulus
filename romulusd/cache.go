@@ -1,4 +1,4 @@
-package romulus
+package main
 
 import (
 	"sync"
@@ -20,10 +20,11 @@ func newCache() *cMap {
 	return &cMap{m: make(map[cKey]runtime.Object)}
 }
 
-func (m *cMap) get(key cKey) (runtime.Object, bool) {
+func (m *cMap) get(key cKey) (o runtime.Object, b bool) {
 	m.RLock()
 	defer m.RUnlock()
-	return m.m[key]
+	o, b = m.m[key]
+	return
 }
 
 func (m *cMap) put(key cKey, o runtime.Object) {
@@ -45,13 +46,18 @@ func getService(name, ns string) (s *api.Service, b bool) {
 
 	o, b := cache.get(cKey{name, ns, "Service"})
 	if !b {
-		kc := kubeClient()
-		if s, er := kc.Services(en.Namespace).Get(en.Name); er != nil {
-			return
+		kc, er := kubeClient()
+		if er != nil {
+			warnL("kubernetes client failure: %v", er)
+		}
+		s, er := kc.Services(ns).Get(name)
+		if er != nil {
+			debugL("Failed to get Service: %v", er)
+			return nil, false
 		}
 		b = true
 		cache.put(cKey{s.Name, s.Namespace, s.Kind}, s)
-		return
+		return s, b
 	}
 	s = o.(*api.Service)
 	return
@@ -62,15 +68,20 @@ func getEndpoints(name, ns string) (en *api.Endpoints, b bool) {
 		return
 	}
 
-	o, b := cache.get(cKey{s.Name, s.Namespace, "Endpoints"})
+	o, b := cache.get(cKey{name, ns, "Endpoints"})
 	if !b {
-		kc := kubeClient()
-		if en, er := kc.Endpoints(s.Namespace).Get(s.Name); e != nil {
-			return
+		kc, er := kubeClient()
+		if er != nil {
+			warnL("kubernetes client failure: %v", er)
+		}
+		en, er := kc.Endpoints(ns).Get(name)
+		if er != nil {
+			debugL("failed to get Endpoints", er)
+			return nil, false
 		}
 		b = true
 		cache.put(cKey{en.Name, en.Namespace, en.Kind}, en)
-		return
+		return en, b
 	}
 	en = o.(*api.Endpoints)
 	return

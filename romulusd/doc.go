@@ -1,5 +1,5 @@
-// Package romulus runs the romulusd deamon
-package romulus
+// package main runs the romulusd deamon
+package main
 
 import "fmt"
 
@@ -10,7 +10,7 @@ var (
 	SHA string
 )
 
-func version() string {
+func getVersion() string {
 	if SHA != "" {
 		return fmt.Sprintf("%s-%s", version, SHA)
 	}

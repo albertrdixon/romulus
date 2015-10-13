@@ -1,4 +1,4 @@
-package romulus
+package main
 
 import (
 	"path/filepath"
@@ -9,10 +9,6 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/coreos/etcd/client"
-)
-
-var (
-	etcdDebug = false
 )
 
 type etcdInterface interface {
@@ -35,12 +31,8 @@ type fakeEtcdClient struct {
 	p string
 }
 
-func debugEtcd(b bool) {
-	etcdDebug = b
-}
-
-func NewEtcdClient(peers []string, prefix string, timeout time.Duration) (EtcdClient, error) {
-	if etcdDebug {
+func NewEtcdClient(peers []string, prefix string, timeout time.Duration) (etcdInterface, error) {
+	if *etcdDebug {
 		client.EnablecURLDebug()
 	}
 	ec, er := client.New(client.Config{Endpoints: peers})
@@ -51,7 +43,7 @@ func NewEtcdClient(peers []string, prefix string, timeout time.Duration) (EtcdCl
 		prefix, timeout}, nil
 }
 
-func NewFakeEtcdClient(prefix string) EtcdClient {
+func NewFakeEtcdClient(prefix string) etcdInterface {
 	return &fakeEtcdClient{map[string]string{"/": ""}, prefix}
 }
 

@@ -1,10 +1,9 @@
-package romulus
+package main
 
 import (
 	"fmt"
 	"time"
 
-	"github.com/prometheus/common/log"
 	"golang.org/x/net/context"
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/meta"
@@ -57,11 +56,13 @@ func processor(in chan watch.Event, c context.Context) {
 		case <-c.Done():
 			return
 		case e := <-in:
-			if registerable(e) {
+			if registerable(e.Object) {
 				if er := process(e); er != nil {
-					log.Error(er.Error())
+					errorL(er.Error())
 					go retry(in, e)
 				}
+			} else {
+				debugL("Object not registerable: %v", e.Object)
 			}
 		}
 	}
@@ -75,7 +76,7 @@ func retry(ch chan watch.Event, e watch.Event) {
 func process(e watch.Event) error {
 	switch e.Type {
 	default:
-		log.Debugf("Unsupported event type %q: %+v", e.Type, e)
+		debugL("Unsupported event type %q: %+v", e.Type, e)
 		return nil
 	case watch.Error:
 		if a, ok := e.Object.(*uApi.Status); ok {
@@ -108,7 +109,7 @@ func update(r runtime.Object, s string) error {
 	etcd.SetPrefix(getVulcanKey(r))
 	m, er := getMeta(r)
 	if er != nil {
-		return NewErr(e, "Unable to get object metadata")
+		return NewErr(er, "Unable to get object metadata")
 	}
 	cache.put(cKey{m.name, m.ns, m.kind}, r)
 
