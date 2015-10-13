@@ -26,7 +26,11 @@ func setupLog() {
 }
 
 func writeLog(f string, m ...interface{}) {
-	log.Printf(f, m)
+	if m == nil || len(m) < 1 {
+		log.Println(f)
+	} else {
+		log.Printf(f, m)
+	}
 }
 
 func errorL(f string, m ...interface{}) { writeLog("[error] %s", fmt.Sprintf(f, m)) }

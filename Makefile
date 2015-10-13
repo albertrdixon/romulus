@@ -1,10 +1,9 @@
-PROJECT = github.com/timelinelabs/romulus
 REV ?= $$(git rev-parse --short=8 HEAD)
 BRANCH ?= $$(git rev-parse --abbrev-ref HEAD | tr / _)
 EXECUTABLE = romulusd
 IMAGE = romulusd
 REMOTE_REPO = quay.io/timeline_labs/romulusd
-LDFLAGS = "-s -X $(PROJECT)/romulus.SHA=$(REV)"
+LDFLAGS = "-s -X main.SHA=$(REV)"
 TEST_COMMAND = godep go test
 
 .PHONY: dep-save dep-restore test test-verbose build build-image install publish
