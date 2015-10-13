@@ -7,7 +7,6 @@ import (
 	jURL "github.com/albertrdixon/gearbox/url"
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/endpoints"
-	"k8s.io/kubernetes/pkg/api/meta"
 	uApi "k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/runtime"
 )
@@ -131,7 +130,7 @@ func registerBackends(s *api.Service, e *api.Endpoints) (*BackendList, error) {
 			bid := getVulcanID(e.Name, e.Namespace, port.Name)
 			bnd := NewBackend(bid)
 
-			if st, ok := s.Annotations[bckndSettingsAnnotation]; ok {
+			if st, ok := s.Annotations[labelf("backendSettings")]; ok {
 				bnd.Settings = NewBackendSettings([]byte(st))
 			}
 			debugL("Backend settings: %q", bnd)
@@ -206,7 +205,7 @@ func registerFrontends(s *api.Service, bnds *BackendList) error {
 		fid := getVulcanID(s.Name, s.Namespace, port.Name)
 		fnd := NewFrontend(fid, bnd.ID)
 		fnd.Route = buildRoute(port.Name, s.Annotations)
-		if st, ok := s.Annotations[frntndSettingsAnnotation]; ok {
+		if st, ok := s.Annotations[labelf("frontendSettings")]; ok {
 			fnd.Settings = NewFrontendSettings([]byte(st))
 		}
 		debugL("Frontend settings: %q", fnd)
@@ -308,15 +307,14 @@ func registerable(o runtime.Object) bool {
 	if _, ok := o.(*uApi.Status); ok {
 		return true
 	}
-	m := meta.NewAccessor()
-	la, er := m.Labels(o)
+	m, er := getMeta(o)
 	if er != nil {
 		debugL("Failed to access labels: %v", er)
 		return false
 	}
 
 	for k, v := range *svcSel {
-		if val, ok := la[k]; !ok || val != v {
+		if val, ok := m.labels[labelf(k)]; !ok || val != v {
 			return false
 		}
 	}

@@ -284,7 +284,7 @@ func getVulcanKey(o runtime.Object) string {
 	if er != nil {
 		return *vulcanKey
 	}
-	if val, ok := la[vulcanKeyLabel]; ok {
+	if val, ok := la[labelf("vulcanKey")]; ok {
 		return etcdKeyf(val)
 	}
 	return *vulcanKey

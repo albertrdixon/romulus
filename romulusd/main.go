@@ -6,13 +6,9 @@ import (
 	"syscall"
 	"time"
 
-	"k8s.io/kubernetes/pkg/client/unversioned"
-
 	"golang.org/x/net/context"
-
-	// "github.com/coreos/pkg/capnslog"
-
 	"gopkg.in/alecthomas/kingpin.v2"
+	"k8s.io/kubernetes/pkg/client/unversioned"
 )
 
 var (
@@ -21,8 +17,6 @@ var (
 
 	test        = false
 	tKubeClient unversioned.Interface
-
-	// log       = capnslog.NewPackageLogger("github.com/timelinelabs/romulus", "romulus")
 
 	ro = kingpin.New("romulusd", "A utility for automatically registering Kubernetes services in Vulcand")
 
@@ -42,16 +36,9 @@ var (
 	svcSel       = ro.Flag("svc-selector", "service selectors. Leave blank for Everything(). Form: key=value").Short('s').PlaceHolder("key=value[,key=value]").OverrideDefaultFromEnvar("SVC_SELECTOR").StringMap()
 	debug        = ro.Flag("debug", "Enable debug logging. e.g. --log-level debug").Short('d').Bool()
 	logLevel     = ro.Flag("log-level", "log level. One of: fatal, error, warn, info, debug").Short('l').Default("info").OverrideDefaultFromEnvar("LOG_LEVEL").Enum(logLevels...)
-	// logLevel     = LogLevel(ro.Flag("log-level", "log level. One of: fatal, error, warn, info, debug").Short('l').Default("info").OverrideDefaultFromEnvar("LOG_LEVEL"))
-	etcdDebug = ro.Flag("debug-etcd", "Enable cURL debug logging for etcd").Bool()
+	etcdDebug    = ro.Flag("debug-etcd", "Enable cURL debug logging for etcd").Bool()
 
-	serverTagLen = 8
-	typeHTTP     = "http"
-
-	vulcanKeyLabel           = "romulus/vulcanKey"
-	bckndSettingsAnnotation  = "romulus/backendSettings"
-	frntndSettingsAnnotation = "romulus/frontendSettings"
-
+	serverTagLen  = 8
 	bcknds        = "backends"
 	frntnds       = "frontends"
 	bckndDirFmt   = "backends/%s"
@@ -80,8 +67,6 @@ func main() {
 	kingpin.Version(getVersion())
 	kingpin.MustParse(ro.Parse(os.Args[1:]))
 	setupLog()
-	// capnslog.SetGlobalLogLevel(lv)
-	// capnslog.SetFormatter(capnslog.NewDefaultFormatter(os.Stdout))
 	infoL("Starting up romulusd version=%s", getVersion())
 
 	cache = newCache()

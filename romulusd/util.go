@@ -56,6 +56,13 @@ func useTLS() bool {
 	return *kubeCert != "" && (*kubeKey != "" || *kubeCA != "")
 }
 
+func labelf(l string) string {
+	if !strings.HasPrefix(l, "romulus/") {
+		return strings.Join([]string{"romulus", l}, "/")
+	}
+	return l
+}
+
 func formatSelectors() {
 	ss := make(map[string]string, len(*svcSel))
 	for k := range *svcSel {
