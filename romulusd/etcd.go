@@ -105,7 +105,8 @@ func (re *realEtcdClient) keys(p string) ([]string, error) {
 
 	k := make([]string, 0, len(r.Node.Nodes))
 	for _, n := range r.Node.Nodes {
-		k = append(k, strings.TrimLeft(strings.TrimPrefix(n.Key, p), "/"))
+		str := strings.TrimLeft(strings.TrimPrefix(n.Key, p), "/")
+		k = append(k, str)
 	}
 	return k, nil
 }

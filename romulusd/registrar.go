@@ -12,7 +12,8 @@ import (
 )
 
 func pruneServers(bid string, sm ServerMap) error {
-	k := fmt.Sprintf(srvrDirFmt, bid)
+	k := serverDirf(bid)
+	debugL("Looking up servers in etcd %q", k)
 	srvs, e := etcd.Keys(k)
 	if e != nil {
 		if isKeyNotFound(e) {
@@ -37,8 +38,8 @@ func pruneServers(bid string, sm ServerMap) error {
 			debugL("Data: %s", s)
 			if e := etcd.Del(key); e != nil {
 				errorL("Error removing server: %v", e)
-				continue
 			}
+			continue
 		}
 
 		sTag := md5Hash(bid, srv.URL.String())[:serverTagLen]
@@ -57,7 +58,7 @@ func pruneServers(bid string, sm ServerMap) error {
 }
 
 func pruneBackends() error {
-	ids, err := etcd.Keys(bcknds)
+	ids, err := etcd.Keys("backends")
 	if err != nil {
 		if isKeyNotFound(err) {
 			return nil
@@ -70,7 +71,7 @@ func pruneBackends() error {
 		name, ns, e := parseVulcanID(id)
 		if e != nil {
 			errorL("Invalid ID: %s", id)
-			key := fmt.Sprintf(bckndDirFmt, id)
+			key := backendDirf(id)
 			if e := etcd.Del(key); e != nil {
 				warnL("etcd error: %v", e)
 			}
@@ -86,7 +87,7 @@ func pruneBackends() error {
 }
 
 func pruneFrontends() error {
-	ids, err := etcd.Keys(frntnds)
+	ids, err := etcd.Keys("frontends")
 	if err != nil {
 		if isKeyNotFound(err) {
 			return nil
@@ -99,7 +100,7 @@ func pruneFrontends() error {
 		name, ns, e := parseVulcanID(id)
 		if e != nil {
 			errorL("Invalid ID: %s", id)
-			key := fmt.Sprintf(frntndDirFmt, id)
+			key := frontendDirf(id)
 			if e := etcd.Del(key); e != nil {
 				warnL("etcd error: %v", e)
 			}

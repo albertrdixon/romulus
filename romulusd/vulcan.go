@@ -1,13 +1,12 @@
 package main
 
 import (
-	"k8s.io/kubernetes/pkg/api/meta"
-	"k8s.io/kubernetes/pkg/runtime"
-	// "encoding/json"
 	"fmt"
 	"sort"
 	"strings"
 	"time"
+
+	"k8s.io/kubernetes/pkg/runtime"
 
 	"github.com/albertrdixon/gearbox/json"
 	"github.com/albertrdixon/gearbox/url"
@@ -158,11 +157,9 @@ func NewFrontendSettings(p []byte) *FrontendSettings {
 	return &f
 }
 
-func (b Backend) Key() string { return fmt.Sprintf(bckndFmt, b.ID) }
-func (s Server) Key() string {
-	return fmt.Sprintf(srvrFmt, s.Backend, s.ID)
-}
-func (f Frontend) Key() string         { return fmt.Sprintf(frntndFmt, f.ID) }
+func (b Backend) Key() string          { return backendf(b.ID) }
+func (s Server) Key() string           { return serverf(s.Backend, s.ID) }
+func (f Frontend) Key() string         { return frontendf(f.ID) }
 func (f FrontendSettings) Key() string { return "" }
 func (b BackendSettings) Key() string  { return "" }
 
@@ -173,10 +170,10 @@ func (f FrontendSettings) Val() (string, error) { return "", nil }
 func (b BackendSettings) Val() (string, error)  { return "", nil }
 
 // DirKey returns the etcd directory key for this Backend
-func (b Backend) DirKey() string { return fmt.Sprintf(bckndDirFmt, b.ID) }
+func (b Backend) DirKey() string { return backendDirf(b.ID) }
 
 // DirKey returns the etcd directory key for this Frontend
-func (f Frontend) DirKey() string { return fmt.Sprintf(frntndDirFmt, f.ID) }
+func (f Frontend) DirKey() string { return frontendDirf(f.ID) }
 
 func (f *FrontendSettings) String() string {
 	s, e := encode(f)
@@ -231,12 +228,22 @@ func decode(v VulcanObject, p []byte) error {
 }
 
 func buildRoute(ns string, a map[string]string) string {
+	var rteConv = map[string]string{
+		"host":         "Host(`%s`)",
+		"method":       "Method(`%s`)",
+		"path":         "Path(`%s`)",
+		"header":       "Header(`%s`)",
+		"hostRegexp":   "HostRegexp(`%s`)",
+		"methodRegexp": "MethodRegexp(`%s`)",
+		"pathRegexp":   "PathRegexp(`%s`)",
+		"headerRegexp": "HeaderRegexp(`%s`)",
+	}
 	rt := []string{}
 	if ns != "" {
 		ns = fmt.Sprintf(".%s", ns)
 	}
 	for k, f := range rteConv {
-		pk, ppk := fmt.Sprintf(annotationFmt, k, ns), fmt.Sprintf(annotationFmt, k, "")
+		pk, ppk := annotationf(k, ns), annotationf(k, "")
 		if v, ok := a[pk]; ok {
 			if k == "method" {
 				v = strings.ToUpper(v)
@@ -279,12 +286,11 @@ func etcdKeyf(v string) string {
 }
 
 func getVulcanKey(o runtime.Object) string {
-	m := meta.NewAccessor()
-	la, er := m.Labels(o)
+	m, er := getMeta(o)
 	if er != nil {
 		return *vulcanKey
 	}
-	if val, ok := la[labelf("vulcanKey")]; ok {
+	if val, ok := m.labels[labelf("vulcanKey")]; ok {
 		return etcdKeyf(val)
 	}
 	return *vulcanKey

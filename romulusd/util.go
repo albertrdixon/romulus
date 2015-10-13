@@ -56,6 +56,7 @@ func useTLS() bool {
 	return *kubeCert != "" && (*kubeKey != "" || *kubeCA != "")
 }
 
+func annotationf(p, n string) string { return fmt.Sprintf("romulus/%s%s", p, n) }
 func labelf(l string) string {
 	if !strings.HasPrefix(l, "romulus/") {
 		return strings.Join([]string{"romulus", l}, "/")
@@ -74,3 +75,10 @@ func formatSelectors() {
 	}
 	*svcSel = ss
 }
+
+func backendf(id string) string     { return fmt.Sprintf("backends/%s/backend", id) }
+func frontendf(id string) string    { return fmt.Sprintf("frontends/%s/frontend", id) }
+func backendDirf(id string) string  { return fmt.Sprintf("backends/%s", id) }
+func frontendDirf(id string) string { return fmt.Sprintf("frontends/%s", id) }
+func serverf(b, id string) string   { return fmt.Sprintf("backends/%s/servers/%s", b, id) }
+func serverDirf(id string) string   { return fmt.Sprintf("backends/%s/servers", id) }

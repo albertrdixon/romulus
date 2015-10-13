@@ -38,29 +38,7 @@ var (
 	logLevel     = ro.Flag("log-level", "log level. One of: fatal, error, warn, info, debug").Short('l').Default("info").OverrideDefaultFromEnvar("LOG_LEVEL").Enum(logLevels...)
 	etcdDebug    = ro.Flag("debug-etcd", "Enable cURL debug logging for etcd").Bool()
 
-	serverTagLen  = 8
-	bcknds        = "backends"
-	frntnds       = "frontends"
-	bckndDirFmt   = "backends/%s"
-	frntndDirFmt  = "frontends/%s"
-	bckndFmt      = "backends/%s/backend"
-	srvrDirFmt    = "backends/%s/servers"
-	srvrFmt       = "backends/%s/servers/%s"
-	frntndFmt     = "frontends/%s/frontend"
-	bckndsKeyFmt  = "%s/backends"
-	frntndsKeyFmt = "%s/frontends"
-
-	annotationFmt = "romulus/%s%s"
-	rteConv       = map[string]string{
-		"host":         "Host(`%s`)",
-		"method":       "Method(`%s`)",
-		"path":         "Path(`%s`)",
-		"header":       "Header(`%s`)",
-		"hostRegexp":   "HostRegexp(`%s`)",
-		"methodRegexp": "MethodRegexp(`%s`)",
-		"pathRegexp":   "PathRegexp(`%s`)",
-		"headerRegexp": "HeaderRegexp(`%s`)",
-	}
+	serverTagLen = 8
 )
 
 func main() {
@@ -76,6 +54,7 @@ func main() {
 	}
 
 	var er error
+	*vulcanKey = etcdKeyf(*vulcanKey)
 	etcd, er = NewEtcdClient(peers, *vulcanKey, *etcdTimeout)
 	if er != nil {
 		fatalL("Failed to get etcd client: %v", er)
