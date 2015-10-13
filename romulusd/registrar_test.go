@@ -8,7 +8,6 @@ import (
 	"k8s.io/kubernetes/pkg/client/unversioned/testclient"
 	"k8s.io/kubernetes/pkg/watch"
 
-	"github.com/coreos/pkg/capnslog"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -24,17 +23,10 @@ var (
 			"test/multi-port-endpoints.yaml",
 			"test/multi-port-svc.yaml",
 		},
-		"messy": []string{
-			"test/messy/test-endpoints1.yaml",
-			"test/messy/test-svc1.yaml",
-			"test/messy/test-endpoints2.yaml",
-			"test/messy/test-svc2.yaml",
-		},
 	}
 
 	apiVersion = "v1"
-	vulcanKey  = "/vulcand-test"
-	selector   = ServiceSelector{"type": "public"}
+	selector   = map[string]string{"type": "public"}
 
 	singlePortID   = getVulcanID("singlePort", "test", "web")
 	apiMultiPortID = getVulcanID("multiPort", "test", "api")
@@ -53,12 +45,16 @@ var (
 
 func setup(t *testing.T) (*assert.Assertions, *require.Assertions) {
 	if testing.Verbose() {
-		capnslog.SetGlobalLogLevel(capnslog.DEBUG)
+		*logLevel, *debug = "debug", true
+		setupLog()
 	}
+	test = true
+	cache = newCache()
+	*vulcanKey = "/vulcand-test"
 	return assert.New(t), require.New(t)
 }
 
-func fakeKubeClient(defs string) (*testclient.Fake, testclient.ObjectRetriever) {
+func fakeKubeClient(defs string) testclient.ObjectRetriever {
 	c := &testclient.Fake{}
 	o := testclient.NewObjects(api.Scheme, api.Scheme)
 	c.AddReactor("*", "*", testclient.ObjectReaction(o, testapi.Default.RESTMapper()))
@@ -70,7 +66,7 @@ func fakeKubeClient(defs string) (*testclient.Fake, testclient.ObjectRetriever) 
 	}
 
 	tKubeClient = c
-	return c, o
+	return o
 }
 
 func TestRegister(te *testing.T) {
@@ -87,15 +83,15 @@ func TestRegister(te *testing.T) {
 	}
 
 	for _, t := range tests {
-		etcd = NewFakeEtcdClient(vulcanKey)
-		c, o := fakeKubeClient(t.defs)
+		etcd = NewFakeEtcdClient(*vulcanKey)
+		o := fakeKubeClient(t.defs)
 
 		obj, er := o.Kind(t.kind, t.name)
 		is.NoError(er, "Unable to get object '%s-%s'", t.name, t.kind)
 
 		w := watch.Event{t.event, obj}
-		er = process(reg, w)
-		te.Logf("Fake Etcd: %v", spew.Sdump(reg.e))
+		er = process(w)
+		te.Logf("Fake Etcd: %v", spew.Sdump(etcd))
 		if t.valid {
 			must.NoError(er, "Event handling failed event=%v", spew.Sdump(w))
 		} else {
@@ -105,8 +101,8 @@ func TestRegister(te *testing.T) {
 
 		for _, d := range t.data {
 			expVal, _ := d.Val()
-			key := prefix(reg.vk, d.Key())
-			val, er := etcd.Val(key)
+			key := prefix(*vulcanKey, d.Key())
+			val, er := etcd.Val(d.Key())
 			is.NoError(er, "%q not written to etcd", key)
 			is.Equal(expVal, val, "Encoding for '%s-%s' not expected", t.name, t.kind)
 		}

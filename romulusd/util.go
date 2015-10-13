@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"k8s.io/kubernetes/pkg/client/unversioned"
-	"k8s.io/kubernetes/pkg/client/unversioned/testclient"
 )
 
 // func LogLevel(s kingpin.Settings) (lvl *capnslog.LogLevel) {
@@ -30,7 +29,7 @@ func md5Hash(ss ...interface{}) string {
 
 func kubeClient() (unversioned.Interface, error) {
 	if test {
-		return &testclient.Fake{}, nil
+		return tKubeClient, nil
 	}
 
 	cfg := &unversioned.Config{

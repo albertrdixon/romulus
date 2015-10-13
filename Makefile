@@ -43,7 +43,7 @@ test-verbose:
 
 build:
 	@echo "==> Building $(EXECUTABLE) with ldflags '$(LDFLAGS)'"
-	@godep go build -ldflags $(LDFLAGS) -o bin/$(EXECUTABLE) romulusd/*
+	@godep go build -ldflags $(LDFLAGS) -o bin/$(EXECUTABLE) romulusd/*.go
 
 build-image:
 	@echo "==> Building linux binary"

@@ -134,7 +134,7 @@ func registerBackends(s *api.Service, e *api.Endpoints) (*BackendList, error) {
 			if st, ok := s.Annotations[bckndSettingsAnnotation]; ok {
 				bnd.Settings = NewBackendSettings([]byte(st))
 			}
-			debugL("Backend settings: %v", bnd)
+			debugL("Backend settings: %q", bnd)
 
 			debugL("Gathering kubernetes endpoints: %v", es.Addresses)
 			for _, ip := range es.Addresses {
@@ -162,12 +162,12 @@ func registerBackends(s *api.Service, e *api.Endpoints) (*BackendList, error) {
 			}
 			eVal, _ := etcd.Val(bnd.Key())
 			if val != eVal {
-				debugL("Upserting backend %s", bnd.ID)
+				debugL("Upserting backend %q", bnd)
 				if err := etcd.Add(bnd.Key(), val); err != nil {
 					return bnds, NewErr(err, "etcd error")
 				}
 			} else {
-				debugL("No changes, not upserting Backend %q", bnd.ID)
+				debugL("No changes, not upserting Backend %q", bnd)
 			}
 			bnds.Add(port.Port, port.Name, bnd)
 
@@ -184,7 +184,7 @@ func registerBackends(s *api.Service, e *api.Endpoints) (*BackendList, error) {
 						return bnds, NewErr(err, "etcd error")
 					}
 				} else {
-					debugL("No changes, not upserting Server %q", srv.ID)
+					debugL("No changes, not upserting Server %q", srv)
 				}
 			}
 		}
@@ -209,7 +209,7 @@ func registerFrontends(s *api.Service, bnds *BackendList) error {
 		if st, ok := s.Annotations[frntndSettingsAnnotation]; ok {
 			fnd.Settings = NewFrontendSettings([]byte(st))
 		}
-		debugL("Frontend settings: %v", fnd)
+		debugL("Frontend settings: %q", fnd)
 
 		val, err := fnd.Val()
 		if err != nil {
@@ -217,12 +217,12 @@ func registerFrontends(s *api.Service, bnds *BackendList) error {
 		}
 		eVal, _ := etcd.Val(fnd.Key())
 		if val != eVal {
-			debugL("Upserting frontend %q", fnd.ID)
+			debugL("Upserting frontend %q", fnd)
 			if err := etcd.Add(fnd.Key(), val); err != nil {
 				return NewErr(err, "etcd error")
 			}
 		} else {
-			debugL("No changes, not upserting Frontend %q", fnd.ID)
+			debugL("No changes, not upserting Frontend %q", fnd)
 		}
 	}
 	return nil

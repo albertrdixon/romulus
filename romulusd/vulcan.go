@@ -147,8 +147,6 @@ func NewFrontend(id, bid string, route ...string) *Frontend {
 // NewBackendSettings returns BackendSettings from raw JSON
 func NewBackendSettings(p []byte) *BackendSettings {
 	var ba BackendSettings
-	// b := bytes.NewBuffer(p)
-	// json.NewDecoder(b).Decode(&ba)
 	json.Decode(&ba, p)
 	return &ba
 }
@@ -156,8 +154,6 @@ func NewBackendSettings(p []byte) *BackendSettings {
 // NewFrontendSettings returns FrontendSettings from raw JSON
 func NewFrontendSettings(p []byte) *FrontendSettings {
 	var f FrontendSettings
-	// b := bytes.NewBuffer(p)
-	// json.NewDecoder(b).Decode(&f)
 	json.Decode(&f, p)
 	return &f
 }
@@ -198,30 +194,19 @@ func (b *BackendSettings) String() string {
 	return s
 }
 
-func (s Server) fields() map[string]interface{} {
-	return map[string]interface{}{
-		"server":  s.ID,
-		"url":     s.URL.String(),
-		"backend": s.Backend,
-	}
+func (s Server) String() (st string) {
+	st, _ = s.Val()
+	return
 }
 
-func (f Frontend) fields() map[string]interface{} {
-	return map[string]interface{}{
-		"id":       f.ID,
-		"backend":  f.BackendID,
-		"type":     f.Type,
-		"route":    f.Route,
-		"settings": f.Settings.String(),
-	}
+func (f Frontend) String() (s string) {
+	s, _ = f.Val()
+	return
 }
 
-func (b Backend) fields() map[string]interface{} {
-	return map[string]interface{}{
-		"id":       b.ID,
-		"type":     b.Type,
-		"settings": b.Settings.String(),
-	}
+func (b Backend) String() (s string) {
+	s, _ = b.Val()
+	return
 }
 
 // IPs returns the ServerMap IPs
@@ -235,10 +220,6 @@ func (s ServerMap) IPs() []string {
 
 func encode(v VulcanObject) (string, error) {
 	s, e := json.Encode(v)
-	// b := new(bytes.Buffer)
-	// if e := json.NewEncoder(b).Encode(v); e != nil {
-	// 	return "", e
-	// }
 	if e != nil {
 		return s, e
 	}
