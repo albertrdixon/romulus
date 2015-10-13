@@ -11,11 +11,6 @@
 			"Rev": "75cd24fc2f2c2a2088577d12123ddee5f54e0675"
 		},
 		{
-			"ImportPath": "github.com/Sirupsen/logrus",
-			"Comment": "v0.8.7-18-gd7f2354",
-			"Rev": "d7f23545ad48f39960e360e36b5d3b58cc6ecb1c"
-		},
-		{
 			"ImportPath": "github.com/albertrdixon/gearbox/json",
 			"Rev": "d1305029b8930a9a5314ceee013581187da2aa43"
 		},
@@ -51,15 +46,6 @@
 			"Rev": "6afd8e4fd91d5f5b400937a7d897bc7a76e17158"
 		},
 		{
-			"ImportPath": "github.com/coreos/go-systemd/journal",
-			"Comment": "v3-45-g068d0d9",
-			"Rev": "068d0d95daec88760f2cb3bfcf8d1ec83cd35ef9"
-		},
-		{
-			"ImportPath": "github.com/coreos/pkg/capnslog",
-			"Rev": "42a8c3b1a6f917bb8346ef738f32712a7ca0ede7"
-		},
-		{
 			"ImportPath": "github.com/davecgh/go-spew/spew",
 			"Rev": "2df174808ee097f90d259e432cc04442cf60be21"
 		},
@@ -90,6 +76,10 @@
 			"Rev": "e4af62d086c303f2bed467b227fc0a034b218916"
 		},
 		{
+			"ImportPath": "github.com/hashicorp/logutils",
+			"Rev": "0dc08b1671f34c4250ce212759ebd880f743d883"
+		},
+		{
 			"ImportPath": "github.com/juju/ratelimit",
 			"Rev": "772f5c38e468398c4511514f4f6aa9a4185bc0a0"
 		},
@@ -113,10 +103,6 @@
 		},
 		{
 			"ImportPath": "github.com/prometheus/common/expfmt",
-			"Rev": "1cc3e4c3b28fd42633a8c389c98cfbadf42621b1"
-		},
-		{
-			"ImportPath": "github.com/prometheus/common/log",
 			"Rev": "1cc3e4c3b28fd42633a8c389c98cfbadf42621b1"
 		},
 		{
