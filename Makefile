@@ -1,8 +1,8 @@
 PROJECT = github.com/timelinelabs/romulus
 REV ?= $$(git rev-parse --short=8 HEAD)
 BRANCH ?= $$(git rev-parse --abbrev-ref HEAD | tr / _)
-EXECUTABLE = "romulusd"
-BINARY = cmd/romulusd/romulusd.go
+EXECUTABLE = romulusd
+BINARY = romulusd.go
 IMAGE = romulusd
 REMOTE_REPO = quay.io/timeline_labs/romulusd
 LDFLAGS = "-s -X $(PROJECT)/romulus.SHA=$(REV)"

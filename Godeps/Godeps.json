@@ -16,6 +16,14 @@
 			"Rev": "d7f23545ad48f39960e360e36b5d3b58cc6ecb1c"
 		},
 		{
+			"ImportPath": "github.com/albertrdixon/gearbox/json",
+			"Rev": "d1305029b8930a9a5314ceee013581187da2aa43"
+		},
+		{
+			"ImportPath": "github.com/albertrdixon/gearbox/url",
+			"Rev": "d1305029b8930a9a5314ceee013581187da2aa43"
+		},
+		{
 			"ImportPath": "github.com/alecthomas/template",
 			"Rev": "b867cc6ab45cece8143cfcc6fc9c77cf3f2c23c0"
 		},
@@ -26,10 +34,6 @@
 		{
 			"ImportPath": "github.com/beorn7/perks/quantile",
 			"Rev": "b965b613227fddccbfffe13eae360ed3fa822f8d"
-		},
-		{
-			"ImportPath": "github.com/cenkalti/backoff",
-			"Rev": "4dc77674aceaabba2c7e3da25d4c823edfb73f99"
 		},
 		{
 			"ImportPath": "github.com/coreos/etcd/client",
@@ -45,6 +49,15 @@
 			"ImportPath": "github.com/coreos/etcd/pkg/types",
 			"Comment": "v2.2.0-170-g21179d9",
 			"Rev": "21179d929f7e2525104401fc565b8cbf35c2f6ae"
+		},
+		{
+			"ImportPath": "github.com/coreos/go-systemd/journal",
+			"Comment": "v3-44-g0020698",
+			"Rev": "0020698a980adf8a2c440d9be709edc85b54544a"
+		},
+		{
+			"ImportPath": "github.com/coreos/pkg/capnslog",
+			"Rev": "42a8c3b1a6f917bb8346ef738f32712a7ca0ede7"
 		},
 		{
 			"ImportPath": "github.com/davecgh/go-spew/spew",
@@ -100,6 +113,10 @@
 		},
 		{
 			"ImportPath": "github.com/prometheus/common/expfmt",
+			"Rev": "1cc3e4c3b28fd42633a8c389c98cfbadf42621b1"
+		},
+		{
+			"ImportPath": "github.com/prometheus/common/log",
 			"Rev": "1cc3e4c3b28fd42633a8c389c98cfbadf42621b1"
 		},
 		{
