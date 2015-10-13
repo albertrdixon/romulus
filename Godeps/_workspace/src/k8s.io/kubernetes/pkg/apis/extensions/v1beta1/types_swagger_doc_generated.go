@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package v1beta1
 
 // This file contains a collection of methods that can be used from go-resful to
 // generate Swagger API documentation for its models. Please read this PR for more
@@ -35,6 +35,35 @@ var map_APIVersion = map[string]string{
 
 func (APIVersion) SwaggerDoc() map[string]string {
 	return map_APIVersion
+}
+
+var map_ClusterAutoscaler = map[string]string{
+	"metadata": "Standard object's metadata. More info: http://releases.k8s.io/HEAD/docs/devel/api-conventions.md#metadata For now (experimental api) it is required that the name is set to \"ClusterAutoscaler\" and namespace is \"default\".",
+	"spec":     "Spec defines the desired behavior of this daemon set. More info: http://releases.k8s.io/HEAD/docs/devel/api-conventions.md#spec-and-status",
+}
+
+func (ClusterAutoscaler) SwaggerDoc() map[string]string {
+	return map_ClusterAutoscaler
+}
+
+var map_ClusterAutoscalerList = map[string]string{
+	"":         "There will be just one (or none) ClusterAutoscaler.",
+	"metadata": "Standard object's metadata. More info: http://releases.k8s.io/HEAD/docs/devel/api-conventions.md#metadata",
+}
+
+func (ClusterAutoscalerList) SwaggerDoc() map[string]string {
+	return map_ClusterAutoscalerList
+}
+
+var map_ClusterAutoscalerSpec = map[string]string{
+	"":         "Configuration of the Cluster Autoscaler",
+	"minNodes": "Minimum number of nodes that the cluster should have.",
+	"maxNodes": "Maximum number of nodes that the cluster should have.",
+	"target":   "Target average utilization of the cluster nodes. New nodes will be added if one of the targets is exceeded. Cluster size will be decreased if the current utilization is too low for all targets.",
+}
+
+func (ClusterAutoscalerSpec) SwaggerDoc() map[string]string {
+	return map_ClusterAutoscalerSpec
 }
 
 var map_DaemonSet = map[string]string{
@@ -70,7 +99,7 @@ func (DaemonSetSpec) SwaggerDoc() map[string]string {
 
 var map_DaemonSetStatus = map[string]string{
 	"": "DaemonSetStatus represents the current status of a daemon set.",
-	"currentNumberScheduled": "CurrentNumberScheduled is the number of nodes that are running exactly 1 daemon pod and are supposed to run the daemon pod. More info: http://releases.k8s.io/HEAD/docs/admin/daemon.md",
+	"currentNumberScheduled": "CurrentNumberScheduled is the number of nodes that are running at least 1 daemon pod and are supposed to run the daemon pod. More info: http://releases.k8s.io/HEAD/docs/admin/daemon.md",
 	"numberMisscheduled":     "NumberMisscheduled is the number of nodes that are running the daemon pod, but are not supposed to run the daemon pod. More info: http://releases.k8s.io/HEAD/docs/admin/daemon.md",
 	"desiredNumberScheduled": "DesiredNumberScheduled is the total number of nodes that should be running the daemon pod (including nodes correctly running the daemon pod). More info: http://releases.k8s.io/HEAD/docs/admin/daemon.md",
 }
@@ -103,7 +132,7 @@ func (DeploymentList) SwaggerDoc() map[string]string {
 var map_DeploymentSpec = map[string]string{
 	"":               "DeploymentSpec is the specification of the desired behavior of the Deployment.",
 	"replicas":       "Number of desired pods. This is a pointer to distinguish between explicit zero and not specified. Defaults to 1.",
-	"selector":       "Label selector for pods. Existing ReplicationControllers whose pods are selected by this will be scaled down.",
+	"selector":       "Label selector for pods. Existing ReplicationControllers whose pods are selected by this will be the ones affected by this deployment.",
 	"template":       "Template describes the pods that will be created.",
 	"strategy":       "The deployment strategy to use to replace existing pods with new ones.",
 	"uniqueLabelKey": "Key of the selector that is added to existing RCs (and label key that is added to its pods) to prevent the existing RCs to select new pods (and old pods being selected by new RC). Users can set this to an empty string to indicate that the system should not add any selector and label. If unspecified, system uses \"deployment.kubernetes.io/podTemplateHash\". Value of this key is hash of DeploymentSpec.PodTemplateSpec. No label is added if this is set to empty string.",
@@ -115,8 +144,8 @@ func (DeploymentSpec) SwaggerDoc() map[string]string {
 
 var map_DeploymentStatus = map[string]string{
 	"":                "DeploymentStatus is the most recently observed status of the Deployment.",
-	"replicas":        "Total number of ready pods targeted by this deployment (this includes both the old and new pods).",
-	"updatedReplicas": "Total number of new ready pods with the desired template spec.",
+	"replicas":        "Total number of non-terminated pods targeted by this deployment (their labels match the selector).",
+	"updatedReplicas": "Total number of non-terminated pods targeted by this deployment that have the desired template spec.",
 }
 
 func (DeploymentStatus) SwaggerDoc() map[string]string {
@@ -318,12 +347,21 @@ var map_JobStatus = map[string]string{
 	"startTime":      "StartTime represents time when the job was acknowledged by the Job Manager. It is not guaranteed to be set in happens-before order across separate operations. It is represented in RFC3339 form and is in UTC.",
 	"completionTime": "CompletionTime represents time when the job was completed. It is not guaranteed to be set in happens-before order across separate operations. It is represented in RFC3339 form and is in UTC.",
 	"active":         "Active is the number of actively running pods.",
-	"successful":     "Successful is the number of pods which reached Phase Succeeded.",
-	"unsuccessful":   "Unsuccessful is the number of pods which reached Phase Failed.",
+	"succeeded":      "Succeeded is the number of pods which reached Phase Succeeded.",
+	"failed":         "Failed is the number of pods which reached Phase Failed.",
 }
 
 func (JobStatus) SwaggerDoc() map[string]string {
 	return map_JobStatus
+}
+
+var map_NodeUtilization = map[string]string{
+	"":      "NodeUtilization describes what percentage of a particular resource is used on a node.",
+	"value": "The accepted values are from 0 to 1.",
+}
+
+func (NodeUtilization) SwaggerDoc() map[string]string {
+	return map_NodeUtilization
 }
 
 var map_ReplicationControllerDummy = map[string]string{

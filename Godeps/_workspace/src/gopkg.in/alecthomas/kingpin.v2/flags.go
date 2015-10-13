@@ -49,7 +49,7 @@ func (f *flagGroup) init() error {
 	return nil
 }
 
-func (f *flagGroup) parse(context *ParseContext) error {
+func (f *flagGroup) parse(context *ParseContext) (*FlagClause, error) {
 	var token *Token
 
 loop:
@@ -74,12 +74,12 @@ loop:
 				}
 				flag, ok = f.long[name]
 				if !ok {
-					return fmt.Errorf("unknown long flag '%s'", flagToken)
+					return nil, fmt.Errorf("unknown long flag '%s'", flagToken)
 				}
 			} else {
 				flag, ok = f.short[name]
 				if !ok {
-					return fmt.Errorf("unknown short flag '%s'", flagToken)
+					return nil, fmt.Errorf("unknown short flag '%s'", flagToken)
 				}
 			}
 
@@ -94,23 +94,26 @@ loop:
 				}
 			} else {
 				if invert {
-					return fmt.Errorf("unknown long flag '%s'", flagToken)
+					context.Push(token)
+					return nil, fmt.Errorf("unknown long flag '%s'", flagToken)
 				}
 				token = context.Peek()
 				if token.Type != TokenArg {
-					return fmt.Errorf("expected argument for flag '%s'", flagToken)
+					context.Push(token)
+					return nil, fmt.Errorf("expected argument for flag '%s'", flagToken)
 				}
 				context.Next()
 				defaultValue = token.Value
 			}
 
 			context.matchedFlag(flag, defaultValue)
+			return flag, nil
 
 		default:
 			break loop
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 func (f *flagGroup) visibleFlags() int {
@@ -126,14 +129,13 @@ func (f *flagGroup) visibleFlags() int {
 // FlagClause is a fluid interface used to build flags.
 type FlagClause struct {
 	parserMixin
+	actionMixin
 	name         string
 	shorthand    byte
 	help         string
 	envar        string
 	defaultValue string
 	placeholder  string
-	action       Action
-	preAction    Action
 	hidden       bool
 }
 
@@ -179,12 +181,12 @@ func (f *FlagClause) init() error {
 
 // Dispatch to the given function after the flag is parsed and validated.
 func (f *FlagClause) Action(action Action) *FlagClause {
-	f.action = action
+	f.addAction(action)
 	return f
 }
 
 func (f *FlagClause) PreAction(action Action) *FlagClause {
-	f.preAction = action
+	f.addPreAction(action)
 	return f
 }
 

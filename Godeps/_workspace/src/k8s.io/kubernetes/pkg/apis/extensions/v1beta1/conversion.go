@@ -14,14 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package v1beta1
 
 import (
 	"reflect"
 
 	"k8s.io/kubernetes/pkg/api"
 	v1 "k8s.io/kubernetes/pkg/api/v1"
-	"k8s.io/kubernetes/pkg/apis/experimental"
+	"k8s.io/kubernetes/pkg/apis/extensions"
 	"k8s.io/kubernetes/pkg/conversion"
 	"k8s.io/kubernetes/pkg/util"
 )
@@ -31,12 +31,12 @@ func addConversionFuncs() {
 	err := api.Scheme.AddConversionFuncs(
 		convert_api_PodSpec_To_v1_PodSpec,
 		convert_v1_PodSpec_To_api_PodSpec,
-		convert_experimental_DeploymentSpec_To_v1alpha1_DeploymentSpec,
-		convert_v1alpha1_DeploymentSpec_To_experimental_DeploymentSpec,
-		convert_experimental_DeploymentStrategy_To_v1alpha1_DeploymentStrategy,
-		convert_v1alpha1_DeploymentStrategy_To_experimental_DeploymentStrategy,
-		convert_experimental_RollingUpdateDeployment_To_v1alpha1_RollingUpdateDeployment,
-		convert_v1alpha1_RollingUpdateDeployment_To_experimental_RollingUpdateDeployment,
+		convert_extensions_DeploymentSpec_To_v1beta1_DeploymentSpec,
+		convert_v1beta1_DeploymentSpec_To_extensions_DeploymentSpec,
+		convert_extensions_DeploymentStrategy_To_v1beta1_DeploymentStrategy,
+		convert_v1beta1_DeploymentStrategy_To_extensions_DeploymentStrategy,
+		convert_extensions_RollingUpdateDeployment_To_v1beta1_RollingUpdateDeployment,
+		convert_v1beta1_RollingUpdateDeployment_To_extensions_RollingUpdateDeployment,
 	)
 	if err != nil {
 		// If one of the conversion functions is malformed, detect it immediately.
@@ -97,9 +97,16 @@ func convert_api_PodSpec_To_v1_PodSpec(in *api.PodSpec, out *v1.PodSpec, s conve
 	// DeprecatedServiceAccount is an alias for ServiceAccountName.
 	out.DeprecatedServiceAccount = in.ServiceAccountName
 	out.NodeName = in.NodeName
-	out.HostNetwork = in.HostNetwork
-	out.HostPID = in.HostPID
-	out.HostIPC = in.HostIPC
+	if in.SecurityContext != nil {
+		out.SecurityContext = new(v1.PodSecurityContext)
+		if err := convert_api_PodSecurityContext_To_v1_PodSecurityContext(in.SecurityContext, out.SecurityContext, s); err != nil {
+			return err
+		}
+
+		out.HostNetwork = in.SecurityContext.HostNetwork
+		out.HostPID = in.SecurityContext.HostPID
+		out.HostIPC = in.SecurityContext.HostIPC
+	}
 	if in.ImagePullSecrets != nil {
 		out.ImagePullSecrets = make([]v1.LocalObjectReference, len(in.ImagePullSecrets))
 		for i := range in.ImagePullSecrets {
@@ -166,9 +173,19 @@ func convert_v1_PodSpec_To_api_PodSpec(in *v1.PodSpec, out *api.PodSpec, s conve
 		out.ServiceAccountName = in.DeprecatedServiceAccount
 	}
 	out.NodeName = in.NodeName
-	out.HostNetwork = in.HostNetwork
-	out.HostPID = in.HostPID
-	out.HostIPC = in.HostIPC
+
+	if in.SecurityContext != nil {
+		out.SecurityContext = new(api.PodSecurityContext)
+		if err := convert_v1_PodSecurityContext_To_api_PodSecurityContext(in.SecurityContext, out.SecurityContext, s); err != nil {
+			return err
+		}
+	}
+	if out.SecurityContext == nil {
+		out.SecurityContext = new(api.PodSecurityContext)
+	}
+	out.SecurityContext.HostNetwork = in.HostNetwork
+	out.SecurityContext.HostPID = in.HostPID
+	out.SecurityContext.HostIPC = in.HostIPC
 	if in.ImagePullSecrets != nil {
 		out.ImagePullSecrets = make([]api.LocalObjectReference, len(in.ImagePullSecrets))
 		for i := range in.ImagePullSecrets {
@@ -182,9 +199,9 @@ func convert_v1_PodSpec_To_api_PodSpec(in *v1.PodSpec, out *api.PodSpec, s conve
 	return nil
 }
 
-func convert_experimental_DeploymentSpec_To_v1alpha1_DeploymentSpec(in *experimental.DeploymentSpec, out *DeploymentSpec, s conversion.Scope) error {
+func convert_extensions_DeploymentSpec_To_v1beta1_DeploymentSpec(in *extensions.DeploymentSpec, out *DeploymentSpec, s conversion.Scope) error {
 	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
-		defaulting.(func(*experimental.DeploymentSpec))(in)
+		defaulting.(func(*extensions.DeploymentSpec))(in)
 	}
 	out.Replicas = new(int)
 	*out.Replicas = in.Replicas
@@ -204,7 +221,7 @@ func convert_experimental_DeploymentSpec_To_v1alpha1_DeploymentSpec(in *experime
 	} else {
 		out.Template = nil
 	}
-	if err := convert_experimental_DeploymentStrategy_To_v1alpha1_DeploymentStrategy(&in.Strategy, &out.Strategy, s); err != nil {
+	if err := convert_extensions_DeploymentStrategy_To_v1beta1_DeploymentStrategy(&in.Strategy, &out.Strategy, s); err != nil {
 		return err
 	}
 	out.UniqueLabelKey = new(string)
@@ -212,7 +229,7 @@ func convert_experimental_DeploymentSpec_To_v1alpha1_DeploymentSpec(in *experime
 	return nil
 }
 
-func convert_v1alpha1_DeploymentSpec_To_experimental_DeploymentSpec(in *DeploymentSpec, out *experimental.DeploymentSpec, s conversion.Scope) error {
+func convert_v1beta1_DeploymentSpec_To_extensions_DeploymentSpec(in *DeploymentSpec, out *extensions.DeploymentSpec, s conversion.Scope) error {
 	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
 		defaulting.(func(*DeploymentSpec))(in)
 	}
@@ -235,7 +252,7 @@ func convert_v1alpha1_DeploymentSpec_To_experimental_DeploymentSpec(in *Deployme
 	} else {
 		out.Template = nil
 	}
-	if err := convert_v1alpha1_DeploymentStrategy_To_experimental_DeploymentStrategy(&in.Strategy, &out.Strategy, s); err != nil {
+	if err := convert_v1beta1_DeploymentStrategy_To_extensions_DeploymentStrategy(&in.Strategy, &out.Strategy, s); err != nil {
 		return err
 	}
 	if in.UniqueLabelKey != nil {
@@ -244,14 +261,14 @@ func convert_v1alpha1_DeploymentSpec_To_experimental_DeploymentSpec(in *Deployme
 	return nil
 }
 
-func convert_experimental_DeploymentStrategy_To_v1alpha1_DeploymentStrategy(in *experimental.DeploymentStrategy, out *DeploymentStrategy, s conversion.Scope) error {
+func convert_extensions_DeploymentStrategy_To_v1beta1_DeploymentStrategy(in *extensions.DeploymentStrategy, out *DeploymentStrategy, s conversion.Scope) error {
 	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
-		defaulting.(func(*experimental.DeploymentStrategy))(in)
+		defaulting.(func(*extensions.DeploymentStrategy))(in)
 	}
 	out.Type = DeploymentStrategyType(in.Type)
 	if in.RollingUpdate != nil {
 		out.RollingUpdate = new(RollingUpdateDeployment)
-		if err := convert_experimental_RollingUpdateDeployment_To_v1alpha1_RollingUpdateDeployment(in.RollingUpdate, out.RollingUpdate, s); err != nil {
+		if err := convert_extensions_RollingUpdateDeployment_To_v1beta1_RollingUpdateDeployment(in.RollingUpdate, out.RollingUpdate, s); err != nil {
 			return err
 		}
 	} else {
@@ -260,14 +277,14 @@ func convert_experimental_DeploymentStrategy_To_v1alpha1_DeploymentStrategy(in *
 	return nil
 }
 
-func convert_v1alpha1_DeploymentStrategy_To_experimental_DeploymentStrategy(in *DeploymentStrategy, out *experimental.DeploymentStrategy, s conversion.Scope) error {
+func convert_v1beta1_DeploymentStrategy_To_extensions_DeploymentStrategy(in *DeploymentStrategy, out *extensions.DeploymentStrategy, s conversion.Scope) error {
 	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
 		defaulting.(func(*DeploymentStrategy))(in)
 	}
-	out.Type = experimental.DeploymentStrategyType(in.Type)
+	out.Type = extensions.DeploymentStrategyType(in.Type)
 	if in.RollingUpdate != nil {
-		out.RollingUpdate = new(experimental.RollingUpdateDeployment)
-		if err := convert_v1alpha1_RollingUpdateDeployment_To_experimental_RollingUpdateDeployment(in.RollingUpdate, out.RollingUpdate, s); err != nil {
+		out.RollingUpdate = new(extensions.RollingUpdateDeployment)
+		if err := convert_v1beta1_RollingUpdateDeployment_To_extensions_RollingUpdateDeployment(in.RollingUpdate, out.RollingUpdate, s); err != nil {
 			return err
 		}
 	} else {
@@ -276,9 +293,9 @@ func convert_v1alpha1_DeploymentStrategy_To_experimental_DeploymentStrategy(in *
 	return nil
 }
 
-func convert_experimental_RollingUpdateDeployment_To_v1alpha1_RollingUpdateDeployment(in *experimental.RollingUpdateDeployment, out *RollingUpdateDeployment, s conversion.Scope) error {
+func convert_extensions_RollingUpdateDeployment_To_v1beta1_RollingUpdateDeployment(in *extensions.RollingUpdateDeployment, out *RollingUpdateDeployment, s conversion.Scope) error {
 	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
-		defaulting.(func(*experimental.RollingUpdateDeployment))(in)
+		defaulting.(func(*extensions.RollingUpdateDeployment))(in)
 	}
 	if out.MaxUnavailable == nil {
 		out.MaxUnavailable = &util.IntOrString{}
@@ -296,7 +313,7 @@ func convert_experimental_RollingUpdateDeployment_To_v1alpha1_RollingUpdateDeplo
 	return nil
 }
 
-func convert_v1alpha1_RollingUpdateDeployment_To_experimental_RollingUpdateDeployment(in *RollingUpdateDeployment, out *experimental.RollingUpdateDeployment, s conversion.Scope) error {
+func convert_v1beta1_RollingUpdateDeployment_To_extensions_RollingUpdateDeployment(in *RollingUpdateDeployment, out *extensions.RollingUpdateDeployment, s conversion.Scope) error {
 	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
 		defaulting.(func(*RollingUpdateDeployment))(in)
 	}
@@ -307,5 +324,19 @@ func convert_v1alpha1_RollingUpdateDeployment_To_experimental_RollingUpdateDeplo
 		return err
 	}
 	out.MinReadySeconds = in.MinReadySeconds
+	return nil
+}
+
+func convert_api_PodSecurityContext_To_v1_PodSecurityContext(in *api.PodSecurityContext, out *v1.PodSecurityContext, s conversion.Scope) error {
+	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
+		defaulting.(func(*api.PodSecurityContext))(in)
+	}
+	return nil
+}
+
+func convert_v1_PodSecurityContext_To_api_PodSecurityContext(in *v1.PodSecurityContext, out *api.PodSecurityContext, s conversion.Scope) error {
+	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
+		defaulting.(func(*v1.PodSecurityContext))(in)
+	}
 	return nil
 }

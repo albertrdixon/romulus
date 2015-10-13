@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package v1beta1
 
 import (
 	"k8s.io/kubernetes/pkg/api"
@@ -25,7 +25,7 @@ func addDefaultingFuncs() {
 	api.Scheme.AddDefaultingFuncs(
 		func(obj *APIVersion) {
 			if len(obj.APIGroup) == 0 {
-				obj.APIGroup = "experimental"
+				obj.APIGroup = "extensions"
 			}
 		},
 		func(obj *DaemonSet) {
@@ -44,6 +44,19 @@ func addDefaultingFuncs() {
 			}
 		},
 		func(obj *Deployment) {
+			// Default labels and selector to labels from pod template spec.
+			var labels map[string]string
+			if obj.Spec.Template != nil {
+				labels = obj.Spec.Template.Labels
+			}
+			if labels != nil {
+				if len(obj.Spec.Selector) == 0 {
+					obj.Spec.Selector = labels
+				}
+				if len(obj.Labels) == 0 {
+					obj.Labels = labels
+				}
+			}
 			// Set DeploymentSpec.Replicas to 1 if it is not set.
 			if obj.Spec.Replicas == nil {
 				obj.Spec.Replicas = new(int)
