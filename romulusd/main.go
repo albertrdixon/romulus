@@ -45,7 +45,7 @@ func main() {
 	kingpin.Version(getVersion())
 	kingpin.MustParse(ro.Parse(os.Args[1:]))
 	setupLog()
-	infoL("Starting up romulusd version=%s", getVersion())
+	infof("Starting up romulusd version=%s", getVersion())
 
 	cache = newCache()
 	peers := []string{}
@@ -57,13 +57,13 @@ func main() {
 	*vulcanKey = etcdKeyf(*vulcanKey)
 	etcd, er = NewEtcdClient(peers, *vulcanKey, *etcdTimeout)
 	if er != nil {
-		fatalL("Failed to get etcd client: %v", er)
+		fatalf("Failed to get etcd client: %v", er)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	w, er := startWatches(ctx)
 	if er != nil {
-		fatalL("Failed to get kubernetes client: %v", er)
+		fatalf("Failed to get kubernetes client: %v", er)
 	}
 	go processor(w, ctx)
 
@@ -71,7 +71,7 @@ func main() {
 	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT)
 	select {
 	case <-sig:
-		infoL("Recieved interrupt, shutting down")
+		infof("Recieved interrupt, shutting down")
 		cancel()
 		time.Sleep(100 * time.Millisecond)
 		os.Exit(0)

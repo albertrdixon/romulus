@@ -13,7 +13,7 @@ import (
 
 func pruneServers(bid string, sm ServerMap) error {
 	k := serverDirf(bid)
-	debugL("Looking up servers in etcd %q", k)
+	debugf("Looking up servers in etcd %q", k)
 	srvs, e := etcd.Keys(k)
 	if e != nil {
 		if isKeyNotFound(e) {
@@ -22,34 +22,34 @@ func pruneServers(bid string, sm ServerMap) error {
 		return NewErr(e, "etcd error")
 	}
 
-	debugL("Gathered known servers from kubernetes: %v", sm)
-	debugL("Gathered known servers from etcd: %v", srvs)
+	debugf("Gathered known servers from kubernetes: %v", sm)
+	debugf("Gathered known servers from etcd: %v", srvs)
 	for _, id := range srvs {
 		key := fmt.Sprintf("%s/%s", k, id)
 		s, e := etcd.Val(key)
 		if e != nil {
-			warnL("Error getting server from etcd: %v", e)
+			warnf("Error getting server from etcd: %v", e)
 			continue
 		}
 
 		srv := &Server{ID: id, Backend: bid}
 		if e := decode(srv, []byte(s)); e != nil {
-			errorL("Unable to unmarshall Server: %v", e)
-			debugL("Data: %s", s)
+			errorf("Unable to unmarshall Server: %v", e)
+			debugf("Data: %s", s)
 			if e := etcd.Del(key); e != nil {
-				errorL("Error removing server: %v", e)
+				errorf("Error removing server: %v", e)
 			}
 			continue
 		}
 
 		sTag := md5Hash(bid, srv.URL.String())[:serverTagLen]
 		if nSrv, ok := sm[sTag]; ok {
-			debugL("Server %q exists", srv.ID)
+			debugf("Server %q exists", srv.ID)
 			nSrv.ID = srv.ID
 		} else {
-			infoL("Removing Server %q", srv.ID)
+			infof("Removing Server %q", srv.ID)
 			if e := etcd.Del(key); e != nil {
-				errorL("Error removing server: %v", e)
+				errorf("Error removing server: %v", e)
 				continue
 			}
 		}
@@ -66,20 +66,20 @@ func pruneBackends() error {
 		return NewErr(err, "etcd error")
 	}
 
-	debugL("Found current backends: %v", ids)
+	debugf("Found current backends: %v", ids)
 	for _, id := range ids {
 		name, ns, e := parseVulcanID(id)
 		if e != nil {
-			errorL("Invalid ID: %s", id)
+			errorf("Invalid ID: %s", id)
 			key := backendDirf(id)
 			if e := etcd.Del(key); e != nil {
-				warnL("etcd error: %v", e)
+				warnf("etcd error: %v", e)
 			}
 		} else if _, ok := getEndpoints(name, ns); !ok {
-			warnL("Did not find '%s-%s' Endpoints on API server", name, ns)
+			warnf("Did not find '%s-%s' Endpoints on API server", name, ns)
 			b := NewBackend(id)
 			if err := etcd.Del(b.DirKey()); err != nil {
-				warnL("etcd error")
+				warnf("etcd error")
 			}
 		}
 	}
@@ -95,20 +95,20 @@ func pruneFrontends() error {
 		return NewErr(err, "etcd error")
 	}
 
-	debugL("Found current frontends: %v", ids)
+	debugf("Found current frontends: %v", ids)
 	for _, id := range ids {
 		name, ns, e := parseVulcanID(id)
 		if e != nil {
-			errorL("Invalid ID: %s", id)
+			errorf("Invalid ID: %s", id)
 			key := frontendDirf(id)
 			if e := etcd.Del(key); e != nil {
-				warnL("etcd error: %v", e)
+				warnf("etcd error: %v", e)
 			}
 		} else if _, ok := getService(name, ns); !ok {
-			warnL("Did not find '%s-%s' Service on API server", name, ns)
+			warnf("Did not find '%s-%s' Service on API server", name, ns)
 			f := NewFrontend(id, "")
 			if err := etcd.Del(f.DirKey()); err != nil {
-				warnL("etcd error: %v", err)
+				warnf("etcd error: %v", err)
 			}
 		}
 	}
@@ -117,13 +117,13 @@ func pruneFrontends() error {
 
 func registerBackends(s *api.Service, e *api.Endpoints) (*BackendList, error) {
 	bnds := NewBackendList()
-	infoL("Registering backend '%s-%s'", e.Name, e.Namespace)
-	pruneBackends()
+	infof("Registering backend '%s-%s'", e.Name, e.Namespace)
+	// pruneBackends()
 	subsets := endpoints.RepackSubsets(e.Subsets)
 	for _, es := range subsets {
 		for _, port := range es.Ports {
 			if port.Protocol != api.ProtocolTCP {
-				warnL("Unsupported protocol: %s", port.Protocol)
+				warnf("Unsupported protocol: %s", port.Protocol)
 				continue
 			}
 
@@ -134,14 +134,14 @@ func registerBackends(s *api.Service, e *api.Endpoints) (*BackendList, error) {
 			if st, ok := s.Annotations[labelf("backendSettings")]; ok {
 				bnd.Settings = NewBackendSettings([]byte(st))
 			}
-			debugL("Backend settings: %q", bnd)
+			debugf("Backend settings: %q", bnd)
 
-			debugL("Gathering kubernetes endpoints: %v", es.Addresses)
+			debugf("Gathering kubernetes endpoints: %v", es.Addresses)
 			for _, ip := range es.Addresses {
 				ur := fmt.Sprintf("http://%s:%d", ip.IP, port.Port)
 				u, err := url.Parse(ur)
 				if err != nil {
-					warnL("Bad URL: %s", ur)
+					warnf("Bad URL: %s", ur)
 					continue
 				}
 				uu := (*jURL.URL)(u)
@@ -153,7 +153,7 @@ func registerBackends(s *api.Service, e *api.Endpoints) (*BackendList, error) {
 				}
 			}
 			if err := pruneServers(bid, sm); err != nil {
-				warnL("Failed to remove servers for %q: %v", bnd.ID, err)
+				warnf("Failed to remove servers for %q: %v", bnd.ID, err)
 			}
 
 			val, err := bnd.Val()
@@ -162,29 +162,29 @@ func registerBackends(s *api.Service, e *api.Endpoints) (*BackendList, error) {
 			}
 			eVal, _ := etcd.Val(bnd.Key())
 			if val != eVal {
-				debugL("Upserting backend %q", bnd)
+				debugf("Upserting backend %q", bnd)
 				if err := etcd.Add(bnd.Key(), val); err != nil {
 					return bnds, NewErr(err, "etcd error")
 				}
 			} else {
-				debugL("No changes, not upserting Backend %q", bnd)
+				debugf("No changes, not upserting Backend %q", bnd)
 			}
 			bnds.Add(port.Port, port.Name, bnd)
 
 			for _, srv := range sm {
 				val, err := srv.Val()
 				if err != nil {
-					warnL("Unable to encode server %q: %v", srv.ID, err)
+					warnf("Unable to encode server %q: %v", srv.ID, err)
 					continue
 				}
 				eVal, _ := etcd.Val(srv.Key())
 				if val != eVal {
-					debugL("Upserting server %q", srv)
+					debugf("Upserting server %q", srv)
 					if err := etcd.Add(srv.Key(), val); err != nil {
 						return bnds, NewErr(err, "etcd error")
 					}
 				} else {
-					debugL("No changes, not upserting Server %q", srv)
+					debugf("No changes, not upserting Server %q", srv)
 				}
 			}
 		}
@@ -193,13 +193,13 @@ func registerBackends(s *api.Service, e *api.Endpoints) (*BackendList, error) {
 }
 
 func registerFrontends(s *api.Service, bnds *BackendList) error {
-	infoL("Registering frontend '%s-%s'", s.Name, s.Namespace)
-	pruneFrontends()
-	debugL("Backend List: %+v", bnds)
+	infof("Registering frontend '%s-%s'", s.Name, s.Namespace)
+	// pruneFrontends()
+	debugf("Backend List: %+v", bnds)
 	for _, port := range s.Spec.Ports {
 		bnd, ok := bnds.Lookup(port.TargetPort.IntVal, port.TargetPort.StrVal)
 		if !ok {
-			warnL("No backend for service port %d (target: %d)", port.Port, port.TargetPort.IntVal)
+			warnf("No backend for service port %d (target: %d)", port.Port, port.TargetPort.IntVal)
 			continue
 		}
 
@@ -209,7 +209,7 @@ func registerFrontends(s *api.Service, bnds *BackendList) error {
 		if st, ok := s.Annotations[labelf("frontendSettings")]; ok {
 			fnd.Settings = NewFrontendSettings([]byte(st))
 		}
-		debugL("Frontend settings: %q", fnd)
+		debugf("Frontend settings: %q", fnd)
 
 		val, err := fnd.Val()
 		if err != nil {
@@ -217,12 +217,12 @@ func registerFrontends(s *api.Service, bnds *BackendList) error {
 		}
 		eVal, _ := etcd.Val(fnd.Key())
 		if val != eVal {
-			debugL("Upserting frontend %q", fnd)
+			debugf("Upserting frontend %q", fnd)
 			if err := etcd.Add(fnd.Key(), val); err != nil {
 				return NewErr(err, "etcd error")
 			}
 		} else {
-			debugL("No changes, not upserting Frontend %q", fnd)
+			debugf("No changes, not upserting Frontend %q", fnd)
 		}
 	}
 	return nil
@@ -248,7 +248,7 @@ func registerEndpoints(e *api.Endpoints) error {
 
 func register(s *api.Service, e *api.Endpoints) error {
 	if !registerable(s) {
-		debugL("Service '%s-%s' not registerable", s.Name, s.Namespace)
+		debugf("Service '%s-%s' not registerable", s.Name, s.Namespace)
 		return nil
 	}
 
@@ -269,10 +269,10 @@ func deregisterService(s *api.Service) error {
 	defer etcd.SetPrefix(*vulcanKey)
 	for _, port := range s.Spec.Ports {
 		f := NewFrontend(getVulcanID(s.Name, s.Namespace, port.Name), "")
-		infoL("Deregistering frontend %v", f)
+		infof("Deregistering frontend %v", f)
 		if er := etcd.Del(f.DirKey()); er != nil {
 			if isKeyNotFound(er) {
-				warnL("%s frontend key not found in etcd", f.ID)
+				warnf("%s frontend key not found in etcd", f.ID)
 				continue
 			}
 			return NewErr(er, "etcd error")
@@ -289,10 +289,10 @@ func deregisterEndpoints(e *api.Endpoints) error {
 	for _, es := range e.Subsets {
 		for _, port := range es.Ports {
 			b := NewBackend(getVulcanID(e.Name, e.Namespace, port.Name))
-			infoL("Deregistering backend %v", b)
+			infof("Deregistering backend %v", b)
 			if er := etcd.Del(b.DirKey()); er != nil {
 				if isKeyNotFound(er) {
-					warnL("%s backend key not found in etcd", b.ID)
+					warnf("%s backend key not found in etcd", b.ID)
 					continue
 				}
 				return NewErr(er, "etcd error")
@@ -310,7 +310,7 @@ func registerable(o runtime.Object) bool {
 	}
 	m, er := getMeta(o)
 	if er != nil {
-		debugL("Failed to access labels: %v", er)
+		debugf("Failed to access labels: %v", er)
 		return false
 	}
 

@@ -58,11 +58,11 @@ func processor(in chan watch.Event, c context.Context) {
 		case e := <-in:
 			if registerable(e.Object) {
 				if er := process(e); er != nil {
-					errorL(er.Error())
+					errorf(er.Error())
 					go retry(in, e)
 				}
 			} else {
-				debugL("Object not registerable: %v", e.Object)
+				debugf("Object not registerable: %v", e.Object)
 			}
 		}
 	}
@@ -76,7 +76,7 @@ func retry(ch chan watch.Event, e watch.Event) {
 func process(e watch.Event) error {
 	switch e.Type {
 	default:
-		debugL("Unsupported event type %q: %+v", e.Type, e)
+		debugf("Unsupported event type %q: %+v", e.Type, e)
 		return nil
 	case watch.Error:
 		if a, ok := e.Object.(*uApi.Status); ok {

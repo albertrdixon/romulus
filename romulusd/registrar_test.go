@@ -83,7 +83,7 @@ func TestRegister(te *testing.T) {
 	}
 
 	for _, t := range tests {
-		etcd = NewFakeEtcdClient(*vulcanKey)
+		etcd = newFakeEtcdClient(*vulcanKey)
 		o := fakeKubeClient(t.defs)
 
 		obj, er := o.Kind(t.kind, t.name)

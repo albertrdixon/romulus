@@ -24,7 +24,7 @@ func acquireWatch(fn watchFunc, out chan<- watch.Interface, c context.Context) {
 	}
 
 	for {
-		debugL("Setting watch failed, retry in (%v): %v", retry, e)
+		debugf("Setting watch failed, retry in (%v): %v", retry, e)
 		select {
 		case <-c.Done():
 			return
@@ -45,11 +45,11 @@ func startWatches(c context.Context) (chan watch.Event, error) {
 		return out, er
 	}
 	sv := func() (watch.Interface, error) {
-		debugL("Attempting to set watch on Services")
+		debugf("Attempting to set watch on Services")
 		return kc.Services(api.NamespaceAll).Watch(labels.Everything(), fields.Everything(), "")
 	}
 	en := func() (watch.Interface, error) {
-		debugL("Attempting to set watch on Endpoints")
+		debugf("Attempting to set watch on Endpoints")
 		return kc.Endpoints(api.NamespaceAll).Watch(labels.Everything(), fields.Everything(), "")
 	}
 
@@ -67,20 +67,20 @@ Acquire:
 	go acquireWatch(fn, wc, c)
 	select {
 	case <-c.Done():
-		infoL("Closing %s watch channel", name)
+		infof("Closing %s watch channel", name)
 		return
 	case w = <-wc:
-		debugL("%s watch set", name)
+		debugf("%s watch set", name)
 	}
 
 	for {
 		select {
 		case <-c.Done():
-			infoL("Closing %s watch channel", name)
+			infof("Closing %s watch channel", name)
 			return
 		case e := <-w.ResultChan():
 			if isClosed(e) {
-				warnL("%s watch closed: %+v", name, e)
+				warnf("%s watch closed: %+v", name, e)
 				goto Acquire
 			}
 			out <- e

@@ -33,15 +33,15 @@ func writeLog(p, f string, m ...interface{}) {
 	log.Printf("[%s] %s", p, msg)
 }
 
-func errorL(f string, m ...interface{}) { writeLog("error", f, m...) }
-func warnL(f string, m ...interface{})  { writeLog("warn", f, m...) }
-func infoL(f string, m ...interface{})  { writeLog("info", f, m...) }
-func debugL(f string, m ...interface{}) {
+func errorf(f string, m ...interface{}) { writeLog("error", f, m...) }
+func warnf(f string, m ...interface{})  { writeLog("warn", f, m...) }
+func infof(f string, m ...interface{})  { writeLog("info", f, m...) }
+func debugf(f string, m ...interface{}) {
 	if *debug || *logLevel == "debug" {
 		writeLog("debug", f, m...)
 	}
 }
-func fatalL(f string, m ...interface{}) {
+func fatalf(f string, m ...interface{}) {
 	writeLog("fatal", f, m...)
 	os.Exit(1)
 }

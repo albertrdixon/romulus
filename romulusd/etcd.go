@@ -1,7 +1,6 @@
 package main
 
 import (
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -19,16 +18,11 @@ type etcdInterface interface {
 	SetPrefix(pre string)
 }
 
-type realEtcdClient struct {
+type etcdClient struct {
 	client.KeysAPI
 	*sync.RWMutex
 	p string
 	t time.Duration
-}
-
-type fakeEtcdClient struct {
-	k map[string]string
-	p string
 }
 
 func NewEtcdClient(peers []string, prefix string, timeout time.Duration) (etcdInterface, error) {
@@ -39,25 +33,21 @@ func NewEtcdClient(peers []string, prefix string, timeout time.Duration) (etcdIn
 	if er != nil {
 		return nil, er
 	}
-	return &realEtcdClient{client.NewKeysAPI(ec), new(sync.RWMutex),
+	return &etcdClient{client.NewKeysAPI(ec), new(sync.RWMutex),
 		prefix, timeout}, nil
 }
 
-func NewFakeEtcdClient(prefix string) etcdInterface {
-	return &fakeEtcdClient{map[string]string{"/": ""}, prefix}
-}
-
-func (r *realEtcdClient) SetPrefix(pre string) {
+func (r *etcdClient) SetPrefix(pre string) {
 	r.p = pre
 }
 
-func (r *realEtcdClient) Add(k, v string) error {
+func (r *etcdClient) Add(k, v string) error {
 	r.Lock()
 	defer r.Unlock()
 	return r.add(prefix(r.p, k), v)
 }
 
-func (r *realEtcdClient) add(k, v string) error {
+func (r *etcdClient) add(k, v string) error {
 	c, q := context.WithTimeout(context.Background(), r.t)
 	defer q()
 
@@ -65,13 +55,13 @@ func (r *realEtcdClient) add(k, v string) error {
 	return e
 }
 
-func (r *realEtcdClient) Del(k string) error {
+func (r *etcdClient) Del(k string) error {
 	r.Lock()
 	defer r.Unlock()
 	return r.del(prefix(r.p, k))
 }
 
-func (r *realEtcdClient) del(k string) error {
+func (r *etcdClient) del(k string) error {
 	c, q := context.WithTimeout(context.Background(), r.t)
 	defer q()
 
@@ -82,13 +72,13 @@ func (r *realEtcdClient) del(k string) error {
 	return e
 }
 
-func (r *realEtcdClient) Keys(k string) ([]string, error) {
+func (r *etcdClient) Keys(k string) ([]string, error) {
 	r.RLock()
 	defer r.RUnlock()
 	return r.keys(prefix(r.p, k))
 }
 
-func (re *realEtcdClient) keys(p string) ([]string, error) {
+func (re *etcdClient) keys(p string) ([]string, error) {
 	c, q := context.WithTimeout(context.Background(), re.t)
 	defer q()
 
@@ -111,13 +101,13 @@ func (re *realEtcdClient) keys(p string) ([]string, error) {
 	return k, nil
 }
 
-func (r *realEtcdClient) Val(key string) (string, error) {
+func (r *etcdClient) Val(key string) (string, error) {
 	r.RLock()
 	defer r.RUnlock()
 	return r.get(prefix(r.p, key))
 }
 
-func (r *realEtcdClient) get(key string) (string, error) {
+func (r *etcdClient) get(key string) (string, error) {
 	c, q := context.WithTimeout(context.Background(), r.t)
 	defer q()
 
@@ -133,45 +123,6 @@ func (r *realEtcdClient) get(key string) (string, error) {
 	}
 
 	return resp.Node.Value, nil
-}
-
-func (f *fakeEtcdClient) SetPrefix(pre string) { f.p = pre }
-func (f *fakeEtcdClient) Add(k, v string) (e error) {
-	f.k[prefix(f.p, k)] = v
-	return
-}
-func (f *fakeEtcdClient) Del(k string) error {
-	ke := prefix(f.p, k)
-	delete(f.k, ke)
-	for key := range f.k {
-		if strings.HasPrefix(key, ke) {
-			delete(f.k, key)
-		}
-	}
-	return nil
-}
-func (f *fakeEtcdClient) Keys(k string) ([]string, error) {
-	key := prefix(f.p, k)
-	r := []string{}
-	for ke := range f.k {
-		if key == filepath.Dir(ke) {
-			r = append(r, filepath.Base(ke))
-		}
-	}
-	return r, nil
-}
-func (f *fakeEtcdClient) get(k string) (v string, b bool) {
-	v, b = f.k[k]
-	return
-}
-
-func (f *fakeEtcdClient) Val(k string) (string, error) {
-	key := prefix(f.p, k)
-	v, ok := f.k[key]
-	if !ok {
-		return "", NewErr(nil, "%q not found", key)
-	}
-	return v, nil
 }
 
 func isKeyNotFound(e error) bool {

@@ -48,11 +48,11 @@ func getService(name, ns string) (s *api.Service, b bool) {
 	if !b {
 		kc, er := kubeClient()
 		if er != nil {
-			warnL("kubernetes client failure: %v", er)
+			warnf("kubernetes client failure: %v", er)
 		}
 		s, er := kc.Services(ns).Get(name)
 		if er != nil {
-			debugL("Failed to get Service: %v", er)
+			debugf("Failed to get Service: %v", er)
 			return nil, false
 		}
 		b = true
@@ -72,11 +72,11 @@ func getEndpoints(name, ns string) (en *api.Endpoints, b bool) {
 	if !b {
 		kc, er := kubeClient()
 		if er != nil {
-			warnL("kubernetes client failure: %v", er)
+			warnf("kubernetes client failure: %v", er)
 		}
 		en, er := kc.Endpoints(ns).Get(name)
 		if er != nil {
-			debugL("failed to get Endpoints", er)
+			debugf("failed to get Endpoints", er)
 			return nil, false
 		}
 		b = true
