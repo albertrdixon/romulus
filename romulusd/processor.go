@@ -26,16 +26,21 @@ func getMeta(obj runtime.Object) (m *metadata, e error) {
 	a = meta.NewAccessor()
 	m = &metadata{}
 
+	switch obj.(type) {
+	default:
+		m.kind, e = a.Kind(obj)
+	case *api.Service:
+		m.kind = "Service"
+	case *api.Endpoints:
+		m.kind = "Endpoints"
+	}
+
 	if name, e = a.Name(obj); e == nil {
 		m.name = name
 	}
 
 	if ns, e = a.Namespace(obj); e == nil {
 		m.ns = ns
-	}
-
-	if kind, e = a.Kind(obj); e == nil {
-		m.kind = kind
 	}
 
 	if labels, e = a.Labels(obj); e == nil {
