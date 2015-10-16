@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: oneTwoThree
+  namespace: test
+  uid: ba2e58f0-3254-11e5-8d84-06dd91247d93
+  annotations:
+    romulus/host.web: 'www.example.com'
+    romulus/path.web: '/web'
+  labels:
+    name: oneTwoThree
+    namespace: test
+    romulus/type: public
+spec:
+  type: ClusterIP
+  ports:
+    - name: web
+      port: 8080
+      protocol: TCP

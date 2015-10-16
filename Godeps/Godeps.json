@@ -11,9 +11,12 @@
 			"Rev": "75cd24fc2f2c2a2088577d12123ddee5f54e0675"
 		},
 		{
-			"ImportPath": "github.com/Sirupsen/logrus",
-			"Comment": "v0.8.7-18-gd7f2354",
-			"Rev": "d7f23545ad48f39960e360e36b5d3b58cc6ecb1c"
+			"ImportPath": "github.com/albertrdixon/gearbox/json",
+			"Rev": "d1305029b8930a9a5314ceee013581187da2aa43"
+		},
+		{
+			"ImportPath": "github.com/albertrdixon/gearbox/url",
+			"Rev": "d1305029b8930a9a5314ceee013581187da2aa43"
 		},
 		{
 			"ImportPath": "github.com/alecthomas/template",
@@ -28,23 +31,19 @@
 			"Rev": "b965b613227fddccbfffe13eae360ed3fa822f8d"
 		},
 		{
-			"ImportPath": "github.com/cenkalti/backoff",
-			"Rev": "4dc77674aceaabba2c7e3da25d4c823edfb73f99"
-		},
-		{
 			"ImportPath": "github.com/coreos/etcd/client",
-			"Comment": "v2.2.0-170-g21179d9",
-			"Rev": "21179d929f7e2525104401fc565b8cbf35c2f6ae"
+			"Comment": "v2.2.0-190-g6afd8e4",
+			"Rev": "6afd8e4fd91d5f5b400937a7d897bc7a76e17158"
 		},
 		{
 			"ImportPath": "github.com/coreos/etcd/pkg/pathutil",
-			"Comment": "v2.2.0-170-g21179d9",
-			"Rev": "21179d929f7e2525104401fc565b8cbf35c2f6ae"
+			"Comment": "v2.2.0-190-g6afd8e4",
+			"Rev": "6afd8e4fd91d5f5b400937a7d897bc7a76e17158"
 		},
 		{
 			"ImportPath": "github.com/coreos/etcd/pkg/types",
-			"Comment": "v2.2.0-170-g21179d9",
-			"Rev": "21179d929f7e2525104401fc565b8cbf35c2f6ae"
+			"Comment": "v2.2.0-190-g6afd8e4",
+			"Rev": "6afd8e4fd91d5f5b400937a7d897bc7a76e17158"
 		},
 		{
 			"ImportPath": "github.com/davecgh/go-spew/spew",
@@ -52,8 +51,8 @@
 		},
 		{
 			"ImportPath": "github.com/emicklei/go-restful",
-			"Comment": "v1.1.3-133-g2075ddd",
-			"Rev": "2075ddd6c1ed27e26a1b30b3902dafddf2cfb16c"
+			"Comment": "v1.1.3-141-gf3b10ff",
+			"Rev": "f3b10ff408486b3e248197254514778285fbdea1"
 		},
 		{
 			"ImportPath": "github.com/ghodss/yaml",
@@ -65,16 +64,20 @@
 		},
 		{
 			"ImportPath": "github.com/golang/protobuf/proto",
-			"Rev": "3d2510a4dd961caffa2ae781669c628d82db700a"
+			"Rev": "deb4a5e3b15dea23f340a311eea995421845c356"
 		},
 		{
 			"ImportPath": "github.com/google/cadvisor/info/v1",
-			"Comment": "0.18.0-19-g8dcf46b",
-			"Rev": "8dcf46b1539958c2b984df08edfa04d21069bb01"
+			"Comment": "0.18.0-30-g0d6015c",
+			"Rev": "0d6015c74114de9503d68c3c91efceee4dc41bd2"
 		},
 		{
 			"ImportPath": "github.com/google/gofuzz",
 			"Rev": "e4af62d086c303f2bed467b227fc0a034b218916"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/logutils",
+			"Rev": "0dc08b1671f34c4250ce212759ebd880f743d883"
 		},
 		{
 			"ImportPath": "github.com/juju/ratelimit",
@@ -82,7 +85,7 @@
 		},
 		{
 			"ImportPath": "github.com/matttproud/golang_protobuf_extensions/pbutil",
-			"Rev": "fc2b8d3a73c4867e51861bbdd5ae3c1f0869dd6a"
+			"Rev": "d0c3fe89de86839aecf2e0579c40ba3bb336a453"
 		},
 		{
 			"ImportPath": "github.com/pborman/uuid",
@@ -90,8 +93,8 @@
 		},
 		{
 			"ImportPath": "github.com/prometheus/client_golang/prometheus",
-			"Comment": "0.7.0-41-gb6cad5e",
-			"Rev": "b6cad5edaf0b3c84797ebeedfb590cbc540382e8"
+			"Comment": "0.7.0-52-ge51041b",
+			"Rev": "e51041b3fa41cece0dca035740ba6411905be473"
 		},
 		{
 			"ImportPath": "github.com/prometheus/client_model/go",
@@ -116,17 +119,17 @@
 		},
 		{
 			"ImportPath": "github.com/stretchr/testify/assert",
-			"Comment": "v1.0-49-g2b15294",
-			"Rev": "2b15294402a895a4224659d181866f545991021e"
+			"Comment": "v1.0-51-gf3960ab",
+			"Rev": "f3960ab1f9664ecc4e27c78af27cc9063d745a43"
 		},
 		{
 			"ImportPath": "github.com/stretchr/testify/require",
-			"Comment": "v1.0-49-g2b15294",
-			"Rev": "2b15294402a895a4224659d181866f545991021e"
+			"Comment": "v1.0-51-gf3960ab",
+			"Rev": "f3960ab1f9664ecc4e27c78af27cc9063d745a43"
 		},
 		{
 			"ImportPath": "github.com/ugorji/go/codec",
-			"Rev": "45ce7596ace4534e47b69051a92aef7b64ec7b3f"
+			"Rev": "2f4b94206aae781e63846a9bf02ad83c387d5296"
 		},
 		{
 			"ImportPath": "golang.org/x/crypto/curve25519",
@@ -138,12 +141,12 @@
 		},
 		{
 			"ImportPath": "golang.org/x/net/context",
-			"Rev": "47990a1ba55743e6ef1affd3a14e5bac8553615d"
+			"Rev": "d8f3c68ddd4bb686ca3bd70e49bbc64b80c78144"
 		},
 		{
 			"ImportPath": "gopkg.in/alecthomas/kingpin.v2",
-			"Comment": "v2.0.12",
-			"Rev": "639879d6110b1b0409410c7b737ef0bb18325038"
+			"Comment": "v2.1.0",
+			"Rev": "72bf19f454c6822cfb2cf128c77ef8d70667df35"
 		},
 		{
 			"ImportPath": "gopkg.in/yaml.v2",
@@ -151,73 +154,73 @@
 		},
 		{
 			"ImportPath": "k8s.io/kubernetes/pkg/api",
-			"Comment": "v1.2.0-alpha.1-534-gfafb00d",
-			"Rev": "fafb00db7ab41a0dfa79001a3b46b270c7d5ddb0"
+			"Comment": "v1.2.0-alpha.1-948-g866d7d4",
+			"Rev": "866d7d4fb96e11e8245195df38fa727057a5cf31"
 		},
 		{
-			"ImportPath": "k8s.io/kubernetes/pkg/apis/experimental",
-			"Comment": "v1.2.0-alpha.1-534-gfafb00d",
-			"Rev": "fafb00db7ab41a0dfa79001a3b46b270c7d5ddb0"
+			"ImportPath": "k8s.io/kubernetes/pkg/apis/extensions",
+			"Comment": "v1.2.0-alpha.1-948-g866d7d4",
+			"Rev": "866d7d4fb96e11e8245195df38fa727057a5cf31"
 		},
 		{
 			"ImportPath": "k8s.io/kubernetes/pkg/auth/user",
-			"Comment": "v1.2.0-alpha.1-534-gfafb00d",
-			"Rev": "fafb00db7ab41a0dfa79001a3b46b270c7d5ddb0"
+			"Comment": "v1.2.0-alpha.1-948-g866d7d4",
+			"Rev": "866d7d4fb96e11e8245195df38fa727057a5cf31"
 		},
 		{
 			"ImportPath": "k8s.io/kubernetes/pkg/client/metrics",
-			"Comment": "v1.2.0-alpha.1-534-gfafb00d",
-			"Rev": "fafb00db7ab41a0dfa79001a3b46b270c7d5ddb0"
+			"Comment": "v1.2.0-alpha.1-948-g866d7d4",
+			"Rev": "866d7d4fb96e11e8245195df38fa727057a5cf31"
 		},
 		{
 			"ImportPath": "k8s.io/kubernetes/pkg/client/unversioned",
-			"Comment": "v1.2.0-alpha.1-534-gfafb00d",
-			"Rev": "fafb00db7ab41a0dfa79001a3b46b270c7d5ddb0"
+			"Comment": "v1.2.0-alpha.1-948-g866d7d4",
+			"Rev": "866d7d4fb96e11e8245195df38fa727057a5cf31"
 		},
 		{
 			"ImportPath": "k8s.io/kubernetes/pkg/conversion",
-			"Comment": "v1.2.0-alpha.1-534-gfafb00d",
-			"Rev": "fafb00db7ab41a0dfa79001a3b46b270c7d5ddb0"
+			"Comment": "v1.2.0-alpha.1-948-g866d7d4",
+			"Rev": "866d7d4fb96e11e8245195df38fa727057a5cf31"
 		},
 		{
 			"ImportPath": "k8s.io/kubernetes/pkg/fields",
-			"Comment": "v1.2.0-alpha.1-534-gfafb00d",
-			"Rev": "fafb00db7ab41a0dfa79001a3b46b270c7d5ddb0"
+			"Comment": "v1.2.0-alpha.1-948-g866d7d4",
+			"Rev": "866d7d4fb96e11e8245195df38fa727057a5cf31"
 		},
 		{
 			"ImportPath": "k8s.io/kubernetes/pkg/labels",
-			"Comment": "v1.2.0-alpha.1-534-gfafb00d",
-			"Rev": "fafb00db7ab41a0dfa79001a3b46b270c7d5ddb0"
+			"Comment": "v1.2.0-alpha.1-948-g866d7d4",
+			"Rev": "866d7d4fb96e11e8245195df38fa727057a5cf31"
 		},
 		{
 			"ImportPath": "k8s.io/kubernetes/pkg/runtime",
-			"Comment": "v1.2.0-alpha.1-534-gfafb00d",
-			"Rev": "fafb00db7ab41a0dfa79001a3b46b270c7d5ddb0"
+			"Comment": "v1.2.0-alpha.1-948-g866d7d4",
+			"Rev": "866d7d4fb96e11e8245195df38fa727057a5cf31"
 		},
 		{
 			"ImportPath": "k8s.io/kubernetes/pkg/types",
-			"Comment": "v1.2.0-alpha.1-534-gfafb00d",
-			"Rev": "fafb00db7ab41a0dfa79001a3b46b270c7d5ddb0"
+			"Comment": "v1.2.0-alpha.1-948-g866d7d4",
+			"Rev": "866d7d4fb96e11e8245195df38fa727057a5cf31"
 		},
 		{
 			"ImportPath": "k8s.io/kubernetes/pkg/util",
-			"Comment": "v1.2.0-alpha.1-534-gfafb00d",
-			"Rev": "fafb00db7ab41a0dfa79001a3b46b270c7d5ddb0"
+			"Comment": "v1.2.0-alpha.1-948-g866d7d4",
+			"Rev": "866d7d4fb96e11e8245195df38fa727057a5cf31"
 		},
 		{
 			"ImportPath": "k8s.io/kubernetes/pkg/version",
-			"Comment": "v1.2.0-alpha.1-534-gfafb00d",
-			"Rev": "fafb00db7ab41a0dfa79001a3b46b270c7d5ddb0"
+			"Comment": "v1.2.0-alpha.1-948-g866d7d4",
+			"Rev": "866d7d4fb96e11e8245195df38fa727057a5cf31"
 		},
 		{
 			"ImportPath": "k8s.io/kubernetes/pkg/watch",
-			"Comment": "v1.2.0-alpha.1-534-gfafb00d",
-			"Rev": "fafb00db7ab41a0dfa79001a3b46b270c7d5ddb0"
+			"Comment": "v1.2.0-alpha.1-948-g866d7d4",
+			"Rev": "866d7d4fb96e11e8245195df38fa727057a5cf31"
 		},
 		{
 			"ImportPath": "k8s.io/kubernetes/third_party/forked/reflect",
-			"Comment": "v1.2.0-alpha.1-534-gfafb00d",
-			"Rev": "fafb00db7ab41a0dfa79001a3b46b270c7d5ddb0"
+			"Comment": "v1.2.0-alpha.1-948-g866d7d4",
+			"Rev": "866d7d4fb96e11e8245195df38fa727057a5cf31"
 		},
 		{
 			"ImportPath": "speter.net/go/exp/math/dec/inf",

@@ -1,11 +1,9 @@
-PROJECT = github.com/timelinelabs/romulus
 REV ?= $$(git rev-parse --short=8 HEAD)
 BRANCH ?= $$(git rev-parse --abbrev-ref HEAD | tr / _)
-EXECUTABLE = "romulusd"
-BINARY = cmd/romulusd/romulusd.go
+EXECUTABLE = romulusd
 IMAGE = romulusd
 REMOTE_REPO = quay.io/timeline_labs/romulusd
-LDFLAGS = "-s -X $(PROJECT)/romulus.SHA=$(REV)"
+LDFLAGS = "-s -X main.SHA=$(REV)"
 TEST_COMMAND = godep go test
 
 .PHONY: dep-save dep-restore test test-verbose build build-image install publish
@@ -45,11 +43,11 @@ test-verbose:
 
 build:
 	@echo "==> Building $(EXECUTABLE) with ldflags '$(LDFLAGS)'"
-	@godep go build -ldflags $(LDFLAGS) -o bin/$(EXECUTABLE) $(BINARY)
+	@godep go build -ldflags $(LDFLAGS) -o bin/$(EXECUTABLE) romulusd/*.go
 
 build-image:
 	@echo "==> Building linux binary"
-	@ GOOS=linux CGO_ENABLED=0 godep go build -a -installsuffix cgo -ldflags $(LDFLAGS) -o bin/$(EXECUTABLE)-linux $(BINARY)
+	@ GOOS=linux CGO_ENABLED=0 godep go build -a -installsuffix cgo -ldflags $(LDFLAGS) -o bin/$(EXECUTABLE)-linux romulusd/*.go
 	@echo "==> Building docker image '$(IMAGE)'"
 	@docker build -t $(IMAGE) .
 

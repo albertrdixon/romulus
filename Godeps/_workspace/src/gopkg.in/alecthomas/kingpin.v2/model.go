@@ -120,6 +120,7 @@ type CmdModel struct {
 	FullCommand string
 	Depth       int
 	Hidden      bool
+	Default     bool
 	*FlagGroupModel
 	*ArgGroupModel
 	*CmdGroupModel
@@ -209,6 +210,7 @@ func (c *CmdClause) Model() *CmdModel {
 		Help:           c.help,
 		Depth:          depth,
 		Hidden:         c.hidden,
+		Default:        c.isDefault,
 		FullCommand:    c.FullCommand(),
 		FlagGroupModel: c.flagGroup.Model(),
 		ArgGroupModel:  c.argGroup.Model(),

@@ -1,6 +1,7 @@
 package kingpin
 
 import (
+	"io/ioutil"
 	"os"
 
 	"github.com/stretchr/testify/assert"
@@ -22,7 +23,7 @@ func TestNoBool(t *testing.T) {
 	b := f.Bool()
 	fg.init()
 	tokens := tokenize([]string{"--no-b"})
-	err := fg.parse(tokens)
+	_, err := fg.parse(tokens)
 	assert.NoError(t, err)
 	assert.False(t, *b)
 }
@@ -33,7 +34,7 @@ func TestNegateNonBool(t *testing.T) {
 	f.Int()
 	fg.init()
 	tokens := tokenize([]string{"--no-b"})
-	err := fg.parse(tokens)
+	_, err := fg.parse(tokens)
 	assert.Error(t, err)
 }
 
@@ -46,7 +47,7 @@ func TestInvalidFlagDefaultCanBeOverridden(t *testing.T) {
 
 func TestRequiredFlag(t *testing.T) {
 	app := New("test", "")
-	app.Version("0.0.0")
+	app.Version("0.0.0").Writer(ioutil.Discard)
 	exits := 0
 	app.Terminate(func(int) { exits++ })
 	app.Flag("a", "").Required().Bool()
