@@ -50,13 +50,15 @@ func getMeta(obj runtime.Object) (m *metadata, e error) {
 	return
 }
 
-func processor(in chan watch.Event, c context.Context) {
+func processor(in chan event, c context.Context) {
 	for {
 		select {
 		case <-c.Done():
+			close(in)
 			return
 		case e := <-in:
 			if registerable(e.Object) {
+				debugf("Recieved: %v", e)
 				if er := process(e); er != nil {
 					errorf(er.Error())
 					go retry(in, e)
@@ -68,12 +70,12 @@ func processor(in chan watch.Event, c context.Context) {
 	}
 }
 
-func retry(ch chan watch.Event, e watch.Event) {
+func retry(ch chan event, e event) {
 	time.Sleep(2 * time.Second)
 	ch <- e
 }
 
-func process(e watch.Event) error {
+func process(e event) error {
 	switch e.Type {
 	default:
 		debugf("Unsupported event type %q: %+v", e.Type, e)
@@ -111,14 +113,16 @@ func update(r runtime.Object, s string) error {
 	if er != nil {
 		return NewErr(er, "Unable to get object metadata")
 	}
+	debugf("Caching {Kind: %q, Name: %q, Namespace: %q}", m.kind, m.name, m.ns)
 	cache.put(cKey{m.name, m.ns, m.kind}, r)
 
 	switch o := r.(type) {
 	case *api.Service:
-		if s == "mod" {
-			return registerService(o)
-		}
-		return nil
+		// if s == "mod" {
+		// 	return registerService(o)
+		// }
+		// return nil
+		return registerService(o)
 	case *api.Endpoints:
 		return registerEndpoints(o)
 	default:

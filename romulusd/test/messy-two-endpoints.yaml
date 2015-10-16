@@ -1,17 +1,17 @@
 apiVersion: v1
 kind: Endpoints
 metadata:
-  name: singlePort
+  name: oneTwoThree
   namespace: test
   uid: bae33058-3254-11e5-b010-0208a78baa45
   labels:
-    name: foo
+    name: oneTwoThree
     namespace: test
     romulus/type: public
 subsets:
   - addresses:
-      - ip: 1.2.3.4
-      - ip: 2.3.4.5
+      - ip: 8.8.8.8
+      - ip: 1.1.1.1
     ports:
       - name: web
         port: 8080

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"sync"
 
 	"k8s.io/kubernetes/pkg/api"
@@ -18,6 +19,10 @@ type cMap struct {
 
 func newCache() *cMap {
 	return &cMap{m: make(map[cKey]runtime.Object)}
+}
+
+func (k cKey) String() string {
+	return fmt.Sprintf("{Kind: %q, Name: %q, Namespace: %q}", k.kind, k.name, k.ns)
 }
 
 func (m *cMap) get(key cKey) (o runtime.Object, b bool) {
@@ -39,50 +44,66 @@ func (m *cMap) del(key cKey) {
 	delete(m.m, key)
 }
 
-func getService(name, ns string) (s *api.Service, b bool) {
+func getService(name, ns string) (*api.Service, bool, error) {
 	if cache == nil {
-		return
+		cache = newCache()
 	}
 
 	o, b := cache.get(cKey{name, ns, "Service"})
-	if !b {
-		kc, er := kubeClient()
-		if er != nil {
-			warnf("kubernetes client failure: %v", er)
-		}
-		s, er := kc.Services(ns).Get(name)
-		if er != nil {
-			debugf("Failed to get Service: %v", er)
-			return nil, false
-		}
-		b = true
-		cache.put(cKey{s.Name, s.Namespace, s.Kind}, s)
-		return s, b
+	if b {
+		debugf("Cache hit %v", cKey{name, ns, "Service"})
+		s := o.(*api.Service)
+		return s, true, nil
 	}
-	s = o.(*api.Service)
-	return
+
+	debugf("Cache miss %v", cKey{name, ns, "Service"})
+	kc, er := kubeClient()
+	if er != nil {
+		errorf("kubernetes client failure: %v", er)
+		return nil, false, NewErr(er, "kubernetes client failure")
+	}
+	s, er := kc.Services(ns).Get(name)
+	if er != nil {
+		if kubeIsNotFound(er) {
+			return nil, false, nil
+		}
+		errorf("kubernetes api failure: %v", er)
+		return nil, false, NewErr(er, "kubernetes api failure")
+	}
+
+	debugf("Caching {Kind: %q, Name: %q, Namespace: %q}", "Service", s.Name, s.Namespace)
+	cache.put(cKey{s.Name, s.Namespace, "Service"}, s)
+	return s, true, nil
 }
 
-func getEndpoints(name, ns string) (en *api.Endpoints, b bool) {
+func getEndpoints(name, ns string) (*api.Endpoints, bool, error) {
 	if cache == nil {
-		return
+		cache = newCache()
 	}
 
 	o, b := cache.get(cKey{name, ns, "Endpoints"})
-	if !b {
-		kc, er := kubeClient()
-		if er != nil {
-			warnf("kubernetes client failure: %v", er)
-		}
-		en, er := kc.Endpoints(ns).Get(name)
-		if er != nil {
-			debugf("failed to get Endpoints", er)
-			return nil, false
-		}
-		b = true
-		cache.put(cKey{en.Name, en.Namespace, en.Kind}, en)
-		return en, b
+	if b {
+		debugf("Cache hit %v", cKey{name, ns, "Endpoints"})
+		en := o.(*api.Endpoints)
+		return en, true, nil
 	}
-	en = o.(*api.Endpoints)
-	return
+
+	debugf("Cache miss %v", cKey{name, ns, "Endpoints"})
+	kc, er := kubeClient()
+	if er != nil {
+		errorf("kubernetes client failure: %v", er)
+		return nil, false, NewErr(er, "kubernetes client failure")
+	}
+	en, er := kc.Endpoints(ns).Get(name)
+	if er != nil {
+		if kubeIsNotFound(er) {
+			return nil, false, nil
+		}
+		errorf("kubernetes api failure: %v", er)
+		return nil, false, NewErr(er, "kubernetes api failure")
+	}
+
+	debugf("Caching {Kind: %q, Name: %q, Namespace: %q}", "Endpoints", en.Name, en.Namespace)
+	cache.put(cKey{en.Name, en.Namespace, "Endpoints"}, en)
+	return en, true, nil
 }

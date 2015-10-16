@@ -1,21 +1,26 @@
 package main
 
-import (
-	"path/filepath"
-	"strings"
-)
+import "strings"
 
 type fakeEtcdClient struct {
 	k map[string]string
 	p string
 }
 
-func newFakeEtcdClient(prefix string) etcdInterface {
-	return &fakeEtcdClient{map[string]string{"/": ""}, prefix}
+func newFakeEtcdClient(prefix string) *fakeEtcdClient {
+	f := &fakeEtcdClient{map[string]string{"/": ""}, prefix}
+	etcd = f
+	return f
 }
 
 func (f *fakeEtcdClient) SetPrefix(pre string) { f.p = pre }
 func (f *fakeEtcdClient) Add(k, v string) (e error) {
+	if strings.HasSuffix(k, "frontend") {
+		f.k[prefix(f.p, strings.TrimSuffix(k, "/frontend"))] = ""
+	}
+	if strings.HasSuffix(k, "backend") {
+		f.k[prefix(f.p, strings.TrimSuffix(k, "/backend"))] = ""
+	}
 	f.k[prefix(f.p, k)] = v
 	return
 }
@@ -33,8 +38,8 @@ func (f *fakeEtcdClient) Keys(k string) ([]string, error) {
 	key := prefix(f.p, k)
 	r := []string{}
 	for ke := range f.k {
-		if key == filepath.Dir(ke) {
-			r = append(r, filepath.Base(ke))
+		if idx := strings.LastIndex(ke, "/"); idx > 0 && key == ke[:idx] {
+			r = append(r, ke[idx+1:])
 		}
 	}
 	return r, nil

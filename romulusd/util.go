@@ -9,12 +9,6 @@ import (
 	"k8s.io/kubernetes/pkg/client/unversioned"
 )
 
-// func LogLevel(s kingpin.Settings) (lvl *capnslog.LogLevel) {
-// 	lvl = new(capnslog.LogLevel)
-// 	s.SetValue(lvl)
-// 	return
-// }
-
 func md5Hash(ss ...interface{}) string {
 	if len(ss) < 1 {
 		return ""
@@ -57,23 +51,12 @@ func useTLS() bool {
 }
 
 func annotationf(p, n string) string { return fmt.Sprintf("romulus/%s%s", p, n) }
-func labelf(l string) string {
-	if !strings.HasPrefix(l, "romulus/") {
-		return strings.Join([]string{"romulus", l}, "/")
+func labelf(l string, s ...string) string {
+	la := strings.Join(append([]string{l}, s...), ".")
+	if !strings.HasPrefix(la, "romulus/") {
+		return strings.Join([]string{"romulus", la}, "/")
 	}
 	return l
-}
-
-func formatSelectors() {
-	ss := make(map[string]string, len(*svcSel))
-	for k := range *svcSel {
-		key := k
-		if !strings.HasPrefix(k, "romulus/") {
-			key = fmt.Sprintf("romulus/%s", key)
-		}
-		ss[key] = (*svcSel)[k]
-	}
-	*svcSel = ss
 }
 
 func backendf(id string) string     { return fmt.Sprintf("backends/%s/backend", id) }

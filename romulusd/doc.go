@@ -1,4 +1,14 @@
-// package main runs the romulusd deamon
+// package main runs the romulusd deamon.
+// Romulus is a utility to automatically register kubernetes services in vulcand.
+// Kubernetes services are configured with annotations in the 'romulus/' namespace like so
+//
+//    kind: Service
+//    metadata:
+//      annotations:
+//        romulus/host: 'www.example.com'
+//        romulus/path: '/web'
+//
+//
 package main
 
 import "fmt"

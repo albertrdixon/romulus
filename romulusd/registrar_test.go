@@ -3,14 +3,9 @@ package main
 import (
 	"testing"
 
-	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/testapi"
-	"k8s.io/kubernetes/pkg/client/unversioned/testclient"
 	"k8s.io/kubernetes/pkg/watch"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -22,6 +17,14 @@ var (
 		"multi-port": []string{
 			"test/multi-port-endpoints.yaml",
 			"test/multi-port-svc.yaml",
+		},
+		"messy": []string{
+			"test/messy-one-svc.yaml",
+			"test/messy-two-endpoints.yaml",
+			// "test/messy-three-svc.yaml",
+			"test/messy-four-endpoints.yaml",
+			"test/messy-five-svc.yaml",
+			"test/messy-six-svc.yaml",
 		},
 	}
 
@@ -43,34 +46,8 @@ var (
 	}
 )
 
-func setup(t *testing.T) (*assert.Assertions, *require.Assertions) {
-	if testing.Verbose() {
-		*logLevel, *debug = "debug", true
-		setupLog()
-	}
-	test = true
-	cache = newCache()
-	*vulcanKey = "/vulcand-test"
-	return assert.New(t), require.New(t)
-}
-
-func fakeKubeClient(defs string) testclient.ObjectRetriever {
-	c := &testclient.Fake{}
-	o := testclient.NewObjects(api.Scheme, api.Scheme)
-	c.AddReactor("*", "*", testclient.ObjectReaction(o, testapi.Default.RESTMapper()))
-	for _, d := range definitions[defs] {
-		e := testclient.AddObjectsFromPath(d, o, api.Scheme)
-		if e != nil {
-			panic(e)
-		}
-	}
-
-	tKubeClient = c
-	return o
-}
-
-func TestRegister(te *testing.T) {
-	is, must := setup(te)
+func TestBasicRegister(te *testing.T) {
+	is, _ := setup(te)
 
 	var tests = []struct {
 		defs, kind, name string
@@ -83,20 +60,13 @@ func TestRegister(te *testing.T) {
 	}
 
 	for _, t := range tests {
-		etcd = newFakeEtcdClient(*vulcanKey)
+		newFakeEtcdClient(*vulcanKey)
 		o := fakeKubeClient(t.defs)
 
-		obj, er := o.Kind(t.kind, t.name)
-		is.NoError(er, "Unable to get object '%s-%s'", t.name, t.kind)
-
-		w := watch.Event{t.event, obj}
-		er = process(w)
-		te.Logf("Fake Etcd: %v", spew.Sdump(etcd))
-		if t.valid {
-			must.NoError(er, "Event handling failed event=%v", spew.Sdump(w))
-		} else {
-			must.Error(er, "Expected error event=%v", spew.Sdump(w))
-			continue
+		obj := fakeObject(o, t.kind, t.name)
+		w := newEvent(t.event, obj)
+		if t.valid && !is.NoError(process(w)) {
+			te.Logf("Fake Etcd: %v", spew.Sdump(etcd))
 		}
 
 		for _, d := range t.data {
@@ -106,5 +76,97 @@ func TestRegister(te *testing.T) {
 			is.NoError(er, "%q not written to etcd", key)
 			is.Equal(expVal, val, "Encoding for '%s-%s' not expected", t.name, t.kind)
 		}
+	}
+}
+
+func TestMessyRegister(te *testing.T) {
+	is, _ := setup(te)
+	var w event
+
+	fEtcd := newFakeEtcdClient(*vulcanKey)
+	o := fakeKubeClient("")
+
+	addObject(o, definitions["messy"][0])
+	obj := fakeObject(o, "Service", "oneTwoThree")
+	w = newEvent(watch.Added, obj)
+	is.NoError(process(w))
+	v, ok := fEtcd.k[*vulcanKey+"/frontends/web.oneTwoThree.test"]
+	if !is.False(ok) || !is.Empty(v) {
+		debugf("FRONTEND web.oneTwoThree.test EXISTS AND SHOULD NOT")
+		te.Log("FRONTEND web.oneTwoThree.test EXISTS AND SHOULD NOT")
+		te.Log(spew.Sdump(etcd))
+	}
+
+	addObject(o, definitions["messy"][1])
+	obj = fakeObject(o, "Endpoints", "oneTwoThree")
+	w = newEvent(watch.Added, obj)
+	is.NoError(process(w))
+	v, _ = fEtcd.k[*vulcanKey+"/frontends/web.oneTwoThree.test/frontend"]
+	f, _ := NewFrontend("web.oneTwoThree.test", "web.oneTwoThree.test", "Host(`www.example.com`)", "Path(`/web`)").Val()
+	if !is.Equal(f, v) {
+		debugf("FRONTEND web.oneTwoThree.test DOES NOT EXIST AND SHOULD")
+		te.Log("FRONTEND web.oneTwoThree.test DOES NOT EXIST AND SHOULD")
+		te.Log(spew.Sdump(etcd))
+	}
+	v, _ = fEtcd.k[*vulcanKey+"/backends/web.oneTwoThree.test/backend"]
+	b, _ := NewBackend("web.oneTwoThree.test").Val()
+	if !is.Equal(b, v) {
+		debugf("BACKEND web.oneTwoThree.test NOT CONFIGURED CORRECTLY")
+		te.Log("BACKEND web.oneTwoThree.test NOT CONFIGURED CORRECTLY")
+		te.Log(spew.Sdump(etcd))
+	}
+
+	o = fakeKubeClient("")
+	addObject(o, definitions["messy"][2])
+	obj = fakeObject(o, "Endpoints", "fourFiveSix")
+	w = newEvent(watch.Added, obj)
+	is.NoError(process(w))
+	v, ok = fEtcd.k[*vulcanKey+"/backends/api.fourFiveSix.test/backend"]
+	if !is.False(ok) || !is.Empty(v) {
+		debugf("BACKEND api.fourFiveSix.test EXISTS AND SHOULD NOT")
+		te.Log("BACKEND api.fourFiveSix.test EXISTS AND SHOULD NOT")
+		te.Log(spew.Sdump(etcd))
+	}
+
+	fEtcd.k[*vulcanKey+"/backends/web.fourFiveSix.test/servers/old.svc.test-1234"] = `{"URL":"http://2.2.2.2:80"}`
+	fEtcd.k[*vulcanKey+"/backends/web.fourFiveSix.test/servers/old.svc.test-5678"] = `{"URL":"http://5.5.5.5:80"}`
+
+	addObject(o, definitions["messy"][3])
+	obj = fakeObject(o, "Service", "fourFiveSix")
+	w = newEvent(watch.Added, obj)
+	is.NoError(process(w))
+	v, _ = fEtcd.k[*vulcanKey+"/backends/api.fourFiveSix.test/backend"]
+	b, _ = NewBackend("api.fourFiveSix.test").Val()
+	if !is.Equal(b, v) {
+		debugf("BACKEND api.fourFiveSix.test NOT CONFIGURED CORRECTLY")
+		te.Log("BACKEND api.fourFiveSix.test NOT CONFIGURED CORRECTLY")
+		te.Log(spew.Sdump(etcd))
+	}
+	v, _ = fEtcd.k[*vulcanKey+"/frontends/web.fourFiveSix.test/frontend"]
+	f, _ = NewFrontend("web.fourFiveSix.test", "web.fourFiveSix.test", "Host(`www.example.com`)", "Path(`/blog`)").Val()
+	if !is.Equal(f, v) {
+		debugf("FRONTEND web.fourFiveSix.test NOT CONFIGURED CORRECTLY")
+		te.Log("FRONTEND web.fourFiveSix.test NOT CONFIGURED CORRECTLY")
+		te.Log(spew.Sdump(etcd))
+	}
+	v, ok = fEtcd.k[*vulcanKey+"/backends/web.fourFiveSix.test/servers/old.svc.test-1234"]
+	if !is.False(ok) || !is.Empty(v) {
+		debugf("SERVER old.svc.test-1234 EXISTS AND SHOULD NOT")
+		te.Log("SERVER old.svc.test-1234 EXISTS AND SHOULD NOT")
+		te.Log(spew.Sdump(etcd))
+	}
+
+	addObject(o, definitions["messy"][4])
+	obj = fakeObject(o, "Service", "fourFiveSix")
+	w = newEvent(watch.Modified, obj)
+	is.NoError(process(w))
+	v, _ = fEtcd.k[*vulcanKey+"/frontends/api.fourFiveSix.test/frontend"]
+	fr := NewFrontend("api.fourFiveSix.test", "api.fourFiveSix.test", "Host(`www.something.else`)", "Path(`/api/v2`)")
+	fr.Settings = NewFrontendSettings([]byte(`{"FailoverPredicate":"(IsNetworkError() || ResponseCode() == 503) && Attempts() <= 2"}}`))
+	f, _ = fr.Val()
+	if !is.Equal(f, v) {
+		debugf("FRONTEND api.fourFiveSix.test NOT CONFIGURED CORRECTLY")
+		te.Log("FRONTEND api.fourFiveSix.test NOT CONFIGURED CORRECTLY")
+		te.Log(spew.Sdump(etcd))
 	}
 }

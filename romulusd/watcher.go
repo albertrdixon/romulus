@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"time"
 
 	"golang.org/x/net/context"
@@ -11,6 +12,21 @@ import (
 )
 
 type watchFunc func() (watch.Interface, error)
+
+type event struct {
+	watch.Event
+}
+
+func (e event) String() string {
+	m, er := getMeta(e.Object)
+	if er != nil {
+		return fmt.Sprintf("Event: type=%v object=Unknown", e.Type)
+	}
+	return fmt.Sprintf(
+		"Event: type=%v object={Kind: %q, Name: %q, Namespace: %q} registerable=%v",
+		e.Type, m.kind, m.name, m.ns, registerable(e.Object),
+	)
+}
 
 func acquireWatch(fn watchFunc, out chan<- watch.Interface, c context.Context) {
 	retry := 2 * time.Second
@@ -38,8 +54,8 @@ func acquireWatch(fn watchFunc, out chan<- watch.Interface, c context.Context) {
 	}
 }
 
-func startWatches(c context.Context) (chan watch.Event, error) {
-	out := make(chan watch.Event, 100)
+func startWatches(c context.Context) (chan event, error) {
+	out := make(chan event, 100)
 	kc, er := kubeClient()
 	if er != nil {
 		return out, er
@@ -58,7 +74,7 @@ func startWatches(c context.Context) (chan watch.Event, error) {
 	return out, nil
 }
 
-func watcher(name string, fn watchFunc, out chan<- watch.Event, c context.Context) {
+func watcher(name string, fn watchFunc, out chan<- event, c context.Context) {
 	var w watch.Interface
 	var wc = make(chan watch.Interface, 1)
 	defer close(wc)
@@ -83,7 +99,7 @@ Acquire:
 				warnf("%s watch closed: %+v", name, e)
 				goto Acquire
 			}
-			out <- e
+			out <- event{e}
 		}
 	}
 }

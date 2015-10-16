@@ -11,9 +11,11 @@ import (
 	"k8s.io/kubernetes/pkg/runtime"
 )
 
+// Remove Servers that are misconfigured or exist in etcd,
+// but NOT in the api.Endpoints object from kubernetes.
 func pruneServers(bid string, sm ServerMap) error {
 	k := serverDirf(bid)
-	debugf("Looking up servers in etcd %q", k)
+	// debugf("Looking up servers in etcd %q", k)
 	srvs, e := etcd.Keys(k)
 	if e != nil {
 		if isKeyNotFound(e) {
@@ -57,6 +59,8 @@ func pruneServers(bid string, sm ServerMap) error {
 	return nil
 }
 
+// Remove Backends that are misconfigured or we cannot find in kubernetes.
+// In the event of a kubernetes API error, do nothing.
 func pruneBackends() error {
 	ids, err := etcd.Keys("backends")
 	if err != nil {
@@ -75,7 +79,7 @@ func pruneBackends() error {
 			if e := etcd.Del(key); e != nil {
 				warnf("etcd error: %v", e)
 			}
-		} else if _, ok := getEndpoints(name, ns); !ok {
+		} else if _, ok, er := getEndpoints(name, ns); !ok && er == nil {
 			warnf("Did not find '%s-%s' Endpoints on API server", name, ns)
 			b := NewBackend(id)
 			if err := etcd.Del(b.DirKey()); err != nil {
@@ -86,6 +90,8 @@ func pruneBackends() error {
 	return nil
 }
 
+// Remove Frontends that are misconfigured or we cannot find in kubernetes.
+// In the event of a kubernetes API error, do nothing.
 func pruneFrontends() error {
 	ids, err := etcd.Keys("frontends")
 	if err != nil {
@@ -104,7 +110,7 @@ func pruneFrontends() error {
 			if e := etcd.Del(key); e != nil {
 				warnf("etcd error: %v", e)
 			}
-		} else if _, ok := getService(name, ns); !ok {
+		} else if _, ok, er := getService(name, ns); !ok && er == nil {
 			warnf("Did not find '%s-%s' Service on API server", name, ns)
 			f := NewFrontend(id, "")
 			if err := etcd.Del(f.DirKey()); err != nil {
@@ -115,26 +121,29 @@ func pruneFrontends() error {
 	return nil
 }
 
+// Gathers information from given api.Endpoints object and parses into a Backend object for each
+// IP set / port combination. Will attempt to upsert backends into etcd.
 func registerBackends(s *api.Service, e *api.Endpoints) (*BackendList, error) {
 	bnds := NewBackendList()
-	infof("Registering backend '%s-%s'", e.Name, e.Namespace)
-	// pruneBackends()
+	pruneBackends()
 	subsets := endpoints.RepackSubsets(e.Subsets)
 	for _, es := range subsets {
 		for _, port := range es.Ports {
+			bid := getVulcanID(e.Name, e.Namespace, port.Name)
+			infof("Registering backend %q", bid)
+
 			if port.Protocol != api.ProtocolTCP {
 				warnf("Unsupported protocol: %s", port.Protocol)
 				continue
 			}
 
 			sm := ServerMap{}
-			bid := getVulcanID(e.Name, e.Namespace, port.Name)
 			bnd := NewBackend(bid)
 
-			if st, ok := s.Annotations[labelf("backendSettings")]; ok {
+			if st, ok := s.Annotations[labelf("backendSettings", port.Name)]; ok {
 				bnd.Settings = NewBackendSettings([]byte(st))
+				debugf("Backend settings: %q", bnd.Settings)
 			}
-			debugf("Backend settings: %q", bnd)
 
 			debugf("Gathering kubernetes endpoints: %v", es.Addresses)
 			for _, ip := range es.Addresses {
@@ -162,7 +171,7 @@ func registerBackends(s *api.Service, e *api.Endpoints) (*BackendList, error) {
 			}
 			eVal, _ := etcd.Val(bnd.Key())
 			if val != eVal {
-				debugf("Upserting backend %q", bnd)
+				debugf("Upserting Backend %q", bnd)
 				if err := etcd.Add(bnd.Key(), val); err != nil {
 					return bnds, NewErr(err, "etcd error")
 				}
@@ -179,7 +188,7 @@ func registerBackends(s *api.Service, e *api.Endpoints) (*BackendList, error) {
 				}
 				eVal, _ := etcd.Val(srv.Key())
 				if val != eVal {
-					debugf("Upserting server %q", srv)
+					infof("Upserting Server backend=%q url=%q", bnd.ID, srv.URL.String())
 					if err := etcd.Add(srv.Key(), val); err != nil {
 						return bnds, NewErr(err, "etcd error")
 					}
@@ -192,24 +201,28 @@ func registerBackends(s *api.Service, e *api.Endpoints) (*BackendList, error) {
 	return bnds, nil
 }
 
+// Gathers information from given api.Service object and parses into a Frontend object.
+// Attempts to match api.Service.Spec.Ports with given Backend ports in order to match Frontend and Backend.
+// Will attempt to upsert frontend into etcd.
 func registerFrontends(s *api.Service, bnds *BackendList) error {
-	infof("Registering frontend '%s-%s'", s.Name, s.Namespace)
-	// pruneFrontends()
+	pruneFrontends()
 	debugf("Backend List: %+v", bnds)
 	for _, port := range s.Spec.Ports {
+		fid := getVulcanID(s.Name, s.Namespace, port.Name)
+		infof("Registering frontend %q", fid)
+
 		bnd, ok := bnds.Lookup(port.TargetPort.IntVal, port.TargetPort.StrVal)
 		if !ok {
 			warnf("No backend for service port %d (target: %d)", port.Port, port.TargetPort.IntVal)
 			continue
 		}
 
-		fid := getVulcanID(s.Name, s.Namespace, port.Name)
 		fnd := NewFrontend(fid, bnd.ID)
 		fnd.Route = buildRoute(port.Name, s.Annotations)
-		if st, ok := s.Annotations[labelf("frontendSettings")]; ok {
+		if st, ok := s.Annotations[labelf("frontendSettings", port.Name)]; ok {
 			fnd.Settings = NewFrontendSettings([]byte(st))
+			debugf("Frontend settings: %q", fnd.Settings)
 		}
-		debugf("Frontend settings: %q", fnd)
 
 		val, err := fnd.Val()
 		if err != nil {
@@ -217,7 +230,7 @@ func registerFrontends(s *api.Service, bnds *BackendList) error {
 		}
 		eVal, _ := etcd.Val(fnd.Key())
 		if val != eVal {
-			debugf("Upserting frontend %q", fnd)
+			debugf("Upserting Frontend %q", fnd)
 			if err := etcd.Add(fnd.Key(), val); err != nil {
 				return NewErr(err, "etcd error")
 			}
@@ -228,19 +241,31 @@ func registerFrontends(s *api.Service, bnds *BackendList) error {
 	return nil
 }
 
+// Main entrypoint for registerable api.Service. Will lookup associated api.Endpoints from cache and register both.
+// If no api.Endpoints found, will just return.
 func registerService(s *api.Service) error {
-	e, ok := getEndpoints(s.Name, s.Namespace)
+	e, ok, er := getEndpoints(s.Name, s.Namespace)
 	if !ok {
-		return NewErr(nil, "kubernetes error")
+		if er == nil {
+			warnf("Could not find Endpoints for Service '%s-%s'", s.Name, s.Namespace)
+			return nil
+		}
+		return er
 	}
 
 	return register(s, e)
 }
 
+// Main entrypoint for api.Endpoints. Will lookup associated api.Service from cache and register both.
+// If no api.Service found, will just return.
 func registerEndpoints(e *api.Endpoints) error {
-	s, ok := getService(e.Name, e.Namespace)
+	s, ok, er := getService(e.Name, e.Namespace)
 	if !ok {
-		return NewErr(nil, "kubernetes error")
+		if er == nil {
+			warnf("Could not find Service for Endpoints '%s-%s'", e.Name, e.Namespace)
+			return nil
+		}
+		return er
 	}
 
 	return register(s, e)
@@ -304,6 +329,7 @@ func deregisterEndpoints(e *api.Endpoints) error {
 	return nil
 }
 
+// registerable returns true if the Object is configured to be registered with Romulus
 func registerable(o runtime.Object) bool {
 	if _, ok := o.(*uApi.Status); ok {
 		return true
