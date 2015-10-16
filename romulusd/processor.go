@@ -18,13 +18,8 @@ type metadata struct {
 }
 
 func getMeta(obj runtime.Object) (m *metadata, e error) {
-	var (
-		name, ns, kind      string
-		labels, annotations map[string]string
-		a                   meta.MetadataAccessor
-	)
-	a = meta.NewAccessor()
-	m = &metadata{}
+	m = new(metadata)
+	a := meta.NewAccessor()
 
 	switch obj.(type) {
 	default:
@@ -35,20 +30,17 @@ func getMeta(obj runtime.Object) (m *metadata, e error) {
 		m.kind = "Endpoints"
 	}
 
-	if name, e = a.Name(obj); e == nil {
-		m.name = name
+	if m.name, e = a.Name(obj); e != nil {
+		return
 	}
-
-	if ns, e = a.Namespace(obj); e == nil {
-		m.ns = ns
+	if m.ns, e = a.Namespace(obj); e != nil {
+		return
 	}
-
-	if labels, e = a.Labels(obj); e == nil {
-		m.labels = labels
+	if m.labels, e = a.Labels(obj); e != nil {
+		return
 	}
-
-	if annotations, e = a.Annotations(obj); e == nil {
-		m.annotations = annotations
+	if m.annotations, e = a.Annotations(obj); e != nil {
+		return
 	}
 
 	return

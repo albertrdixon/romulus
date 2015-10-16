@@ -23,7 +23,7 @@ func (e event) String() string {
 		return fmt.Sprintf("Event: type=%v object=Unknown", e.Type)
 	}
 	return fmt.Sprintf(
-		"Event: type=%v object={Kind: %q, Name: %q, Namespace: %q} registerable=%v",
+		"Event: [%v] object={Kind: %q, Name: %q, Namespace: %q} registerable=%v",
 		e.Type, m.kind, m.name, m.ns, registerable(e.Object),
 	)
 }
