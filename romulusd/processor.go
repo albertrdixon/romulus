@@ -24,29 +24,28 @@ func getMeta(obj runtime.Object) (m *metadata, e error) {
 		a                   meta.MetadataAccessor
 	)
 	a = meta.NewAccessor()
+	m = &metadata{}
 
-	name, e = a.Name(obj)
-	if e != nil {
-		return
-	}
-	ns, e = a.Namespace(obj)
-	if e != nil {
-		return
-	}
-	kind, e = a.Kind(obj)
-	if e != nil {
-		return
-	}
-	labels, e = a.Labels(obj)
-	if e != nil {
-		return
-	}
-	annotations, e = a.Annotations(obj)
-	if e != nil {
-		return
+	if name, e = a.Name(obj); e == nil {
+		m.name = name
 	}
 
-	m = &metadata{name, ns, kind, labels, annotations}
+	if ns, e = a.Namespace(obj); e == nil {
+		m.ns = ns
+	}
+
+	if kind, e = a.Kind(obj); e == nil {
+		m.kind = kind
+	}
+
+	if labels, e = a.Labels(obj); e == nil {
+		m.labels = labels
+	}
+
+	if annotations, e = a.Annotations(obj); e == nil {
+		m.annotations = annotations
+	}
+
 	return
 }
 

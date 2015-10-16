@@ -71,7 +71,7 @@ func getService(name, ns string) (*api.Service, bool, error) {
 		return nil, false, NewErr(er, "kubernetes api failure")
 	}
 
-	debugf("Caching {Kind: %q, Name: %q, Namespace: %q}", "Service", s.Name, s.Namespace)
+	debugf("Caching {Kind: %q, Name: %q, Namespace: %q}", "Service", s.Kind, s.Name, s.Namespace)
 	cache.put(cKey{s.Name, s.Namespace, "Service"}, s)
 	return s, true, nil
 }
@@ -103,7 +103,7 @@ func getEndpoints(name, ns string) (*api.Endpoints, bool, error) {
 		return nil, false, NewErr(er, "kubernetes api failure")
 	}
 
-	debugf("Caching {Kind: %q, Name: %q, Namespace: %q}", "Endpoints", en.Name, en.Namespace)
+	debugf("Caching {Kind: %q, Name: %q, Namespace: %q}", "Endpoints", en.Kind, en.Name, en.Namespace)
 	cache.put(cKey{en.Name, en.Namespace, "Endpoints"}, en)
 	return en, true, nil
 }
