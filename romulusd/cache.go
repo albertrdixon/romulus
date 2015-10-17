@@ -107,3 +107,37 @@ func getEndpoints(name, ns string) (*api.Endpoints, bool, error) {
 	cache.put(cKey{en.Name, en.Namespace, "Endpoints"}, en)
 	return en, true, nil
 }
+
+func cacheIfNewer(key cKey, o runtime.Object) (runtime.Object, bool) {
+	if cache == nil {
+		cache = newCache()
+	}
+
+	oo, ok := cache.get(key)
+	if !ok {
+		debugf("Object is new, Caching %v", key)
+		cache.put(key, o)
+		return o, true
+	}
+
+	om, er := getMeta(oo)
+	if er != nil {
+		debugf("Could not get metadata for original object, Caching %v", key)
+		cache.put(key, o)
+		return o, true
+	}
+	nm, er := getMeta(o)
+	if er != nil {
+		debugf("Could not get metadata, will not cache: %v", o)
+		return oo, false
+	}
+
+	if nm.version != 0 && nm.version > om.version {
+		debugf("Object is newer (%d > %d), Caching %v", nm.version, om.version, key)
+		cache.put(key, o)
+		return o, true
+	}
+
+	debugf("Object is older (%d < %d), using cached version", nm.version, om.version)
+	return oo, false
+}

@@ -4,6 +4,7 @@ metadata:
   name: multiPort
   namespace: test
   uid: bae33058-3254-11e5-b010-0208a78baa52
+  resourceVersion: '12347'
   labels:
     name: multiPort
     namespace: test

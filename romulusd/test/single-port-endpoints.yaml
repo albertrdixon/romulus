@@ -4,8 +4,9 @@ metadata:
   name: singlePort
   namespace: test
   uid: bae33058-3254-11e5-b010-0208a78baa45
+  resourceVersion: '12345'
   labels:
-    name: foo
+    name: singlePort
     namespace: test
     romulus/type: public
 subsets:

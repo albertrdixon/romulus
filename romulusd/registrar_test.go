@@ -18,6 +18,11 @@ var (
 			"test/multi-port-endpoints.yaml",
 			"test/multi-port-svc.yaml",
 		},
+		"resource-ver": []string{
+			"test/resourceVer-svc.yaml",
+			"test/resourceVer-endpoints.yaml",
+			"test/resourceVer-svc2.yaml",
+		},
 		"messy": []string{
 			"test/messy-one-svc.yaml",
 			"test/messy-two-endpoints.yaml",
@@ -34,6 +39,7 @@ var (
 	singlePortID   = getVulcanID("singlePort", "test", "web")
 	apiMultiPortID = getVulcanID("multiPort", "test", "api")
 	webMultiPortID = getVulcanID("multiPort", "test", "web")
+	resourceVerID  = getVulcanID("resource", "test", "web")
 	singlePort     = []VulcanObject{
 		NewBackend(singlePortID),
 		NewFrontend(singlePortID, singlePortID, "Host(`www.example.com`)", "Path(`/web`)"),
@@ -43,6 +49,10 @@ var (
 		NewBackend(webMultiPortID),
 		NewFrontend(apiMultiPortID, apiMultiPortID, "Host(`www.example.com`)", "Path(`/api/v1`)"),
 		NewFrontend(webMultiPortID, webMultiPortID, "Host(`www.example.com`)", "Path(`/blog`)"),
+	}
+	resourceVer = []VulcanObject{
+		NewBackend(resourceVerID),
+		NewFrontend(resourceVerID, resourceVerID, "Host(`www.example.com`)", "Path(`/web`)"),
 	}
 )
 
@@ -57,6 +67,7 @@ func TestBasicRegister(te *testing.T) {
 	}{
 		{"single-port", "Endpoints", "singlePort", watch.Added, true, singlePort},
 		{"multi-port", "Service", "multiPort", watch.Modified, true, multiPort},
+		{"resource-ver", "Service", "resource", watch.Modified, true, resourceVer},
 	}
 
 	for _, t := range tests {
@@ -167,6 +178,27 @@ func TestMessyRegister(te *testing.T) {
 	if !is.Equal(f, v) {
 		debugf("FRONTEND api.fourFiveSix.test NOT CONFIGURED CORRECTLY")
 		te.Log("FRONTEND api.fourFiveSix.test NOT CONFIGURED CORRECTLY")
+		te.Log(spew.Sdump(etcd))
+	}
+
+	o = fakeKubeClient("")
+	addObject(o, definitions["resource-ver"][0])
+	obj = fakeObject(o, "Service", "resource")
+	w = newEvent(watch.Added, obj)
+	is.NoError(process(w))
+	addObject(o, definitions["resource-ver"][1])
+	obj = fakeObject(o, "Endpoints", "resource")
+	w = newEvent(watch.Modified, obj)
+	is.NoError(process(w))
+	addObject(o, definitions["resource-ver"][2])
+	obj = fakeObject(o, "Service", "resource")
+	w = newEvent(watch.Added, obj)
+	is.NoError(process(w))
+	v, _ = fEtcd.k[*vulcanKey+"/frontends/web.resource.test/frontend"]
+	f, _ = resourceVer[1].Val()
+	if !is.Equal(f, v) {
+		debugf("FRONTEND web.resource.test NOT CONFIGURED CORRECTLY")
+		te.Log("FRONTEND web.resource.test NOT CONFIGURED CORRECTLY")
 		te.Log(spew.Sdump(etcd))
 	}
 }

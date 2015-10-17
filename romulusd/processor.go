@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"golang.org/x/net/context"
@@ -15,6 +16,7 @@ import (
 type metadata struct {
 	name, ns, kind      string
 	labels, annotations map[string]string
+	version             int
 }
 
 func getMeta(obj runtime.Object) (m *metadata, e error) {
@@ -41,6 +43,9 @@ func getMeta(obj runtime.Object) (m *metadata, e error) {
 	}
 	if m.annotations, e = a.Annotations(obj); e != nil {
 		return
+	}
+	if ver, e := a.ResourceVersion(obj); e == nil {
+		m.version, _ = strconv.Atoi(ver)
 	}
 
 	return
@@ -72,6 +77,9 @@ func retry(ch chan event, e event) {
 }
 
 func process(e event) error {
+	if m, _ := getMeta(e.Object); m.version > 0 {
+		resourceVersion = fmt.Sprintf("%d", m.version)
+	}
 	switch e.Type {
 	default:
 		debugf("Unsupported event type %q: %+v", e.Type, e)
@@ -105,21 +113,29 @@ func remove(r runtime.Object) error {
 
 func update(r runtime.Object, s string) error {
 	etcd.SetPrefix(getVulcanKey(r))
-	m, er := getMeta(r)
-	if er != nil {
-		return NewErr(er, "Unable to get object metadata")
-	}
-	debugf("Caching {Kind: %q, Name: %q, Namespace: %q}", m.kind, m.name, m.ns)
-	cache.put(cKey{m.name, m.ns, m.kind}, r)
+	// m, er := getMeta(r)
+	// if er != nil {
+	// 	return NewErr(er, "Unable to get object metadata")
+	// }
+
+	// debugf("Caching {Kind: %q, Name: %q, Namespace: %q}", m.kind, m.name, m.ns)
+	// cache.put(cKey{m.name, m.ns, m.kind}, r)
+	// cacheIfNewer(cKey{m.name, m.ns, m.kind}, r)
 
 	switch o := r.(type) {
 	case *api.Service:
+		if oo, ok := cacheIfNewer(cKey{o.Name, o.Namespace, o.Kind}, o); !ok {
+			o = oo.(*api.Service)
+		}
 		// if s == "mod" {
 		// 	return registerService(o)
 		// }
 		// return nil
 		return registerService(o)
 	case *api.Endpoints:
+		if oo, ok := cacheIfNewer(cKey{o.Name, o.Namespace, o.Kind}, o); !ok {
+			o = oo.(*api.Endpoints)
+		}
 		return registerEndpoints(o)
 	default:
 		return NewErr(nil, "Unsupported api object: %v", r)

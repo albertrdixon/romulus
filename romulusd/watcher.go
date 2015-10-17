@@ -55,6 +55,7 @@ func acquireWatch(fn watchFunc, out chan<- watch.Interface, c context.Context) {
 }
 
 func startWatches(c context.Context) (chan event, error) {
+	resourceVersion = "0"
 	out := make(chan event, 100)
 	kc, er := kubeClient()
 	if er != nil {
@@ -62,11 +63,11 @@ func startWatches(c context.Context) (chan event, error) {
 	}
 	sv := func() (watch.Interface, error) {
 		debugf("Attempting to set watch on Services")
-		return kc.Services(api.NamespaceAll).Watch(labels.Everything(), fields.Everything(), "")
+		return kc.Services(api.NamespaceAll).Watch(labels.Everything(), fields.Everything(), resourceVersion)
 	}
 	en := func() (watch.Interface, error) {
 		debugf("Attempting to set watch on Endpoints")
-		return kc.Endpoints(api.NamespaceAll).Watch(labels.Everything(), fields.Everything(), "")
+		return kc.Endpoints(api.NamespaceAll).Watch(labels.Everything(), fields.Everything(), resourceVersion)
 	}
 
 	go watcher("Services", sv, out, c)

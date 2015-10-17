@@ -12,8 +12,9 @@ import (
 )
 
 var (
-	cache *cMap
-	etcd  etcdInterface
+	cache           *cMap
+	etcd            etcdInterface
+	resourceVersion string
 
 	test        = false
 	tKubeClient unversioned.Interface

@@ -4,6 +4,7 @@ metadata:
   name: oneTwoThree
   namespace: test
   uid: ba2e58f0-3254-11e5-8d84-06dd91247d93
+  resourceVersion: '12348'
   annotations:
     romulus/host.web: 'www.example.com'
     romulus/path.web: '/bar'

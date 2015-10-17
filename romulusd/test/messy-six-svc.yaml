@@ -4,6 +4,7 @@ metadata:
   name: fourFiveSix
   namespace: test
   uid: ba2e58f0-3254-11e5-8d84-06dd91247d89
+  resourceVersion: '12357'
   annotations:
     romulus/host: www.something.else
     romulus/frontendSettings.api: '{"FailoverPredicate":"(IsNetworkError() || ResponseCode() == 503) && Attempts() <= 2"}}'
