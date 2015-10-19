@@ -65,9 +65,9 @@ func TestBasicRegister(te *testing.T) {
 		valid            bool
 		data             []VulcanObject
 	}{
-		{"single-port", "Endpoints", "singlePort", watch.Added, true, singlePort},
-		{"multi-port", "Service", "multiPort", watch.Modified, true, multiPort},
-		{"resource-ver", "Service", "resource", watch.Modified, true, resourceVer},
+		{"single-port", endpointsType, "singlePort", watch.Added, true, singlePort},
+		{"multi-port", serviceType, "multiPort", watch.Modified, true, multiPort},
+		{"resource-ver", serviceType, "resource", watch.Modified, true, resourceVer},
 	}
 
 	for _, t := range tests {
@@ -98,7 +98,7 @@ func TestMessyRegister(te *testing.T) {
 	o := fakeKubeClient("")
 
 	addObject(o, definitions["messy"][0])
-	obj := fakeObject(o, "Service", "oneTwoThree")
+	obj := fakeObject(o, serviceType, "oneTwoThree")
 	w = newEvent(watch.Added, obj)
 	is.NoError(process(w))
 	v, ok := fEtcd.k[*vulcanKey+"/frontends/web.oneTwoThree.test"]
@@ -109,7 +109,7 @@ func TestMessyRegister(te *testing.T) {
 	}
 
 	addObject(o, definitions["messy"][1])
-	obj = fakeObject(o, "Endpoints", "oneTwoThree")
+	obj = fakeObject(o, endpointsType, "oneTwoThree")
 	w = newEvent(watch.Added, obj)
 	is.NoError(process(w))
 	v, _ = fEtcd.k[*vulcanKey+"/frontends/web.oneTwoThree.test/frontend"]
@@ -129,7 +129,7 @@ func TestMessyRegister(te *testing.T) {
 
 	o = fakeKubeClient("")
 	addObject(o, definitions["messy"][2])
-	obj = fakeObject(o, "Endpoints", "fourFiveSix")
+	obj = fakeObject(o, endpointsType, "fourFiveSix")
 	w = newEvent(watch.Added, obj)
 	is.NoError(process(w))
 	v, ok = fEtcd.k[*vulcanKey+"/backends/api.fourFiveSix.test/backend"]
@@ -143,7 +143,7 @@ func TestMessyRegister(te *testing.T) {
 	fEtcd.k[*vulcanKey+"/backends/web.fourFiveSix.test/servers/old.svc.test-5678"] = `{"URL":"http://5.5.5.5:80"}`
 
 	addObject(o, definitions["messy"][3])
-	obj = fakeObject(o, "Service", "fourFiveSix")
+	obj = fakeObject(o, serviceType, "fourFiveSix")
 	w = newEvent(watch.Added, obj)
 	is.NoError(process(w))
 	v, _ = fEtcd.k[*vulcanKey+"/backends/api.fourFiveSix.test/backend"]
@@ -168,7 +168,7 @@ func TestMessyRegister(te *testing.T) {
 	}
 
 	addObject(o, definitions["messy"][4])
-	obj = fakeObject(o, "Service", "fourFiveSix")
+	obj = fakeObject(o, serviceType, "fourFiveSix")
 	w = newEvent(watch.Modified, obj)
 	is.NoError(process(w))
 	v, _ = fEtcd.k[*vulcanKey+"/frontends/api.fourFiveSix.test/frontend"]
@@ -183,15 +183,15 @@ func TestMessyRegister(te *testing.T) {
 
 	o = fakeKubeClient("")
 	addObject(o, definitions["resource-ver"][0])
-	obj = fakeObject(o, "Service", "resource")
+	obj = fakeObject(o, serviceType, "resource")
 	w = newEvent(watch.Added, obj)
 	is.NoError(process(w))
 	addObject(o, definitions["resource-ver"][1])
-	obj = fakeObject(o, "Endpoints", "resource")
+	obj = fakeObject(o, endpointsType, "resource")
 	w = newEvent(watch.Modified, obj)
 	is.NoError(process(w))
 	addObject(o, definitions["resource-ver"][2])
-	obj = fakeObject(o, "Service", "resource")
+	obj = fakeObject(o, serviceType, "resource")
 	w = newEvent(watch.Added, obj)
 	is.NoError(process(w))
 	v, _ = fEtcd.k[*vulcanKey+"/frontends/web.resource.test/frontend"]

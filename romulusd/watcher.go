@@ -49,7 +49,7 @@ func startWatches(c context.Context) (chan event, error) {
 	}
 
 	go watcher("Services", sv, out, c)
-	go watcher("Endpoints", en, out, c)
+	go watcher(endpointsType, en, out, c)
 	return out, nil
 }
 

@@ -49,14 +49,14 @@ func getService(name, ns string) (*api.Service, bool, error) {
 		cache = newCache()
 	}
 
-	o, b := cache.get(cKey{name, ns, "Service"})
+	o, b := cache.get(cKey{name, ns, serviceType})
 	if b {
-		debugf("Cache hit %v", cKey{name, ns, "Service"})
+		debugf("Cache hit %v", cKey{name, ns, serviceType})
 		s := o.(*api.Service)
 		return s, true, nil
 	}
 
-	debugf("Cache miss %v", cKey{name, ns, "Service"})
+	debugf("Cache miss %v", cKey{name, ns, serviceType})
 	kc, er := kubeClient()
 	if er != nil {
 		errorf("kubernetes client failure: %v", er)
@@ -71,8 +71,8 @@ func getService(name, ns string) (*api.Service, bool, error) {
 		return nil, false, NewErr(er, "kubernetes api failure")
 	}
 
-	debugf("Caching {Kind: %q, Name: %q, Namespace: %q}", "Service", s.Name, s.Namespace)
-	cache.put(cKey{s.Name, s.Namespace, "Service"}, s)
+	debugf("Caching {Kind: %q, Name: %q, Namespace: %q}", serviceType, s.Name, s.Namespace)
+	cache.put(cKey{s.Name, s.Namespace, serviceType}, s)
 	return s, true, nil
 }
 
@@ -81,14 +81,14 @@ func getEndpoints(name, ns string) (*api.Endpoints, bool, error) {
 		cache = newCache()
 	}
 
-	o, b := cache.get(cKey{name, ns, "Endpoints"})
+	o, b := cache.get(cKey{name, ns, endpointsType})
 	if b {
-		debugf("Cache hit %v", cKey{name, ns, "Endpoints"})
+		debugf("Cache hit %v", cKey{name, ns, endpointsType})
 		en := o.(*api.Endpoints)
 		return en, true, nil
 	}
 
-	debugf("Cache miss %v", cKey{name, ns, "Endpoints"})
+	debugf("Cache miss %v", cKey{name, ns, endpointsType})
 	kc, er := kubeClient()
 	if er != nil {
 		errorf("kubernetes client failure: %v", er)
@@ -103,8 +103,8 @@ func getEndpoints(name, ns string) (*api.Endpoints, bool, error) {
 		return nil, false, NewErr(er, "kubernetes api failure")
 	}
 
-	debugf("Caching {Kind: %q, Name: %q, Namespace: %q}", "Endpoints", en.Name, en.Namespace)
-	cache.put(cKey{en.Name, en.Namespace, "Endpoints"}, en)
+	debugf("Caching {Kind: %q, Name: %q, Namespace: %q}", endpointsType, en.Name, en.Namespace)
+	cache.put(cKey{en.Name, en.Namespace, endpointsType}, en)
 	return en, true, nil
 }
 

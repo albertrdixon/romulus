@@ -27,9 +27,9 @@ func getMeta(obj runtime.Object) (m *metadata, e error) {
 	default:
 		m.kind, e = a.Kind(obj)
 	case *api.Service:
-		m.kind = "Service"
+		m.kind = serviceType
 	case *api.Endpoints:
-		m.kind = "Endpoints"
+		m.kind = endpointsType
 	}
 
 	if m.name, e = a.Name(obj); e != nil {
@@ -124,7 +124,7 @@ func update(r runtime.Object, s string) error {
 
 	switch o := r.(type) {
 	case *api.Service:
-		if oo, ok := cacheIfNewer(cKey{o.Name, o.Namespace, o.Kind}, o); !ok {
+		if oo, ok := cacheIfNewer(cKey{o.Name, o.Namespace, serviceType}, o); !ok {
 			o = oo.(*api.Service)
 		}
 		// if s == "mod" {
@@ -133,7 +133,7 @@ func update(r runtime.Object, s string) error {
 		// return nil
 		return registerService(o)
 	case *api.Endpoints:
-		if oo, ok := cacheIfNewer(cKey{o.Name, o.Namespace, o.Kind}, o); !ok {
+		if oo, ok := cacheIfNewer(cKey{o.Name, o.Namespace, endpointsType}, o); !ok {
 			o = oo.(*api.Endpoints)
 		}
 		return registerEndpoints(o)

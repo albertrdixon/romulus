@@ -11,6 +11,11 @@ import (
 	"k8s.io/kubernetes/pkg/client/unversioned"
 )
 
+const (
+	serviceType   = "Service"
+	endpointsType = "Endpoints"
+)
+
 var (
 	cache           *cMap
 	etcd            etcdInterface
