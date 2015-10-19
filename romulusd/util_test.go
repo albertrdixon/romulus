@@ -2,6 +2,7 @@ package main
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -53,8 +54,8 @@ func fakeObject(o testclient.ObjectRetriever, kind, name string) runtime.Object 
 	return obj
 }
 
-func newEvent(t watch.EventType, o runtime.Object) event {
-	e := event{watch.Event{Type: t, Object: o}}
+func newEvent(t watch.EventType, o runtime.Object) *event {
+	e := event{watch.Event{Type: t, Object: o}, time.Now(), true}
 	debugf("%v", e)
-	return e
+	return &e
 }

@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 	"sync"
+	"time"
 
-	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/runtime"
 )
 
@@ -12,30 +12,41 @@ type cKey struct {
 	name, ns, kind string
 }
 
+type cValue struct {
+	t   time.Time
+	obj runtime.Object
+}
+
 type cMap struct {
 	sync.RWMutex
-	m map[cKey]runtime.Object
+	m map[cKey]cValue
 }
 
 func newCache() *cMap {
-	return &cMap{m: make(map[cKey]runtime.Object)}
+	return &cMap{m: make(map[cKey]cValue)}
 }
 
 func (k cKey) String() string {
-	return fmt.Sprintf("{Kind: %q, Name: %q, Namespace: %q}", k.kind, k.name, k.ns)
+	return fmt.Sprintf("{Name: %q, Namespace: %q, Kind: %q}", k.kind, k.name, k.kind)
 }
 
-func (m *cMap) get(key cKey) (o runtime.Object, b bool) {
+func (v cValue) moreRecent(t time.Time) bool {
+	return v.t.After(t)
+}
+
+func (m *cMap) get(key cKey) (v cValue, b bool) {
 	m.RLock()
 	defer m.RUnlock()
-	o, b = m.m[key]
+	v, b = m.m[key]
 	return
 }
 
-func (m *cMap) put(key cKey, o runtime.Object) {
+func (m *cMap) put(key cKey, obj runtime.Object, t time.Time) cValue {
 	m.Lock()
 	defer m.Unlock()
-	m.m[key] = o
+	val := cValue{t, obj}
+	m.m[key] = val
+	return val
 }
 
 func (m *cMap) del(key cKey) {
@@ -44,100 +55,66 @@ func (m *cMap) del(key cKey) {
 	delete(m.m, key)
 }
 
-func getService(name, ns string) (*api.Service, bool, error) {
+func getService(name, ns string, t time.Time) (cValue, bool, error) {
 	if cache == nil {
 		cache = newCache()
 	}
 
-	o, b := cache.get(cKey{name, ns, serviceType})
+	key := cKey{name, ns, serviceType}
+	val, b := cache.get(key)
 	if b {
-		debugf("Cache hit %v", cKey{name, ns, serviceType})
-		s := o.(*api.Service)
-		return s, true, nil
+		debugf("Cache hit key=%v", key)
+		return val, true, nil
 	}
 
-	debugf("Cache miss %v", cKey{name, ns, serviceType})
+	debugf("Cache miss key=%v", key)
 	kc, er := kubeClient()
 	if er != nil {
 		errorf("kubernetes client failure: %v", er)
-		return nil, false, NewErr(er, "kubernetes client failure")
+		return val, false, NewErr(er, "kubernetes client failure")
 	}
 	s, er := kc.Services(ns).Get(name)
 	if er != nil {
 		if kubeIsNotFound(er) {
-			return nil, false, nil
+			return val, false, nil
 		}
 		errorf("kubernetes api failure: %v", er)
-		return nil, false, NewErr(er, "kubernetes api failure")
+		return val, false, NewErr(er, "kubernetes api failure")
 	}
 
-	debugf("Caching {Kind: %q, Name: %q, Namespace: %q}", serviceType, s.Name, s.Namespace)
-	cache.put(cKey{s.Name, s.Namespace, serviceType}, s)
-	return s, true, nil
+	debugf("Caching object, key=%v", key)
+	val = cache.put(key, s, t)
+	return val, true, nil
 }
 
-func getEndpoints(name, ns string) (*api.Endpoints, bool, error) {
+func getEndpoints(name, ns string, t time.Time) (cValue, bool, error) {
 	if cache == nil {
 		cache = newCache()
 	}
 
-	o, b := cache.get(cKey{name, ns, endpointsType})
+	key := cKey{name, ns, endpointsType}
+	val, b := cache.get(key)
 	if b {
-		debugf("Cache hit %v", cKey{name, ns, endpointsType})
-		en := o.(*api.Endpoints)
-		return en, true, nil
+		debugf("Cache hit key=%v", key)
+		return val, true, nil
 	}
 
-	debugf("Cache miss %v", cKey{name, ns, endpointsType})
+	debugf("Cache miss key=%v", key)
 	kc, er := kubeClient()
 	if er != nil {
 		errorf("kubernetes client failure: %v", er)
-		return nil, false, NewErr(er, "kubernetes client failure")
+		return val, false, NewErr(er, "kubernetes client failure")
 	}
 	en, er := kc.Endpoints(ns).Get(name)
 	if er != nil {
 		if kubeIsNotFound(er) {
-			return nil, false, nil
+			return val, false, nil
 		}
 		errorf("kubernetes api failure: %v", er)
-		return nil, false, NewErr(er, "kubernetes api failure")
+		return val, false, NewErr(er, "kubernetes api failure")
 	}
 
-	debugf("Caching {Kind: %q, Name: %q, Namespace: %q}", endpointsType, en.Name, en.Namespace)
-	cache.put(cKey{en.Name, en.Namespace, endpointsType}, en)
-	return en, true, nil
-}
-
-func cacheIfNewer(key cKey, o runtime.Object) (runtime.Object, bool) {
-	if cache == nil {
-		cache = newCache()
-	}
-
-	oo, ok := cache.get(key)
-	if !ok {
-		debugf("Object is new, Caching %v", key)
-		cache.put(key, o)
-		return o, true
-	}
-
-	om, er := getMeta(oo)
-	if er != nil {
-		debugf("Could not get metadata for original object, Caching %v", key)
-		cache.put(key, o)
-		return o, true
-	}
-	nm, er := getMeta(o)
-	if er != nil {
-		debugf("Could not get metadata, will not cache: %v", o)
-		return oo, false
-	}
-
-	if nm.version != 0 && nm.version > om.version {
-		debugf("Object is newer (%d > %d), Caching %v", nm.version, om.version, key)
-		cache.put(key, o)
-		return o, true
-	}
-
-	debugf("Object is older (%d < %d), using cached version", nm.version, om.version)
-	return oo, false
+	debugf("Caching object, key=%v", key)
+	val = cache.put(key, en, t)
+	return val, true, nil
 }

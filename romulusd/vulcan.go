@@ -23,19 +23,20 @@ type VulcanObject interface {
 }
 
 type BackendList struct {
-	s map[string]*Backend
-	i map[int]*Backend
+	s map[string]string
+	i map[int]string
 }
 
 func NewBackendList() *BackendList {
-	return &BackendList{make(map[string]*Backend), make(map[int]*Backend)}
-}
-func (b BackendList) Add(port int, name string, ba *Backend) {
-	b.s[name] = ba
-	b.i[port] = ba
+	return &BackendList{make(map[string]string), make(map[int]string)}
 }
 
-func (b BackendList) Lookup(port int, name string) (ba *Backend, ok bool) {
+func (b BackendList) Add(port int, name, bid string) {
+	b.s[name] = bid
+	b.i[port] = bid
+}
+
+func (b BackendList) Lookup(port int, name string) (ba string, ok bool) {
 	ba, ok = b.i[port]
 	if ok {
 		return

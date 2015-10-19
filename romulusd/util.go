@@ -6,8 +6,33 @@ import (
 	"io"
 	"strings"
 
+	"k8s.io/kubernetes/pkg/api/meta"
 	"k8s.io/kubernetes/pkg/client/unversioned"
+	"k8s.io/kubernetes/pkg/runtime"
+	"k8s.io/kubernetes/pkg/types"
 )
+
+type metadata struct {
+	name, ns, kind, version string
+	labels, annotations     map[string]string
+	uid                     types.UID
+}
+
+func getMeta(obj runtime.Object) (*metadata, error) {
+	a, e := meta.Accessor(obj)
+	if e != nil {
+		return nil, e
+	}
+	return &metadata{
+		name:        a.Name(),
+		ns:          a.Namespace(),
+		kind:        a.Kind(),
+		version:     a.ResourceVersion(),
+		uid:         a.UID(),
+		labels:      a.Labels(),
+		annotations: a.Annotations(),
+	}, nil
+}
 
 func md5Hash(ss ...interface{}) string {
 	if len(ss) < 1 {

@@ -3,6 +3,7 @@ package main
 import (
 	"testing"
 
+	"k8s.io/kubernetes/pkg/runtime"
 	"k8s.io/kubernetes/pkg/watch"
 
 	"github.com/davecgh/go-spew/spew"
@@ -92,7 +93,7 @@ func TestBasicRegister(te *testing.T) {
 
 func TestMessyRegister(te *testing.T) {
 	is, _ := setup(te)
-	var w event
+	var w *event
 
 	fEtcd := newFakeEtcdClient(*vulcanKey)
 	o := fakeKubeClient("")
@@ -180,20 +181,33 @@ func TestMessyRegister(te *testing.T) {
 		te.Log("FRONTEND api.fourFiveSix.test NOT CONFIGURED CORRECTLY")
 		te.Log(spew.Sdump(etcd))
 	}
+}
 
-	o = fakeKubeClient("")
+func TestBadRetry(te *testing.T) {
+	is, _ := setup(te)
+	var (
+		obj     runtime.Object
+		wOld, w *event
+		v, f    string
+	)
+
+	fEtcd := newFakeEtcdClient(*vulcanKey)
+	o := fakeKubeClient("")
+
+	addObject(o, definitions["resource-ver"][2])
+	obj = fakeObject(o, serviceType, "resource")
+	wOld = newEvent(watch.Added, obj)
 	addObject(o, definitions["resource-ver"][0])
 	obj = fakeObject(o, serviceType, "resource")
-	w = newEvent(watch.Added, obj)
+	w = newEvent(watch.Modified, obj)
 	is.NoError(process(w))
 	addObject(o, definitions["resource-ver"][1])
 	obj = fakeObject(o, endpointsType, "resource")
 	w = newEvent(watch.Modified, obj)
 	is.NoError(process(w))
 	addObject(o, definitions["resource-ver"][2])
-	obj = fakeObject(o, serviceType, "resource")
-	w = newEvent(watch.Added, obj)
-	is.NoError(process(w))
+
+	is.NoError(process(wOld))
 	v, _ = fEtcd.k[*vulcanKey+"/frontends/web.resource.test/frontend"]
 	f, _ = resourceVer[1].Val()
 	if !is.Equal(f, v) {

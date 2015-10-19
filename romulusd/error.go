@@ -35,5 +35,9 @@ func NewKubeNotFound(k, n string) error {
 }
 
 func kubeIsNotFound(e error) bool {
-	return ke.IsNotFound(e)
+	if e == nil {
+		return false
+	} else {
+		return ke.IsNotFound(e)
+	}
 }
