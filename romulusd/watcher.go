@@ -6,6 +6,7 @@ import (
 
 	"golang.org/x/net/context"
 	"k8s.io/kubernetes/pkg/api"
+	uapi "k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/fields"
 	"k8s.io/kubernetes/pkg/labels"
 	"k8s.io/kubernetes/pkg/watch"
@@ -22,36 +23,13 @@ func (e event) String() string {
 	if er != nil {
 		return fmt.Sprintf("Event: type=%v object=Unknown", e.Type)
 	}
+	if s, ok := e.Object.(*uapi.Status); ok {
+		return fmt.Sprintf("Status: [%s] code=%d %q", s.Status, s.Code, s.Message)
+	}
 	return fmt.Sprintf(
 		"Event: [%v] object={Kind: %q, Name: %q, Namespace: %q} registerable=%v",
 		e.Type, m.kind, m.name, m.ns, registerable(e.Object),
 	)
-}
-
-func acquireWatch(fn watchFunc, out chan<- watch.Interface, c context.Context) {
-	retry := 2 * time.Second
-	t := time.NewTicker(retry)
-	defer t.Stop()
-
-	w, e := fn()
-	if e == nil {
-		out <- w
-		return
-	}
-
-	for {
-		debugf("Setting watch failed, retry in (%v): %v", retry, e)
-		select {
-		case <-c.Done():
-			return
-		case <-t.C:
-			w, e := fn()
-			if e == nil {
-				out <- w
-				return
-			}
-		}
-	}
 }
 
 func startWatches(c context.Context) (chan event, error) {
@@ -75,6 +53,32 @@ func startWatches(c context.Context) (chan event, error) {
 	return out, nil
 }
 
+func acquireWatch(fn watchFunc, out chan<- watch.Interface, c context.Context) {
+	retry := 2 * time.Second
+	t := time.NewTicker(retry)
+	defer t.Stop()
+
+	w, e := fn()
+	if e == nil && c.Err() == nil {
+		out <- w
+		return
+	}
+
+	for {
+		debugf("Setting watch failed, retry in (%v): %v", retry, e)
+		select {
+		case <-c.Done():
+			return
+		case <-t.C:
+			w, e := fn()
+			if e == nil && c.Err() == nil {
+				out <- w
+				return
+			}
+		}
+	}
+}
+
 func watcher(name string, fn watchFunc, out chan<- event, c context.Context) {
 	var w watch.Interface
 	var wc = make(chan watch.Interface, 1)
@@ -90,21 +94,31 @@ Acquire:
 		debugf("%s watch set", name)
 	}
 
+EventLoop:
 	for {
 		select {
 		case <-c.Done():
 			infof("Closing %s watch channel", name)
 			return
-		case e := <-w.ResultChan():
-			if isClosed(e) {
-				warnf("%s watch closed: %+v", name, e)
+		case e := event{<-w.ResultChan()}:
+			switch {
+			case isClosed(e):
+				warnf("%s watch closed: %v", name, e)
 				goto Acquire
+			case isError(e):
+				errorf("%s watch error: %v", name, e)
+				goto EventLoop
+			case c.Err() == nil:
+				out <- e
 			}
-			out <- event{e}
 		}
 	}
 }
 
-func isClosed(e watch.Event) bool {
-	return e.Type == watch.Error || e == watch.Event{}
+func isClosed(e event) bool {
+	return e.Event == watch.Event{}
+}
+
+func isError(e event) bool {
+	return e.Type == watch.Error
 }
