@@ -27,7 +27,7 @@ func newCache() *cMap {
 }
 
 func (k cKey) String() string {
-	return fmt.Sprintf("{Name: %q, Namespace: %q, Kind: %q}", k.kind, k.name, k.kind)
+	return fmt.Sprintf("{Name: %q, Namespace: %q, Kind: %q}", k.name, k.ns, k.kind)
 }
 
 func (v cValue) moreRecent(t time.Time) bool {
@@ -61,10 +61,10 @@ func getService(name, ns string, t time.Time) (cValue, bool, error) {
 	}
 
 	key := cKey{name, ns, serviceType}
-	val, b := cache.get(key)
-	if b {
+	val, ok := cache.get(key)
+	if ok {
 		debugf("Cache hit key=%v", key)
-		return val, true, nil
+		return val, ok, nil
 	}
 
 	debugf("Cache miss key=%v", key)
@@ -93,10 +93,10 @@ func getEndpoints(name, ns string, t time.Time) (cValue, bool, error) {
 	}
 
 	key := cKey{name, ns, endpointsType}
-	val, b := cache.get(key)
-	if b {
+	val, ok := cache.get(key)
+	if ok {
 		debugf("Cache hit key=%v", key)
-		return val, true, nil
+		return val, ok, nil
 	}
 
 	debugf("Cache miss key=%v", key)

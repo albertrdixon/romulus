@@ -6,7 +6,9 @@ import (
 	"io"
 	"strings"
 
+	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/meta"
+	uapi "k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/client/unversioned"
 	"k8s.io/kubernetes/pkg/runtime"
 	"k8s.io/kubernetes/pkg/types"
@@ -26,12 +28,29 @@ func getMeta(obj runtime.Object) (*metadata, error) {
 	return &metadata{
 		name:        a.Name(),
 		ns:          a.Namespace(),
-		kind:        a.Kind(),
+		kind:        getKind(a, obj),
 		version:     a.ResourceVersion(),
 		uid:         a.UID(),
 		labels:      a.Labels(),
 		annotations: a.Annotations(),
 	}, nil
+}
+
+func getKind(m meta.Interface, r runtime.Object) string {
+	k := m.Kind()
+	if k != "" {
+		return k
+	}
+	switch r.(type) {
+	default:
+		return "Unknown"
+	case *api.Service:
+		return serviceType
+	case *api.Endpoints:
+		return endpointsType
+	case *uapi.Status:
+		return "Status"
+	}
 }
 
 func md5Hash(ss ...interface{}) string {
