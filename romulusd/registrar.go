@@ -6,7 +6,7 @@ import (
 
 	jURL "github.com/albertrdixon/gearbox/url"
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/endpoints"
+	eps "k8s.io/kubernetes/pkg/api/endpoints"
 	uApi "k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/runtime"
 )
@@ -60,9 +60,10 @@ func pruneServers(bid string, sm ServerMap) error {
 
 // Gathers information from given api.Endpoints object and parses into a Backend object for each
 // IP set / port combination. Will attempt to upsert backends into etcd.
-func registerBackends(s *api.Service, e *api.Endpoints) (*BackendList, error) {
+func registerBackends(e *api.Endpoints, an map[string]string) (*BackendList, error) {
 	bnds := NewBackendList()
-	subsets := endpoints.RepackSubsets(e.Subsets)
+	subsets := eps.RepackSubsets(e.Subsets)
+	debugf("Attempting to register %v subsets=%v", endpoints{e}, epSubsets(subsets))
 	for _, es := range subsets {
 		for _, port := range es.Ports {
 			bid := getVulcanID(e.Name, e.Namespace, port.Name)
@@ -73,29 +74,16 @@ func registerBackends(s *api.Service, e *api.Endpoints) (*BackendList, error) {
 				continue
 			}
 
-			sm := ServerMap{}
 			bnd := NewBackend(bid)
-
-			if st, ok := s.Annotations[labelf("backendSettings", port.Name)]; ok {
+			if st, ok := an[labelf("backendSettings", port.Name)]; ok {
 				bnd.Settings = NewBackendSettings([]byte(st))
 				debugf("Backend settings: %q", bnd.Settings)
 			}
 
-			debugf("Gathering kubernetes endpoints: %v", es.Addresses)
-			for _, ip := range es.Addresses {
-				ur := fmt.Sprintf("http://%s:%d", ip.IP, port.Port)
-				u, err := url.Parse(ur)
-				if err != nil {
-					warnf("Bad URL: %s", ur)
-					continue
-				}
-				uu := (*jURL.URL)(u)
-				sTag := md5Hash(bid, uu.String())[:serverTagLen]
-				sm[sTag] = &Server{
-					ID:      fmt.Sprintf("%s-%s", bid, sTag),
-					Backend: bid,
-					URL:     uu,
-				}
+			sm := expandEndpointSubset(bid, es, port)
+			if len(sm) < 1 {
+				warnf("No ready addresses for port {%s:%d}: %v", port.Name, port.Port, epSubset(es))
+				continue
 			}
 			if err := pruneServers(bid, sm); err != nil {
 				warnf("Failed to remove servers for %q: %v", bnd.ID, err)
@@ -141,6 +129,7 @@ func registerBackends(s *api.Service, e *api.Endpoints) (*BackendList, error) {
 // Attempts to match api.Service.Spec.Ports with given Backend ports in order to match Frontend and Backend.
 // Will attempt to upsert frontend into etcd.
 func registerFrontends(s *api.Service, bnds *BackendList) error {
+	debugf("Attempting to register %v", service{s})
 	debugf("Backend List: %+v", bnds)
 	for _, port := range s.Spec.Ports {
 		fid := getVulcanID(s.Name, s.Namespace, port.Name)
@@ -178,11 +167,11 @@ func registerFrontends(s *api.Service, bnds *BackendList) error {
 
 func register(s *api.Service, e *api.Endpoints) error {
 	if !registerable(s) {
-		debugf("Service '%s-%s' not registerable", s.Name, s.Namespace)
+		debugf("%v not registerable", service{s})
 		return nil
 	}
 
-	bnds, er := registerBackends(s, e)
+	bnds, er := registerBackends(e, s.Annotations)
 	if er != nil {
 		return NewErr(er, "Backend Error")
 	}
@@ -195,9 +184,10 @@ func register(s *api.Service, e *api.Endpoints) error {
 }
 
 func deregisterService(s *api.Service) error {
+	debugf("Attempting to deregister %v", service{s})
 	for _, port := range s.Spec.Ports {
 		f := NewFrontend(getVulcanID(s.Name, s.Namespace, port.Name), "")
-		infof("Deregistering frontend %v", f)
+		infof("Deregistering frontend %v", f.ID)
 		if er := etcd.Del(f.DirKey()); er != nil {
 			if isKeyNotFound(er) {
 				warnf("%s frontend key not found in etcd", f.ID)
@@ -210,10 +200,12 @@ func deregisterService(s *api.Service) error {
 }
 
 func deregisterEndpoints(e *api.Endpoints) error {
-	for _, es := range e.Subsets {
+	subsets := eps.RepackSubsets(e.Subsets)
+	debugf("Attempting to register %v subsets=%v", endpoints{e}, epSubsets(subsets))
+	for _, es := range subsets {
 		for _, port := range es.Ports {
 			b := NewBackend(getVulcanID(e.Name, e.Namespace, port.Name))
-			infof("Deregistering backend %v", b)
+			infof("Deregistering backend %v", b.ID)
 			if er := etcd.Del(b.DirKey()); er != nil {
 				if isKeyNotFound(er) {
 					warnf("%s backend key not found in etcd", b.ID)
@@ -243,4 +235,25 @@ func registerable(o runtime.Object) bool {
 		}
 	}
 	return true
+}
+
+func expandEndpointSubset(bid string, es api.EndpointSubset, p api.EndpointPort) ServerMap {
+	debugf("Expanding kubernetes endpoints: %v", epSubset(es))
+	sm := newServerMap()
+	for _, ip := range es.Addresses {
+		ur := fmt.Sprintf("http://%s:%d", ip.IP, p.Port)
+		u, err := url.Parse(ur)
+		if err != nil {
+			warnf("Bad URL: %s", ur)
+			continue
+		}
+		uu := (*jURL.URL)(u)
+		sTag := md5Hash(bid, uu.String())[:serverTagLen]
+		sm[sTag] = &Server{
+			ID:      fmt.Sprintf("%s-%s", bid, sTag),
+			Backend: bid,
+			URL:     uu,
+		}
+	}
+	return sm
 }

@@ -32,8 +32,12 @@ func NewBackendList() *BackendList {
 }
 
 func (b BackendList) Add(port int, name, bid string) {
-	b.s[name] = bid
-	b.i[port] = bid
+	if name != "" {
+		b.s[name] = bid
+	}
+	if port != 0 {
+		b.i[port] = bid
+	}
 }
 
 func (b BackendList) Lookup(port int, name string) (ba string, ok bool) {
@@ -93,6 +97,10 @@ type SessionCacheSettings struct {
 
 // ServerMap is a map of IPs (string) -> Server
 type ServerMap map[string]*Server
+
+func newServerMap() ServerMap {
+	return ServerMap(make(map[string]*Server))
+}
 
 // Server is a vulcand server
 type Server struct {

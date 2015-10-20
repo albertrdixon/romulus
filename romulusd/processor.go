@@ -116,7 +116,7 @@ func update(e *event) error {
 		en, ok, er := getEndpoints(o.Name, o.Namespace, e.t)
 		if !ok {
 			if er == nil {
-				warnf("Could not find Endpoints for Service '%s-%s'", o.Name, o.Namespace)
+				warnf("Could not find Endpoints for %v", service{o})
 			}
 			return er
 		}
@@ -138,7 +138,7 @@ func update(e *event) error {
 		s, ok, er := getService(o.Name, o.Namespace, e.t)
 		if !ok {
 			if er == nil {
-				warnf("Could not find Service for Endpoints '%s-%s'", o.Name, o.Namespace)
+				warnf("Could not find Service for %v", endpoints{o})
 			}
 			return er
 		}

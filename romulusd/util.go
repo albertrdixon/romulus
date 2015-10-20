@@ -94,6 +94,43 @@ func useTLS() bool {
 	return *kubeCert != "" && (*kubeKey != "" || *kubeCA != "")
 }
 
+type endpoints struct{ *api.Endpoints }
+
+func (e endpoints) String() string {
+	return fmt.Sprintf("Endpoints '%s-%s'", e.ObjectMeta.Name, e.ObjectMeta.Namespace)
+}
+
+type service struct{ *api.Service }
+
+func (s service) String() string {
+	return fmt.Sprintf("Service '%s-%s'", s.ObjectMeta.Name, s.ObjectMeta.Namespace)
+}
+
+type epSubsets []api.EndpointSubset
+type epSubset api.EndpointSubset
+
+func (s epSubset) String() string {
+	ports := make([]string, 0, len(s.Ports))
+	addrs := make([]string, 0, len(s.Addresses))
+
+	for _, p := range s.Ports {
+		ports = append(ports, fmt.Sprintf("%s:%d", p.Name, p.Port))
+	}
+	for _, a := range s.Addresses {
+		addrs = append(addrs, a.IP)
+	}
+	return fmt.Sprintf("{ips=[%s], ports=[%s]}",
+		strings.Join(addrs, ", "), strings.Join(ports, ", "))
+}
+
+func (ss epSubsets) String() string {
+	sl := []string{}
+	for _, s := range ss {
+		sl = append(sl, epSubset(s).String())
+	}
+	return fmt.Sprintf("[%s]", strings.Join(sl, ", "))
+}
+
 func annotationf(p, n string) string { return fmt.Sprintf("romulus/%s%s", p, n) }
 func labelf(l string, s ...string) string {
 	la := strings.Join(append([]string{l}, s...), ".")
