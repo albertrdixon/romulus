@@ -103,7 +103,7 @@ EventLoop:
 			infof("Closing %s watch channel", name)
 			return
 		case ev := <-w.ResultChan():
-			e := &event{ev, time.Now(), true}
+			e := &event{ev, time.Now().UTC(), true}
 			switch {
 			case isClosed(e):
 				warnf("%s watch closed: %v", name, e)

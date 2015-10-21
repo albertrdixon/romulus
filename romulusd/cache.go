@@ -27,7 +27,7 @@ func newCache() *cMap {
 }
 
 func (k cKey) String() string {
-	return fmt.Sprintf("{Name: %q, Namespace: %q, Kind: %q}", k.name, k.ns, k.kind)
+	return fmt.Sprintf("Key(Name=%q, Namespace=%q, Kind=%q)", k.name, k.ns, k.kind)
 }
 
 func (v cValue) moreRecent(t time.Time) bool {
@@ -63,11 +63,11 @@ func getService(name, ns string, t time.Time) (cValue, bool, error) {
 	key := cKey{name, ns, serviceType}
 	val, ok := cache.get(key)
 	if ok {
-		debugf("Cache hit key=%v", key)
+		debugf("Cache hit %v", key)
 		return val, ok, nil
 	}
 
-	debugf("Cache miss key=%v", key)
+	debugf("Cache miss %v", key)
 	kc, er := kubeClient()
 	if er != nil {
 		errorf("kubernetes client failure: %v", er)
@@ -82,7 +82,7 @@ func getService(name, ns string, t time.Time) (cValue, bool, error) {
 		return val, false, NewErr(er, "kubernetes api failure")
 	}
 
-	debugf("Caching object, key=%v", key)
+	debugf("Caching object, %v", key)
 	val = cache.put(key, s, t)
 	return val, true, nil
 }
@@ -95,11 +95,11 @@ func getEndpoints(name, ns string, t time.Time) (cValue, bool, error) {
 	key := cKey{name, ns, endpointsType}
 	val, ok := cache.get(key)
 	if ok {
-		debugf("Cache hit key=%v", key)
+		debugf("Cache hit %v", key)
 		return val, ok, nil
 	}
 
-	debugf("Cache miss key=%v", key)
+	debugf("Cache miss %v", key)
 	kc, er := kubeClient()
 	if er != nil {
 		errorf("kubernetes client failure: %v", er)
@@ -114,7 +114,7 @@ func getEndpoints(name, ns string, t time.Time) (cValue, bool, error) {
 		return val, false, NewErr(er, "kubernetes api failure")
 	}
 
-	debugf("Caching object, key=%v", key)
+	debugf("Caching object, %v", key)
 	val = cache.put(key, en, t)
 	return val, true, nil
 }

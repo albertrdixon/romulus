@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 
 	"k8s.io/kubernetes/pkg/api"
@@ -53,6 +54,10 @@ func getKind(m meta.Interface, r runtime.Object) string {
 	}
 }
 
+func isDebug() bool {
+	return *debug || *logLevel == "debug"
+}
+
 func md5Hash(ss ...interface{}) string {
 	if len(ss) < 1 {
 		return ""
@@ -97,13 +102,13 @@ func useTLS() bool {
 type endpoints struct{ *api.Endpoints }
 
 func (e endpoints) String() string {
-	return fmt.Sprintf("Endpoints '%s-%s'", e.ObjectMeta.Name, e.ObjectMeta.Namespace)
+	return fmt.Sprintf(`Endpoints("%s.%s")`, e.ObjectMeta.Name, e.ObjectMeta.Namespace)
 }
 
 type service struct{ *api.Service }
 
 func (s service) String() string {
-	return fmt.Sprintf("Service '%s-%s'", s.ObjectMeta.Name, s.ObjectMeta.Namespace)
+	return fmt.Sprintf(`Service("%s.%s")`, s.ObjectMeta.Name, s.ObjectMeta.Namespace)
 }
 
 type epSubsets []api.EndpointSubset
@@ -128,7 +133,14 @@ func (ss epSubsets) String() string {
 	for _, s := range ss {
 		sl = append(sl, epSubset(s).String())
 	}
-	return fmt.Sprintf("[%s]", strings.Join(sl, ", "))
+	return fmt.Sprintf("Subsets(%s)", strings.Join(sl, ", "))
+}
+
+type ppSlice []string
+
+func (p ppSlice) String() string {
+	sort.Strings(p)
+	return fmt.Sprintf("[%s]", strings.Join(p, ", "))
 }
 
 func annotationf(p, n string) string { return fmt.Sprintf("romulus/%s%s", p, n) }

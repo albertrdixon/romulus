@@ -1,6 +1,7 @@
 package main
 
 import (
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -25,11 +26,15 @@ type etcdClient struct {
 	t time.Duration
 }
 
-func NewEtcdClient(peers []string, prefix string, timeout time.Duration) (etcdInterface, error) {
+func NewEtcdClient(peers []*url.URL, prefix string, timeout time.Duration) (etcdInterface, error) {
 	if *etcdDebug {
 		client.EnablecURLDebug()
 	}
-	ec, er := client.New(client.Config{Endpoints: peers})
+	sp := []string{}
+	for _, p := range peers {
+		sp = append(sp, p.String())
+	}
+	ec, er := client.New(client.Config{Endpoints: sp})
 	if er != nil {
 		return nil, er
 	}

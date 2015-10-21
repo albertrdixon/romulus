@@ -37,7 +37,7 @@ func errorf(f string, m ...interface{}) { writeLog("error", f, m...) }
 func warnf(f string, m ...interface{})  { writeLog("warn", f, m...) }
 func infof(f string, m ...interface{})  { writeLog("info", f, m...) }
 func debugf(f string, m ...interface{}) {
-	if *debug || *logLevel == "debug" {
+	if isDebug() {
 		writeLog("debug", f, m...)
 	}
 }

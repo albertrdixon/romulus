@@ -53,15 +53,10 @@ func main() {
 	setupLog()
 	infof("Starting up romulusd version=%s", getVersion())
 
-	cache = newCache()
-	peers := []string{}
-	for _, p := range *etcdPeers {
-		peers = append(peers, p.String())
-	}
-
 	var er error
 	*vulcanKey = etcdKeyf(*vulcanKey)
-	etcd, er = NewEtcdClient(peers, *vulcanKey, *etcdTimeout)
+	debugf("Default vulcan key: %s", *vulcanKey)
+	etcd, er = NewEtcdClient(*etcdPeers, *vulcanKey, *etcdTimeout)
 	if er != nil {
 		fatalf("Failed to get etcd client: %v", er)
 	}
@@ -69,7 +64,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	w, er := startWatches(ctx)
 	if er != nil {
-		fatalf("Failed to get kubernetes client: %v", er)
+		fatalf("Failed to start initial watches: %v", er)
 	}
 	go processor(w, ctx)
 

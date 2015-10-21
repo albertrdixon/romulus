@@ -21,8 +21,8 @@ func processor(in chan *event, c context.Context) {
 			return
 		case e := <-in:
 			if registerable(e.Object) {
-				debugf("Recieved: %v", e)
-				if er := process(e); er != nil && c.Err() != nil {
+				debugf("%v", e)
+				if er := process(e); er != nil {
 					errorf(er.Error())
 					if e.retry {
 						go retry(in, e)
@@ -51,7 +51,9 @@ func process(e *event) error {
 		return UnknownKubeErr
 	}
 
-	etcd.SetPrefix(getVulcanKey(e.Object))
+	vk := getVulcanKey(e.Object)
+	debugf("Vulcan key: %q", vk)
+	etcd.SetPrefix(vk)
 	defer etcd.SetPrefix(*vulcanKey)
 
 	switch e.Type {
@@ -76,6 +78,7 @@ func remove(r runtime.Object) error {
 		key := cKey{o.Name, o.Namespace, endpointsType}
 		_, e = kc.Endpoints(o.Namespace).Get(o.Name)
 		if e == nil {
+			warnf("Received DELETED event, but %v still exists on API server", endpoints{o})
 			cache.del(key)
 			return nil
 		}
@@ -90,6 +93,7 @@ func remove(r runtime.Object) error {
 		key := cKey{o.Name, o.Namespace, serviceType}
 		_, e = kc.Services(o.Namespace).Get(o.Name)
 		if e == nil {
+			warnf("Received DELETED event, but %v still exists on API server", service{o})
 			cache.del(key)
 			return nil
 		}
@@ -121,7 +125,7 @@ func update(e *event) error {
 			return er
 		}
 
-		if s.moreRecent(e.t) || en.moreRecent(e.t) {
+		if s.moreRecent(e.t) {
 			debugf("Event is old, rejecting (%v)", e)
 			return nil
 		}
@@ -143,7 +147,7 @@ func update(e *event) error {
 			return er
 		}
 
-		if s.moreRecent(e.t) || en.moreRecent(e.t) {
+		if en.moreRecent(e.t) {
 			debugf("Event is old, rejecting (%v)", e)
 			return nil
 		}
