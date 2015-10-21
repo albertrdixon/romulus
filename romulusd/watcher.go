@@ -43,11 +43,11 @@ func startWatches(c context.Context) (chan *event, error) {
 	}
 	sv := func() (watch.Interface, error) {
 		debugf("Attempting to set watch on Services")
-		return kc.Services(api.NamespaceAll).Watch(labels.Everything(), fields.Everything(), resourceVersion)
+		return kc.Services(api.NamespaceAll).Watch(labels.Everything(), fields.Everything(), "")
 	}
 	en := func() (watch.Interface, error) {
 		debugf("Attempting to set watch on Endpoints")
-		return kc.Endpoints(api.NamespaceAll).Watch(labels.Everything(), fields.Everything(), resourceVersion)
+		return kc.Endpoints(api.NamespaceAll).Watch(labels.Everything(), fields.Everything(), "")
 	}
 
 	go watcher("Services", sv, out, c)
