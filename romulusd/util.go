@@ -4,10 +4,13 @@ import (
 	"crypto/md5"
 	"fmt"
 	"io"
+	"sort"
 	"strings"
-
-	"k8s.io/kubernetes/pkg/client/unversioned"
 )
+
+func isDebug() bool {
+	return *debug || *logLevel == "debug"
+}
 
 func md5Hash(ss ...interface{}) string {
 	if len(ss) < 1 {
@@ -21,36 +24,19 @@ func md5Hash(ss ...interface{}) string {
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
-func kubeClient() (unversioned.Interface, error) {
-	if test {
-		return tKubeClient, nil
-	}
+type ppSlice []string
 
-	cfg := &unversioned.Config{
-		Host:     (*kubeAddr).String(),
-		Username: *kubeUser,
-		Password: *kubePass,
-		Insecure: true,
-	}
-	if useTLS() {
-		cfg.Insecure = false
-		cfg.CertFile = *kubeCert
-		cfg.KeyFile = *kubeKey
-		cfg.CAFile = *kubeCA
-	}
-	if *kubeUseClust {
-		if cc, er := unversioned.InClusterConfig(); er == nil {
-			cfg = cc
-		}
-	}
-	return unversioned.New(cfg)
+func (p ppSlice) String() string {
+	sort.Strings(p)
+	return fmt.Sprintf("[%s]", strings.Join(p, ", "))
 }
 
-func useTLS() bool {
-	return *kubeCert != "" && (*kubeKey != "" || *kubeCA != "")
+func annotationf(p, n string) string {
+	if !strings.HasPrefix(p, "romulus/") {
+		return fmt.Sprintf("romulus/%s%s", p, n)
+	}
+	return fmt.Sprintf("%s%s", p, n)
 }
-
-func annotationf(p, n string) string { return fmt.Sprintf("romulus/%s%s", p, n) }
 func labelf(l string, s ...string) string {
 	la := strings.Join(append([]string{l}, s...), ".")
 	if !strings.HasPrefix(la, "romulus/") {

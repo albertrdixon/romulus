@@ -16,6 +16,8 @@ type watchFunc func() (watch.Interface, error)
 
 type event struct {
 	watch.Event
+	t     time.Time
+	retry bool
 }
 
 func (e event) String() string {
@@ -27,25 +29,25 @@ func (e event) String() string {
 		return fmt.Sprintf("Status: [%s] code=%d %q", s.Status, s.Code, s.Message)
 	}
 	return fmt.Sprintf(
-		"Event: [%v] object={Kind: %q, Name: %q, Namespace: %q} registerable=%v",
+		"Event: [%v] Object(Kind=%q, Name=%q, Namespace=%q, Registerable=%v)",
 		e.Type, m.kind, m.name, m.ns, registerable(e.Object),
 	)
 }
 
-func startWatches(c context.Context) (chan event, error) {
-	resourceVersion = "0"
-	out := make(chan event, 100)
+func startWatches(c context.Context) (chan *event, error) {
+	resourceVersion = ""
+	out := make(chan *event, 100)
 	kc, er := kubeClient()
 	if er != nil {
 		return out, er
 	}
 	sv := func() (watch.Interface, error) {
 		debugf("Attempting to set watch on Services")
-		return kc.Services(api.NamespaceAll).Watch(labels.Everything(), fields.Everything(), resourceVersion)
+		return kc.Services(api.NamespaceAll).Watch(labels.Everything(), fields.Everything(), "")
 	}
 	en := func() (watch.Interface, error) {
 		debugf("Attempting to set watch on Endpoints")
-		return kc.Endpoints(api.NamespaceAll).Watch(labels.Everything(), fields.Everything(), resourceVersion)
+		return kc.Endpoints(api.NamespaceAll).Watch(labels.Everything(), fields.Everything(), "")
 	}
 
 	go watcher("Services", sv, out, c)
@@ -79,7 +81,7 @@ func acquireWatch(fn watchFunc, out chan<- watch.Interface, c context.Context) {
 	}
 }
 
-func watcher(name string, fn watchFunc, out chan<- event, c context.Context) {
+func watcher(name string, fn watchFunc, out chan<- *event, c context.Context) {
 	var w watch.Interface
 	var wc = make(chan watch.Interface, 1)
 	defer close(wc)
@@ -101,7 +103,7 @@ EventLoop:
 			infof("Closing %s watch channel", name)
 			return
 		case ev := <-w.ResultChan():
-			e := event{ev}
+			e := &event{ev, time.Now().UTC(), true}
 			switch {
 			case isClosed(e):
 				warnf("%s watch closed: %v", name, e)
@@ -116,10 +118,10 @@ EventLoop:
 	}
 }
 
-func isClosed(e event) bool {
+func isClosed(e *event) bool {
 	return e.Event == watch.Event{}
 }
 
-func isError(e event) bool {
+func isError(e *event) bool {
 	return e.Type == watch.Error
 }

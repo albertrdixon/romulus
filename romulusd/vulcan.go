@@ -23,19 +23,41 @@ type VulcanObject interface {
 }
 
 type BackendList struct {
-	s map[string]*Backend
-	i map[int]*Backend
+	s map[string]string
+	i map[int]string
 }
 
 func NewBackendList() *BackendList {
-	return &BackendList{make(map[string]*Backend), make(map[int]*Backend)}
-}
-func (b BackendList) Add(port int, name string, ba *Backend) {
-	b.s[name] = ba
-	b.i[port] = ba
+	return &BackendList{make(map[string]string), make(map[int]string)}
 }
 
-func (b BackendList) Lookup(port int, name string) (ba *Backend, ok bool) {
+func (b BackendList) String() string {
+	ids, sl := map[string]*struct{}{}, []string{}
+	for _, v := range b.i {
+		if _, ok := ids[v]; !ok {
+			ids[v] = nil
+			sl = append(sl, v)
+		}
+	}
+	for _, v := range b.s {
+		if _, ok := ids[v]; !ok {
+			ids[v] = nil
+			sl = append(sl, v)
+		}
+	}
+	return fmt.Sprintf("Backends([%s])", strings.Join(sl, ", "))
+}
+
+func (b BackendList) Add(port int, name, bid string) {
+	if name != "" {
+		b.s[name] = bid
+	}
+	if port != 0 {
+		b.i[port] = bid
+	}
+}
+
+func (b BackendList) Lookup(port int, name string) (ba string, ok bool) {
 	ba, ok = b.i[port]
 	if ok {
 		return
@@ -92,6 +114,15 @@ type SessionCacheSettings struct {
 
 // ServerMap is a map of IPs (string) -> Server
 type ServerMap map[string]*Server
+
+func (s ServerMap) String() string {
+	sl := make([]string, 0, len(s))
+	for k := range s {
+		sl = append(sl, s[k].ID)
+	}
+	sort.Strings(sl)
+	return fmt.Sprintf("[%s]", strings.Join(sl, ", "))
+}
 
 // Server is a vulcand server
 type Server struct {
@@ -193,17 +224,16 @@ func (b *BackendSettings) String() string {
 
 func (s Server) String() (st string) {
 	st, _ = s.Val()
-	return
+	return fmt.Sprintf("Server(ID=%q, Backend=%q, URL=%v)", s.ID, s.Backend, s.URL)
 }
 
 func (f Frontend) String() (s string) {
-	s, _ = f.Val()
-	return
+	return fmt.Sprintf("Frontend(ID=%q, Backend=%q, Route=%q, Settings=%v)",
+		f.ID, f.BackendID, f.Route, f.Settings)
 }
 
-func (b Backend) String() (s string) {
-	s, _ = b.Val()
-	return
+func (b Backend) String() string {
+	return fmt.Sprintf("Backend(ID=%q, Type=%q, Settings=%v)", b.ID, b.Type, b.Settings)
 }
 
 // IPs returns the ServerMap IPs
