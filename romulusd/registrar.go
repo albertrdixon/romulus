@@ -24,8 +24,8 @@ func pruneServers(bid string, sm ServerMap) error {
 	}
 
 	if isDebug() {
-		debugf("Gathered known servers from kubernetes: %v", sm)
-		debugf("Gathered known servers from etcd: %v", ppSlice(srvs))
+		debugf("Servers from Subset: %v", sm)
+		debugf("Servers from etcd: %v", ppSlice(srvs))
 	}
 	for _, id := range srvs {
 		key := fmt.Sprintf("%s/%s", k, id)
@@ -69,7 +69,7 @@ func registerBackends(e *api.Endpoints, s *api.Service) (*BackendList, error) {
 		for _, port := range es.Ports {
 			bid := getVulcanID(e.Name, e.Namespace, port.Name)
 			bnd := NewBackend(bid)
-			debugf("Working on %v", bnd)
+			debugf("Processing Backend(ID=%q)", bnd.ID)
 
 			if port.Protocol != api.ProtocolTCP {
 				warnf("Unsupported protocol: %s", port.Protocol)
@@ -146,7 +146,7 @@ func registerFrontends(s *api.Service, bnds *BackendList) error {
 	for _, port := range s.Spec.Ports {
 		fid := getVulcanID(s.Name, s.Namespace, port.Name)
 		fnd := NewFrontend(fid, "")
-		debugf("Working on %v", fnd)
+		debugf("Processing Frontend(ID=%q)", fnd.ID)
 
 		var ok bool
 		fnd.BackendID, ok = bnds.Lookup(port.TargetPort.IntVal, port.TargetPort.StrVal)
@@ -251,7 +251,7 @@ func registerable(o runtime.Object) bool {
 }
 
 func expandEndpointSubset(bid string, es api.EndpointSubset, p api.EndpointPort) ServerMap {
-	debugf("Expanding kubernetes Endpoints: %v", epSubset(es))
+	debugf("Expanding Subset(%v)", epSubset(es))
 	sm := ServerMap{}
 	for _, ip := range es.Addresses {
 		ur := fmt.Sprintf("http://%s:%d", ip.IP, p.Port)
