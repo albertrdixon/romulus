@@ -214,7 +214,7 @@ func deregisterService(s *api.Service) error {
 
 func deregisterEndpoints(e *api.Endpoints) error {
 	subsets := eps.RepackSubsets(e.Subsets)
-	debugf("Attempting to register %v subsets=%v", endpoints{e}, epSubsets(subsets))
+	debugf("Attempting to deregister %v %v", endpoints{e}, epSubsets(subsets))
 	for _, es := range subsets {
 		for _, port := range es.Ports {
 			b := NewBackend(getVulcanID(e.Name, e.Namespace, port.Name))
