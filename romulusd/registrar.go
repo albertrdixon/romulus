@@ -174,6 +174,10 @@ func registerFrontends(s *api.Service, bnds *BackendList) error {
 		} else {
 			debugf("No updates %v", fnd)
 		}
+
+		if er := addMiddleware(fnd, s.Annotations); er != nil {
+			errorf("Failed to add Middleware for %v: %v", fnd, er)
+		}
 	}
 	return nil
 }
@@ -261,7 +265,7 @@ func expandEndpointSubset(bid string, es api.EndpointSubset, p api.EndpointPort)
 			continue
 		}
 		uu := (*jURL.URL)(u)
-		sTag := md5Hash(bid, uu.String())[:serverTagLen]
+		sTag := md5Hash(bid, uu.String())[:hashLen]
 		sm[uu.String()] = &Server{
 			ID:      fmt.Sprintf("%s.%s", sTag, bid),
 			Backend: bid,
@@ -269,4 +273,53 @@ func expandEndpointSubset(bid string, es api.EndpointSubset, p api.EndpointPort)
 		}
 	}
 	return sm
+}
+
+func pruneMiddleware(f *Frontend, mm map[string]*Middleware) error {
+	k := middlewareDirf(f.ID)
+	mids, er := etcd.Keys(k)
+	if er != nil {
+		if isKeyNotFound(er) {
+			return nil
+		}
+		return NewErr(er, "etcd error")
+	}
+
+	if isDebug() {
+		debugf("Middlewares from Service: %v", middlewareMap(mm))
+		debugf("Middlewares from etcd: %v", ppSlice(mids))
+	}
+	for i := range mids {
+		if _, ok := mm[mids[i]]; !ok {
+			key := fmt.Sprintf("%s/%s", k, mids[i])
+			infof("Removing Middleware(Frontend=%q, ID=%q)", f.ID, mids[i])
+			if er := etcd.Del(key); er != nil {
+				errorf("Failed to remove Middleware(Frontend=%q, ID=%q): %v", f.ID, mids[i], er)
+				continue
+			}
+		}
+	}
+	return nil
+}
+
+func addMiddleware(f *Frontend, an map[string]string) error {
+	mids := getMiddlewares(f, an)
+	for _, m := range mids {
+		val, er := m.Val()
+		if er != nil {
+			warnf("Failed to encode Middleware(%q): %v", m.ID, er)
+			continue
+		}
+		eVal, _ := etcd.Val(m.Key())
+		if val != eVal {
+			infof("Registering %v", m)
+			debugf("%s: %s", m.Key(), val)
+			if er := etcd.Add(m.Key(), val); er != nil {
+				return NewErr(er, "etcd error")
+			}
+		} else {
+			debugf("No updates %v", m)
+		}
+	}
+	return pruneMiddleware(f, mids)
 }

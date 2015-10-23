@@ -8,6 +8,7 @@ metadata:
   annotations:
     romulus/host.web: 'www.example.com'
     romulus/path.web: '/bar'
+    romulus/middleware.web.https: '{"Priority":1,"Type":"rewrite","Middleware":{"Regexp":"^http://(.*)","Replacement":"https://$1","RewriteBody":false,"Redirect":true}}'
   labels:
     name: oneTwoThree
     namespace: test

@@ -2,14 +2,18 @@ package main
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
 
 	"k8s.io/kubernetes/pkg/runtime"
 
-	"github.com/albertrdixon/gearbox/json"
+	gJSON "github.com/albertrdixon/gearbox/json"
 	"github.com/albertrdixon/gearbox/url"
+	"github.com/mailgun/vulcand/engine"
+	"github.com/mailgun/vulcand/plugin"
+	"github.com/mailgun/vulcand/plugin/registry"
 )
 
 const ProtoHTTP = "http"
@@ -154,6 +158,21 @@ type FrontendSettingsLimits struct {
 	MaxBodyBytes    int
 }
 
+type Middleware struct {
+	ID       string `json:"Id"`
+	Frontend string `json:"-"`
+	Priority int
+	Type     string
+	Config   plugin.Middleware `json:"Middleware"`
+}
+
+type RawMiddleware struct {
+	Type     string
+	Priority int
+}
+
+type middlewareMap map[string]*Middleware
+
 // NewBackend returns a ref to a Backend object
 func NewBackend(id string) *Backend {
 	return &Backend{
@@ -177,14 +196,14 @@ func NewFrontend(id, bid string, route ...string) *Frontend {
 // NewBackendSettings returns BackendSettings from raw JSON
 func NewBackendSettings(p []byte) *BackendSettings {
 	var ba BackendSettings
-	json.Decode(&ba, p)
+	gJSON.Decode(&ba, p)
 	return &ba
 }
 
 // NewFrontendSettings returns FrontendSettings from raw JSON
 func NewFrontendSettings(p []byte) *FrontendSettings {
 	var f FrontendSettings
-	json.Decode(&f, p)
+	gJSON.Decode(&f, p)
 	return &f
 }
 
@@ -193,12 +212,14 @@ func (s Server) Key() string           { return serverf(s.Backend, s.ID) }
 func (f Frontend) Key() string         { return frontendf(f.ID) }
 func (f FrontendSettings) Key() string { return "" }
 func (b BackendSettings) Key() string  { return "" }
+func (m Middleware) Key() string       { return middlewaref(m.Frontend, m.ID) }
 
 func (b Backend) Val() (string, error)          { return encode(b) }
 func (s Server) Val() (string, error)           { return encode(s) }
 func (f Frontend) Val() (string, error)         { return encode(f) }
 func (f FrontendSettings) Val() (string, error) { return "", nil }
 func (b BackendSettings) Val() (string, error)  { return "", nil }
+func (m Middleware) Val() (string, error)       { return encode(m) }
 
 // DirKey returns the etcd directory key for this Backend
 func (b Backend) DirKey() string { return backendDirf(b.ID) }
@@ -236,6 +257,19 @@ func (b Backend) String() string {
 	return fmt.Sprintf("Backend(ID=%q, Type=%q, Settings=%v)", b.ID, b.Type, b.Settings)
 }
 
+func (m Middleware) String() string {
+	return fmt.Sprintf("Middleware(Frontend=%q, Type=%q, Priority=%d, Config=%v)",
+		m.Frontend, m.Type, m.Priority, m.Config)
+}
+
+func (m middlewareMap) String() string {
+	sl := make([]string, 0, len(m))
+	for k, mid := range m {
+		sl = append(sl, fmt.Sprintf("%s:%s", k, mid.Type))
+	}
+	return fmt.Sprintf("[%s]", strings.Join(sl, ", "))
+}
+
 // IPs returns the ServerMap IPs
 func (s ServerMap) IPs() []string {
 	st := []string{}
@@ -246,7 +280,7 @@ func (s ServerMap) IPs() []string {
 }
 
 func encode(v VulcanObject) (string, error) {
-	s, e := json.Encode(v)
+	s, e := gJSON.Encode(v)
 	if e != nil {
 		return s, e
 	}
@@ -254,7 +288,7 @@ func encode(v VulcanObject) (string, error) {
 }
 
 func decode(v VulcanObject, p []byte) error {
-	return json.Decode(v, p)
+	return gJSON.Decode(v, p)
 }
 
 func buildRoute(ns string, a map[string]string) string {
@@ -293,6 +327,31 @@ func buildRoute(ns string, a map[string]string) string {
 	return strings.Join(rt, " && ")
 }
 
+func getMiddlewares(f *Frontend, an map[string]string) map[string]*Middleware {
+	ptn := `^romulus/middleware\.([^\.]+)\.?([^\.]+)?`
+	mids := map[string]*Middleware{}
+	for k, v := range an {
+		if m := regexp.MustCompile(ptn).FindStringSubmatch(k); m != nil {
+			name := m[1]
+			if m[2] != "" {
+				name = m[2]
+				r, e := regexp.Compile("^" + m[1])
+				if e != nil || !r.MatchString(f.ID) {
+					continue
+				}
+			}
+			id := md5Hash(f.ID, name)[:hashLen]
+			mid := &Middleware{ID: id, Frontend: f.ID}
+			if e := decode(mid, []byte(v)); e != nil {
+				errorf("Failed to decode Middleware: %v", e)
+				continue
+			}
+			mids[id] = mid
+		}
+	}
+	return mids
+}
+
 func getVulcanID(name, ns, port string) string {
 	var id []string
 	if port != "" {
@@ -324,4 +383,15 @@ func getVulcanKey(o runtime.Object) string {
 		return etcdKeyf(val)
 	}
 	return *vulcanKey
+}
+
+func (m *Middleware) UnmarshalJSON(p []byte) error {
+	mid, er := engine.MiddlewareFromJSON(p, registry.GetRegistry().GetSpec)
+	if er != nil {
+		return er
+	}
+	m.Type = mid.Type
+	m.Priority = mid.Priority
+	m.Config = mid.Middleware
+	return nil
 }

@@ -45,9 +45,11 @@ func labelf(l string, s ...string) string {
 	return l
 }
 
-func backendf(id string) string     { return fmt.Sprintf("backends/%s/backend", id) }
-func frontendf(id string) string    { return fmt.Sprintf("frontends/%s/frontend", id) }
-func backendDirf(id string) string  { return fmt.Sprintf("backends/%s", id) }
-func frontendDirf(id string) string { return fmt.Sprintf("frontends/%s", id) }
-func serverf(b, id string) string   { return fmt.Sprintf("backends/%s/servers/%s", b, id) }
-func serverDirf(id string) string   { return fmt.Sprintf("backends/%s/servers", id) }
+func backendf(id string) string       { return fmt.Sprintf("backends/%s/backend", id) }
+func frontendf(id string) string      { return fmt.Sprintf("frontends/%s/frontend", id) }
+func backendDirf(id string) string    { return fmt.Sprintf("backends/%s", id) }
+func frontendDirf(id string) string   { return fmt.Sprintf("frontends/%s", id) }
+func serverf(b, id string) string     { return fmt.Sprintf("backends/%s/servers/%s", b, id) }
+func serverDirf(id string) string     { return fmt.Sprintf("backends/%s/servers", id) }
+func middlewaref(f, id string) string { return fmt.Sprintf("frontends/%s/middlewares/%s", f, id) }
+func middlewareDirf(f string) string  { return fmt.Sprintf("frontends/%s/middlewares", f) }
