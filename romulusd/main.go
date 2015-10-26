@@ -44,7 +44,7 @@ var (
 	logLevel     = ro.Flag("log-level", "log level. One of: fatal, error, warn, info, debug").Short('l').Default("info").OverrideDefaultFromEnvar("LOG_LEVEL").Enum(logLevels...)
 	etcdDebug    = ro.Flag("debug-etcd", "Enable cURL debug logging for etcd").Bool()
 
-	serverTagLen = 8
+	hashLen = 8
 )
 
 func main() {

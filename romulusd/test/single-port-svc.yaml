@@ -8,6 +8,8 @@ metadata:
   annotations:
     romulus/host.web: 'www.example.com'
     romulus/path.web: '/web'
+    romulus/frontendSettings: '{"FailoverPredicate":"(IsNetworkError() || ResponseCode() == 503) && Attempts() <= 2"}}'
+    romulus/middleware.1: '{"Priority":0,"Type":"ratelimit","Middleware":{"Requests":1,"PeriodSeconds":1,"Burst":3,"Variable": "client.ip"}}'
   labels:
     name: singlePort
     namespace: test
