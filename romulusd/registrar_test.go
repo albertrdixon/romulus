@@ -46,9 +46,9 @@ var (
 		NewFrontend(singlePortID, singlePortID, "Host(`www.example.com`)", "Path(`/web`)"),
 	}
 	multiPort = []VulcanObject{
-		NewBackend(apiMultiPortID),
+		&Backend{ID: apiMultiPortID, Type: WS},
 		NewBackend(webMultiPortID),
-		NewFrontend(apiMultiPortID, apiMultiPortID, "Host(`www.example.com`)", "Path(`/api/v1`)"),
+		&Frontend{ID: apiMultiPortID, BackendID: apiMultiPortID, Type: WS, Route: "Host(`www.example.com`) && Path(`/api/v1`)"},
 		NewFrontend(webMultiPortID, webMultiPortID, "Host(`www.example.com`)", "Path(`/blog`)"),
 	}
 	resourceVer = []VulcanObject{

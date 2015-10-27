@@ -254,8 +254,8 @@ func (s Server) String() (st string) {
 }
 
 func (f Frontend) String() (s string) {
-	return fmt.Sprintf("Frontend(ID=%q, Backend=%q, Route=%q, Settings=%v)",
-		f.ID, f.BackendID, f.Route, f.Settings)
+	return fmt.Sprintf("Frontend(ID=%q, Backend=%q, Type=%q, Route=%q, Settings=%v)",
+		f.ID, f.BackendID, f.Type, f.Route, f.Settings)
 }
 
 func (b Backend) String() string {
