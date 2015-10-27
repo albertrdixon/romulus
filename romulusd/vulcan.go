@@ -16,7 +16,12 @@ import (
 	"github.com/mailgun/vulcand/plugin/registry"
 )
 
-const ProtoHTTP = "http"
+const (
+	HTTP  = "http"
+	HTTPS = "https"
+	WS    = "ws"
+	WSS   = "wss"
+)
 
 // VulcanObject represents a vulcand component
 type VulcanObject interface {
@@ -177,7 +182,7 @@ type middlewareMap map[string]*Middleware
 func NewBackend(id string) *Backend {
 	return &Backend{
 		ID:   id,
-		Type: ProtoHTTP,
+		Type: HTTP,
 	}
 }
 
@@ -188,7 +193,7 @@ func NewFrontend(id, bid string, route ...string) *Frontend {
 	return &Frontend{
 		ID:        id,
 		BackendID: bid,
-		Type:      ProtoHTTP,
+		Type:      HTTP,
 		Route:     rt,
 	}
 }

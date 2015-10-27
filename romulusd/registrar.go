@@ -76,6 +76,16 @@ func registerBackends(e *api.Endpoints, s *api.Service) (*BackendList, error) {
 				continue
 			}
 
+			if t, ok := s.Annotations[labelf("type", port.Name)]; ok {
+				switch t {
+				default:
+					bnd.Type = HTTP
+				case "ws", "websocket":
+					bnd.Type = WS
+				case "wss":
+					bnd.Type = WSS
+				}
+			}
 			if st, ok := s.Annotations[labelf("backendSettings", port.Name)]; ok {
 				bnd.Settings = NewBackendSettings([]byte(st))
 				debugf("Backend settings: %q", bnd.Settings)
@@ -159,6 +169,16 @@ func registerFrontends(s *api.Service, bnds *BackendList) error {
 		if st, ok := s.Annotations[labelf("frontendSettings", port.Name)]; ok {
 			fnd.Settings = NewFrontendSettings([]byte(st))
 			debugf("Frontend settings: %v", fnd.Settings)
+		}
+		if t, ok := s.Annotations[labelf("type", port.Name)]; ok {
+			switch t {
+			default:
+				fnd.Type = HTTP
+			case "ws", "websocket":
+				fnd.Type = WS
+			case "wss":
+				fnd.Type = WSS
+			}
 		}
 
 		val, err := fnd.Val()
