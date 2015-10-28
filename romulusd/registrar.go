@@ -160,6 +160,7 @@ func registerFrontends(s *api.Service, bnds *BackendList) error {
 		debugf("Processing Frontend(ID=%q)", fnd.ID)
 
 		var ok bool
+		debugf("Lookup Backend in list with '%v'", port.TargetPort)
 		fnd.BackendID, ok = bnds.Lookup(port.TargetPort.IntVal, port.TargetPort.StrVal)
 		if !ok {
 			warnf("No Backend for service port %d (target: %d)", port.Port, port.TargetPort.IntVal)
