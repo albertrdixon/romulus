@@ -113,6 +113,7 @@ func registerBackends(e *api.Endpoints, s *api.Service) (*BackendList, error) {
 			} else {
 				debugf("No updates %v", bnd)
 			}
+			debugf("Add to Backend list: key={%s:%d} val=%q", port.Name, port.Port, bnd.ID)
 			bnds.Add(port.Port, port.Name, bnd.ID)
 
 			for _, srv := range sm {

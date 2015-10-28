@@ -59,9 +59,11 @@ func (b BackendList) String() string {
 
 func (b BackendList) Add(port int, name, bid string) {
 	if name != "" {
+		debugf("Adding to Backend list: [%s]: %s", name, bid)
 		b.s[name] = bid
 	}
 	if port != 0 {
+		debugf("Adding to Backend list: [%d]: %s", port, bid)
 		b.i[port] = bid
 	}
 }
