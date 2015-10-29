@@ -51,6 +51,7 @@ func process(e *event) error {
 		return UnknownKubeErr
 	}
 
+	initCache()
 	vk := getVulcanKey(e.Object)
 	debugf("Vulcan key: %q", vk)
 	etcd.SetPrefix(vk)
@@ -109,7 +110,7 @@ func remove(r runtime.Object) error {
 	}
 }
 
-func update(e *event) error {
+func update(e *event) error {\
 	switch o := e.Object.(type) {
 	case *api.Service:
 		key := cKey{o.Name, o.Namespace, serviceType}

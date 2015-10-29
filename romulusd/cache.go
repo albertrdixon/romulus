@@ -22,8 +22,10 @@ type cMap struct {
 	m map[cKey]cValue
 }
 
-func newCache() *cMap {
-	return &cMap{m: make(map[cKey]cValue)}
+func initCache() {
+	if cache == nil {
+		cache = &cMap{m: make(map[cKey]cValue)}
+	}
 }
 
 func (k cKey) String() string {
@@ -56,10 +58,7 @@ func (m *cMap) del(key cKey) {
 }
 
 func getService(name, ns string, t time.Time) (cValue, bool, error) {
-	if cache == nil {
-		cache = newCache()
-	}
-
+	initCache()
 	key := cKey{name, ns, serviceType}
 	val, ok := cache.get(key)
 	if ok {
@@ -88,10 +87,7 @@ func getService(name, ns string, t time.Time) (cValue, bool, error) {
 }
 
 func getEndpoints(name, ns string, t time.Time) (cValue, bool, error) {
-	if cache == nil {
-		cache = newCache()
-	}
-
+	initCache()
 	key := cKey{name, ns, endpointsType}
 	val, ok := cache.get(key)
 	if ok {

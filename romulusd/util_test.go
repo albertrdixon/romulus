@@ -19,7 +19,7 @@ func setup(t *testing.T) (*assert.Assertions, *require.Assertions) {
 		setupLog()
 	}
 	test = true
-	cache = newCache()
+	initCache()
 	*vulcanKey = "/vulcand-test"
 	return assert.New(t), require.New(t)
 }
