@@ -112,10 +112,13 @@ func remove(r runtime.Object) error {
 func update(e *event) error {
 	switch o := e.Object.(type) {
 	case *api.Service:
-		s, ok, er := getService(o.Name, o.Namespace, e.t)
-		if !ok {
-			return er
+		key := cKey{o.Name, o.Namespace, serviceType}
+		s, ok := cache.get(key)
+		if ok && s.moreRecent(e.t) {
+			debugf("Event is old, rejecting (%v)", e)
+			return nil
 		}
+		cache.put(key, o, e.t)
 
 		en, ok, er := getEndpoints(o.Name, o.Namespace, e.t)
 		if !ok {
@@ -125,19 +128,17 @@ func update(e *event) error {
 			return er
 		}
 
-		if s.moreRecent(e.t) {
-			debugf("Event is old, rejecting (%v)", e)
-			return nil
-		}
-
 		resourceVersion = o.ResourceVersion
 		ep, _ := en.obj.(*api.Endpoints)
 		return register(o, ep)
 	case *api.Endpoints:
-		en, ok, er := getEndpoints(o.Name, o.Namespace, e.t)
-		if !ok {
-			return er
+		key := cKey{o.Name, o.Namespace, endpointsType}
+		ep, ok := cache.get(key)
+		if ok && ep.moreRecent(e.t) {
+			debugf("Event is old, rejecting (%v)", e)
+			return nil
 		}
+		cache.put(key, o, e.t)
 
 		s, ok, er := getService(o.Name, o.Namespace, e.t)
 		if !ok {
@@ -145,11 +146,6 @@ func update(e *event) error {
 				warnf("Could not find Service for %v", endpoints{o})
 			}
 			return er
-		}
-
-		if en.moreRecent(e.t) {
-			debugf("Event is old, rejecting (%v)", e)
-			return nil
 		}
 
 		resourceVersion = o.ResourceVersion
