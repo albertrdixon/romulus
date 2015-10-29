@@ -110,7 +110,7 @@ func remove(r runtime.Object) error {
 	}
 }
 
-func update(e *event) error {\
+func update(e *event) error {
 	switch o := e.Object.(type) {
 	case *api.Service:
 		key := cKey{o.Name, o.Namespace, serviceType}
