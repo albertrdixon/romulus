@@ -202,15 +202,21 @@ func NewFrontend(id, bid string, route ...string) *Frontend {
 
 // NewBackendSettings returns BackendSettings from raw JSON
 func NewBackendSettings(p []byte) *BackendSettings {
-	var ba BackendSettings
-	gJSON.Decode(&ba, p)
-	return &ba
+	ba := new(BackendSettings)
+	if er := gJSON.Decode(ba, p); er != nil {
+		warnf("Failed to Marshal settings %q: %v", string(p), er)
+		return nil
+	}
+	return ba
 }
 
 // NewFrontendSettings returns FrontendSettings from raw JSON
 func NewFrontendSettings(p []byte) *FrontendSettings {
 	var f FrontendSettings
-	gJSON.Decode(&f, p)
+	if er := gJSON.Decode(&f, p); er != nil {
+		warnf("Failed to Marshal settings %q: %v", string(p), er)
+		return nil
+	}
 	return &f
 }
 
