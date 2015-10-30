@@ -8,7 +8,26 @@ metadata:
   annotations:
     romulus/host.web: 'www.example.com'
     romulus/path.web: '/web'
-    romulus/frontendSettings: '{"FailoverPredicate":"(IsNetworkError() || ResponseCode() == 503) && Attempts() <= 2"}}'
+    romulus/frontendSettings: '{
+      "Limits": {
+        "MaxMemBodyBytes": 12,
+        "MaxBodyBytes":    400
+      },
+      "FailoverPredicate":  "IsNetworkError() && Attempts() <= 1",
+      "Hostname":           "host1",
+      "TrustForwardHeader": true
+    }'
+    romulus/backendSettings: '{
+      "Timeouts": {
+        "Read":         "2s",
+        "Dial":         "2s",
+        "TLSHandshake": "2s"
+      },
+      "KeepAlive": {
+        "Period":             "2s",
+        "MaxIdleConnsPerHost": 3
+      }
+    }'
     romulus/middleware.1: '{"Priority":0,"Type":"ratelimit","Middleware":{"Requests":1,"PeriodSeconds":1,"Burst":3,"Variable": "client.ip"}}'
   labels:
     name: singlePort

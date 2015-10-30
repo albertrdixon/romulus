@@ -76,7 +76,8 @@ func registerBackends(e *api.Endpoints, s *api.Service) (*BackendList, error) {
 				continue
 			}
 
-			if t, ok := s.Annotations[labelf("type", port.Name)]; ok {
+			ano := s.Annotations
+			if t, ok := getConfigItem(ano, "type", port.Name); ok {
 				switch t {
 				default:
 					bnd.Type = HTTP
@@ -86,7 +87,7 @@ func registerBackends(e *api.Endpoints, s *api.Service) (*BackendList, error) {
 					bnd.Type = WSS
 				}
 			}
-			if st, ok := s.Annotations[labelf("backendSettings", port.Name)]; ok {
+			if st, ok := getConfigItem(ano, "backendSettings", port.Name); ok {
 				bnd.Settings = NewBackendSettings([]byte(st))
 				debugf("Backend settings: %q", bnd.Settings)
 			}
@@ -168,11 +169,12 @@ func registerFrontends(s *api.Service, bnds *BackendList) error {
 		}
 
 		fnd.Route = buildRoute(port.Name, s.Annotations)
-		if st, ok := s.Annotations[labelf("frontendSettings", port.Name)]; ok {
+		ano := s.Annotations
+		if st, ok := getConfigItem(ano, "frontendSettings", port.Name); ok {
 			fnd.Settings = NewFrontendSettings([]byte(st))
 			debugf("Frontend settings: %v", fnd.Settings)
 		}
-		if t, ok := s.Annotations[labelf("type", port.Name)]; ok {
+		if t, ok := getConfigItem(ano, "type", port.Name); ok {
 			switch t {
 			default:
 				fnd.Type = HTTP

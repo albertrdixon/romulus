@@ -31,6 +31,15 @@ func (p ppSlice) String() string {
 	return fmt.Sprintf("[%s]", strings.Join(p, ", "))
 }
 
+func getConfigItem(m map[string]string, key, ns string) (val string, ok bool) {
+	key = strings.Join([]string{"romulus", key}, "/")
+	if val, ok = m[key]; ok || len(ns) < 1 {
+		return
+	}
+	val, ok = m[strings.Join([]string{key, ns}, ".")]
+	return
+}
+
 func annotationf(p, n string) string {
 	if !strings.HasPrefix(p, "romulus/") {
 		return fmt.Sprintf("romulus/%s%s", p, n)

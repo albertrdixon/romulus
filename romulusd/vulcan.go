@@ -5,7 +5,6 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-	"time"
 
 	"k8s.io/kubernetes/pkg/runtime"
 
@@ -93,15 +92,15 @@ type BackendSettings struct {
 
 // BackendSettingsTimeouts is vulcand settings for backend timeouts
 type BackendSettingsTimeouts struct {
-	Read         time.Duration `json:",omitempty"`
-	Dial         time.Duration `json:",omitempty"`
-	TLSHandshake time.Duration `json:",omitempty"`
+	Read         Duration `json:",omitempty"`
+	Dial         Duration `json:",omitempty"`
+	TLSHandshake Duration `json:",omitempty"`
 }
 
 // BackendSettingsKeepAlive is vulcand settings for backend keep alive
 type BackendSettingsKeepAlive struct {
-	Period              time.Duration `json:",omitempty"`
-	MaxIdleConnsPerHost int           `json:",omitempty"`
+	Period              Duration `json:",omitempty"`
+	MaxIdleConnsPerHost int      `json:",omitempty"`
 }
 
 type TLSSettings struct {
@@ -202,12 +201,12 @@ func NewFrontend(id, bid string, route ...string) *Frontend {
 
 // NewBackendSettings returns BackendSettings from raw JSON
 func NewBackendSettings(p []byte) *BackendSettings {
-	ba := new(BackendSettings)
-	if er := gJSON.Decode(ba, p); er != nil {
+	var ba BackendSettings
+	if er := gJSON.Decode(&ba, p); er != nil {
 		warnf("Failed to Marshal settings %q: %v", string(p), er)
 		return nil
 	}
-	return ba
+	return &ba
 }
 
 // NewFrontendSettings returns FrontendSettings from raw JSON
@@ -293,9 +292,9 @@ func (s ServerMap) IPs() []string {
 }
 
 func encode(v VulcanObject) (string, error) {
-	s, e := gJSON.Encode(v)
-	if e != nil {
-		return s, e
+	s, er := gJSON.Encode(v)
+	if er != nil {
+		return s, er
 	}
 	return strings.TrimSpace(s), nil
 }

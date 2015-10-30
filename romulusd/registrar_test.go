@@ -2,6 +2,7 @@ package main
 
 import (
 	"testing"
+	"time"
 
 	"k8s.io/kubernetes/pkg/runtime"
 	"k8s.io/kubernetes/pkg/watch"
@@ -41,9 +42,32 @@ var (
 	apiMultiPortID = getVulcanID("multiPort", "test", "api")
 	webMultiPortID = getVulcanID("multiPort", "test", "web")
 	resourceVerID  = getVulcanID("resource", "test", "web")
-	singlePort     = []VulcanObject{
-		NewBackend(singlePortID),
-		NewFrontend(singlePortID, singlePortID, "Host(`www.example.com`)", "Path(`/web`)"),
+
+	bs = &BackendSettings{
+		Timeouts: &BackendSettingsTimeouts{
+			Read:         defaultDuration,
+			Dial:         defaultDuration,
+			TLSHandshake: defaultDuration,
+		},
+		KeepAlive: &BackendSettingsKeepAlive{
+			Period:              defaultDuration,
+			MaxIdleConnsPerHost: 3,
+		},
+	}
+	fs = &FrontendSettings{
+		Limits: &FrontendSettingsLimits{
+			MaxMemBodyBytes: 12,
+			MaxBodyBytes:    400,
+		},
+		FailoverPredicate:  "IsNetworkError() && Attempts() <= 1",
+		Hostname:           "host1",
+		TrustForwardHeader: true,
+	}
+	defaultDuration = Duration(2 * time.Second)
+	singlePort      = []VulcanObject{
+		&Backend{ID: singlePortID, Type: HTTP, Settings: bs},
+		&Frontend{ID: singlePortID, BackendID: singlePortID, Type: HTTP, Route: "Host(`www.example.com`) && Path(`/web`)",
+			Settings: fs},
 	}
 	multiPort = []VulcanObject{
 		&Backend{ID: apiMultiPortID, Type: WS},
