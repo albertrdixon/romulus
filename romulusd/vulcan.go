@@ -155,6 +155,7 @@ type FrontendSettings struct {
 	FailoverPredicate  string                  `json:",omitempty"`
 	Hostname           string                  `json:",omitempty"`
 	TrustForwardHeader bool                    `json:",omitempty"`
+	PassHostHeader     bool                    `json:",omitempty"`
 	Limits             *FrontendSettingsLimits `json:",omitempty"`
 }
 
