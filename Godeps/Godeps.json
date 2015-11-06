@@ -31,14 +31,13 @@
 			"Rev": "b965b613227fddccbfffe13eae360ed3fa822f8d"
 		},
 		{
-			"ImportPath": "github.com/coreos/etcd/Godeps/_workspace/src/github.com/ugorji/go/codec",
-			"Comment": "v2.2.0-190-g6afd8e4",
-			"Rev": "6afd8e4fd91d5f5b400937a7d897bc7a76e17158"
+			"ImportPath": "github.com/codahale/hdrhistogram",
+			"Rev": "954f16e8b9ef0e5d5189456aa4c1202758e04f17"
 		},
 		{
-			"ImportPath": "github.com/coreos/etcd/Godeps/_workspace/src/golang.org/x/net/context",
-			"Comment": "v2.2.0-190-g6afd8e4",
-			"Rev": "6afd8e4fd91d5f5b400937a7d897bc7a76e17158"
+			"ImportPath": "github.com/codegangsta/cli",
+			"Comment": "1.2.0-161-gf445c89",
+			"Rev": "f445c894402839580d30de47551cedc152dad814"
 		},
 		{
 			"ImportPath": "github.com/coreos/etcd/client",
@@ -94,84 +93,60 @@
 			"Rev": "772f5c38e468398c4511514f4f6aa9a4185bc0a0"
 		},
 		{
-			"ImportPath": "github.com/mailgun/vulcand/Godeps/_workspace/src/github.com/codahale/hdrhistogram",
-			"Comment": "v0.8.0-beta.3-46-g791285c",
-			"Rev": "791285c97cbf28f8eac1ef7222e103990c2d0b08"
+			"ImportPath": "github.com/mailgun/log",
+			"Rev": "2f35a4607f1abf71f97f77f99b0de8493ef6f4ef"
 		},
 		{
-			"ImportPath": "github.com/mailgun/vulcand/Godeps/_workspace/src/github.com/codegangsta/cli",
-			"Comment": "v0.8.0-beta.3-46-g791285c",
-			"Rev": "791285c97cbf28f8eac1ef7222e103990c2d0b08"
+			"ImportPath": "github.com/mailgun/minheap",
+			"Rev": "7c28d80e2ada649fc8ab1a37b86d30a2633bd47c"
 		},
 		{
-			"ImportPath": "github.com/mailgun/vulcand/Godeps/_workspace/src/github.com/mailgun/log",
-			"Comment": "v0.8.0-beta.3-46-g791285c",
-			"Rev": "791285c97cbf28f8eac1ef7222e103990c2d0b08"
+			"ImportPath": "github.com/mailgun/multibuf",
+			"Rev": "565402cd71fbd9c12aa7e295324ea357e970a61e"
 		},
 		{
-			"ImportPath": "github.com/mailgun/vulcand/Godeps/_workspace/src/github.com/mailgun/minheap",
-			"Comment": "v0.8.0-beta.3-46-g791285c",
-			"Rev": "791285c97cbf28f8eac1ef7222e103990c2d0b08"
+			"ImportPath": "github.com/mailgun/oxy/cbreaker",
+			"Rev": "547c334d658398c05b346c0b79d8f47ba2e1473b"
 		},
 		{
-			"ImportPath": "github.com/mailgun/vulcand/Godeps/_workspace/src/github.com/mailgun/multibuf",
-			"Comment": "v0.8.0-beta.3-46-g791285c",
-			"Rev": "791285c97cbf28f8eac1ef7222e103990c2d0b08"
+			"ImportPath": "github.com/mailgun/oxy/connlimit",
+			"Rev": "547c334d658398c05b346c0b79d8f47ba2e1473b"
 		},
 		{
-			"ImportPath": "github.com/mailgun/vulcand/Godeps/_workspace/src/github.com/mailgun/oxy/cbreaker",
-			"Comment": "v0.8.0-beta.3-46-g791285c",
-			"Rev": "791285c97cbf28f8eac1ef7222e103990c2d0b08"
+			"ImportPath": "github.com/mailgun/oxy/memmetrics",
+			"Rev": "547c334d658398c05b346c0b79d8f47ba2e1473b"
 		},
 		{
-			"ImportPath": "github.com/mailgun/vulcand/Godeps/_workspace/src/github.com/mailgun/oxy/connlimit",
-			"Comment": "v0.8.0-beta.3-46-g791285c",
-			"Rev": "791285c97cbf28f8eac1ef7222e103990c2d0b08"
+			"ImportPath": "github.com/mailgun/oxy/ratelimit",
+			"Rev": "547c334d658398c05b346c0b79d8f47ba2e1473b"
 		},
 		{
-			"ImportPath": "github.com/mailgun/vulcand/Godeps/_workspace/src/github.com/mailgun/oxy/memmetrics",
-			"Comment": "v0.8.0-beta.3-46-g791285c",
-			"Rev": "791285c97cbf28f8eac1ef7222e103990c2d0b08"
+			"ImportPath": "github.com/mailgun/oxy/stream",
+			"Rev": "547c334d658398c05b346c0b79d8f47ba2e1473b"
 		},
 		{
-			"ImportPath": "github.com/mailgun/vulcand/Godeps/_workspace/src/github.com/mailgun/oxy/ratelimit",
-			"Comment": "v0.8.0-beta.3-46-g791285c",
-			"Rev": "791285c97cbf28f8eac1ef7222e103990c2d0b08"
+			"ImportPath": "github.com/mailgun/oxy/trace",
+			"Rev": "547c334d658398c05b346c0b79d8f47ba2e1473b"
 		},
 		{
-			"ImportPath": "github.com/mailgun/vulcand/Godeps/_workspace/src/github.com/mailgun/oxy/stream",
-			"Comment": "v0.8.0-beta.3-46-g791285c",
-			"Rev": "791285c97cbf28f8eac1ef7222e103990c2d0b08"
+			"ImportPath": "github.com/mailgun/oxy/utils",
+			"Rev": "547c334d658398c05b346c0b79d8f47ba2e1473b"
 		},
 		{
-			"ImportPath": "github.com/mailgun/vulcand/Godeps/_workspace/src/github.com/mailgun/oxy/trace",
-			"Comment": "v0.8.0-beta.3-46-g791285c",
-			"Rev": "791285c97cbf28f8eac1ef7222e103990c2d0b08"
+			"ImportPath": "github.com/mailgun/predicate",
+			"Rev": "cb0bff91a7ab7cf7571e661ff883fc997bc554a3"
 		},
 		{
-			"ImportPath": "github.com/mailgun/vulcand/Godeps/_workspace/src/github.com/mailgun/oxy/utils",
-			"Comment": "v0.8.0-beta.3-46-g791285c",
-			"Rev": "791285c97cbf28f8eac1ef7222e103990c2d0b08"
+			"ImportPath": "github.com/mailgun/route",
+			"Rev": "87a5c4a010f9f56d91579c86fc74351c8af92b2d"
 		},
 		{
-			"ImportPath": "github.com/mailgun/vulcand/Godeps/_workspace/src/github.com/mailgun/predicate",
-			"Comment": "v0.8.0-beta.3-46-g791285c",
-			"Rev": "791285c97cbf28f8eac1ef7222e103990c2d0b08"
+			"ImportPath": "github.com/mailgun/timetools",
+			"Rev": "fd192d755b00c968d312d23f521eb0cdc6f66bd0"
 		},
 		{
-			"ImportPath": "github.com/mailgun/vulcand/Godeps/_workspace/src/github.com/mailgun/route",
-			"Comment": "v0.8.0-beta.3-46-g791285c",
-			"Rev": "791285c97cbf28f8eac1ef7222e103990c2d0b08"
-		},
-		{
-			"ImportPath": "github.com/mailgun/vulcand/Godeps/_workspace/src/github.com/mailgun/timetools",
-			"Comment": "v0.8.0-beta.3-46-g791285c",
-			"Rev": "791285c97cbf28f8eac1ef7222e103990c2d0b08"
-		},
-		{
-			"ImportPath": "github.com/mailgun/vulcand/Godeps/_workspace/src/github.com/mailgun/ttlmap",
-			"Comment": "v0.8.0-beta.3-46-g791285c",
-			"Rev": "791285c97cbf28f8eac1ef7222e103990c2d0b08"
+			"ImportPath": "github.com/mailgun/ttlmap",
+			"Rev": "16b258d86efc53ac5cf3e550604f566c32624fab"
 		},
 		{
 			"ImportPath": "github.com/mailgun/vulcand/engine",
@@ -226,6 +201,10 @@
 			"ImportPath": "github.com/stretchr/testify/require",
 			"Comment": "v1.0-51-gf3960ab",
 			"Rev": "f3960ab1f9664ecc4e27c78af27cc9063d745a43"
+		},
+		{
+			"ImportPath": "github.com/ugorji/go/codec",
+			"Rev": "b331ab22c37e164df5bf90655ae4f1c59f13b547"
 		},
 		{
 			"ImportPath": "golang.org/x/crypto/curve25519",
