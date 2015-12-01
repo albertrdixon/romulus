@@ -23,7 +23,7 @@ import (
 	v1 "k8s.io/kubernetes/pkg/api/v1"
 	"k8s.io/kubernetes/pkg/apis/extensions"
 	"k8s.io/kubernetes/pkg/conversion"
-	"k8s.io/kubernetes/pkg/util"
+	"k8s.io/kubernetes/pkg/util/intstr"
 )
 
 func addConversionFuncs() {
@@ -203,8 +203,8 @@ func convert_extensions_DeploymentSpec_To_v1beta1_DeploymentSpec(in *extensions.
 	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
 		defaulting.(func(*extensions.DeploymentSpec))(in)
 	}
-	out.Replicas = new(int)
-	*out.Replicas = in.Replicas
+	out.Replicas = new(int32)
+	*out.Replicas = int32(in.Replicas)
 	if in.Selector != nil {
 		out.Selector = make(map[string]string)
 		for key, val := range in.Selector {
@@ -213,13 +213,8 @@ func convert_extensions_DeploymentSpec_To_v1beta1_DeploymentSpec(in *extensions.
 	} else {
 		out.Selector = nil
 	}
-	if in.Template != nil {
-		out.Template = new(v1.PodTemplateSpec)
-		if err := convert_api_PodTemplateSpec_To_v1_PodTemplateSpec(in.Template, out.Template, s); err != nil {
-			return err
-		}
-	} else {
-		out.Template = nil
+	if err := convert_api_PodTemplateSpec_To_v1_PodTemplateSpec(&in.Template, &out.Template, s); err != nil {
+		return err
 	}
 	if err := convert_extensions_DeploymentStrategy_To_v1beta1_DeploymentStrategy(&in.Strategy, &out.Strategy, s); err != nil {
 		return err
@@ -234,7 +229,7 @@ func convert_v1beta1_DeploymentSpec_To_extensions_DeploymentSpec(in *DeploymentS
 		defaulting.(func(*DeploymentSpec))(in)
 	}
 	if in.Replicas != nil {
-		out.Replicas = *in.Replicas
+		out.Replicas = int(*in.Replicas)
 	}
 	if in.Selector != nil {
 		out.Selector = make(map[string]string)
@@ -244,13 +239,8 @@ func convert_v1beta1_DeploymentSpec_To_extensions_DeploymentSpec(in *DeploymentS
 	} else {
 		out.Selector = nil
 	}
-	if in.Template != nil {
-		out.Template = new(api.PodTemplateSpec)
-		if err := convert_v1_PodTemplateSpec_To_api_PodTemplateSpec(in.Template, out.Template, s); err != nil {
-			return err
-		}
-	} else {
-		out.Template = nil
+	if err := convert_v1_PodTemplateSpec_To_api_PodTemplateSpec(&in.Template, &out.Template, s); err != nil {
+		return err
 	}
 	if err := convert_v1beta1_DeploymentStrategy_To_extensions_DeploymentStrategy(&in.Strategy, &out.Strategy, s); err != nil {
 		return err
@@ -298,18 +288,18 @@ func convert_extensions_RollingUpdateDeployment_To_v1beta1_RollingUpdateDeployme
 		defaulting.(func(*extensions.RollingUpdateDeployment))(in)
 	}
 	if out.MaxUnavailable == nil {
-		out.MaxUnavailable = &util.IntOrString{}
+		out.MaxUnavailable = &intstr.IntOrString{}
 	}
 	if err := s.Convert(&in.MaxUnavailable, out.MaxUnavailable, 0); err != nil {
 		return err
 	}
 	if out.MaxSurge == nil {
-		out.MaxSurge = &util.IntOrString{}
+		out.MaxSurge = &intstr.IntOrString{}
 	}
 	if err := s.Convert(&in.MaxSurge, out.MaxSurge, 0); err != nil {
 		return err
 	}
-	out.MinReadySeconds = in.MinReadySeconds
+	out.MinReadySeconds = int32(in.MinReadySeconds)
 	return nil
 }
 
@@ -323,7 +313,7 @@ func convert_v1beta1_RollingUpdateDeployment_To_extensions_RollingUpdateDeployme
 	if err := s.Convert(in.MaxSurge, &out.MaxSurge, 0); err != nil {
 		return err
 	}
-	out.MinReadySeconds = in.MinReadySeconds
+	out.MinReadySeconds = int(in.MinReadySeconds)
 	return nil
 }
 
@@ -331,12 +321,68 @@ func convert_api_PodSecurityContext_To_v1_PodSecurityContext(in *api.PodSecurity
 	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
 		defaulting.(func(*api.PodSecurityContext))(in)
 	}
+
+	out.SupplementalGroups = in.SupplementalGroups
+	if in.SELinuxOptions != nil {
+		out.SELinuxOptions = new(v1.SELinuxOptions)
+		if err := convert_api_SELinuxOptions_To_v1_SELinuxOptions(in.SELinuxOptions, out.SELinuxOptions, s); err != nil {
+			return err
+		}
+	} else {
+		out.SELinuxOptions = nil
+	}
+	if in.RunAsUser != nil {
+		out.RunAsUser = new(int64)
+		*out.RunAsUser = *in.RunAsUser
+	} else {
+		out.RunAsUser = nil
+	}
+	if in.RunAsNonRoot != nil {
+		out.RunAsNonRoot = new(bool)
+		*out.RunAsNonRoot = *in.RunAsNonRoot
+	} else {
+		out.RunAsNonRoot = nil
+	}
+	if in.FSGroup != nil {
+		out.FSGroup = new(int64)
+		*out.FSGroup = *in.FSGroup
+	} else {
+		out.FSGroup = nil
+	}
 	return nil
 }
 
 func convert_v1_PodSecurityContext_To_api_PodSecurityContext(in *v1.PodSecurityContext, out *api.PodSecurityContext, s conversion.Scope) error {
 	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
 		defaulting.(func(*v1.PodSecurityContext))(in)
+	}
+
+	out.SupplementalGroups = in.SupplementalGroups
+	if in.SELinuxOptions != nil {
+		out.SELinuxOptions = new(api.SELinuxOptions)
+		if err := convert_v1_SELinuxOptions_To_api_SELinuxOptions(in.SELinuxOptions, out.SELinuxOptions, s); err != nil {
+			return err
+		}
+	} else {
+		out.SELinuxOptions = nil
+	}
+	if in.RunAsUser != nil {
+		out.RunAsUser = new(int64)
+		*out.RunAsUser = *in.RunAsUser
+	} else {
+		out.RunAsUser = nil
+	}
+	if in.RunAsNonRoot != nil {
+		out.RunAsNonRoot = new(bool)
+		*out.RunAsNonRoot = *in.RunAsNonRoot
+	} else {
+		out.RunAsNonRoot = nil
+	}
+	if in.FSGroup != nil {
+		out.FSGroup = new(int64)
+		*out.FSGroup = *in.FSGroup
+	} else {
+		out.FSGroup = nil
 	}
 	return nil
 }

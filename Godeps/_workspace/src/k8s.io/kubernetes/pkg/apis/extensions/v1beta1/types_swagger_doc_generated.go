@@ -37,6 +37,14 @@ func (APIVersion) SwaggerDoc() map[string]string {
 	return map_APIVersion
 }
 
+var map_CPUTargetUtilization = map[string]string{
+	"targetPercentage": "fraction of the requested CPU that should be utilized/used, e.g. 70 means that 70% of the requested CPU should be in use.",
+}
+
+func (CPUTargetUtilization) SwaggerDoc() map[string]string {
+	return map_CPUTargetUtilization
+}
+
 var map_ClusterAutoscaler = map[string]string{
 	"metadata": "Standard object's metadata. More info: http://releases.k8s.io/HEAD/docs/devel/api-conventions.md#metadata For now (experimental api) it is required that the name is set to \"ClusterAutoscaler\" and namespace is \"default\".",
 	"spec":     "Spec defines the desired behavior of this daemon set. More info: http://releases.k8s.io/HEAD/docs/devel/api-conventions.md#spec-and-status",
@@ -163,9 +171,9 @@ func (DeploymentStrategy) SwaggerDoc() map[string]string {
 }
 
 var map_HTTPIngressPath = map[string]string{
-	"":        "IngressPath associates a path regex with an IngressBackend. Incoming urls matching the Path are forwarded to the Backend.",
-	"path":    "Path is a regex matched against the url of an incoming request.",
-	"backend": "Define the referenced service endpoint which the traffic will be forwarded to.",
+	"":        "HTTPIngressPath associates a path regex with a backend. Incoming urls matching the path are forwarded to the backend.",
+	"path":    "Path is a extended POSIX regex as defined by IEEE Std 1003.1, (i.e this follows the egrep/unix syntax, not the perl syntax) matched against the path of an incoming request. Currently it can contain characters disallowed from the conventional \"path\" part of a URL as defined by RFC 3986. Paths must begin with a '/'. If unspecified, the path defaults to a catch all sending traffic to the backend.",
+	"backend": "Backend defines the referenced service endpoint to which the traffic will be forwarded to.",
 }
 
 func (HTTPIngressPath) SwaggerDoc() map[string]string {
@@ -173,8 +181,8 @@ func (HTTPIngressPath) SwaggerDoc() map[string]string {
 }
 
 var map_HTTPIngressRuleValue = map[string]string{
-	"":      "HTTPIngressRuleValue is a list of http selectors pointing to IngressBackends. In the example: http://<host>/<path>?<searchpart> -> IngressBackend where parts of the url correspond to RFC 3986, this resource will be used to to match against everything after the last '/' and before the first '?' or '#'.",
-	"paths": "A collection of paths that map requests to IngressBackends.",
+	"":      "HTTPIngressRuleValue is a list of http selectors pointing to backends. In the example: http://<host>/<path>?<searchpart> -> backend where where parts of the url correspond to RFC 3986, this resource will be used to match against everything after the last '/' and before the first '?' or '#'.",
+	"paths": "A collection of paths that map requests to backends.",
 }
 
 func (HTTPIngressRuleValue) SwaggerDoc() map[string]string {
@@ -182,10 +190,10 @@ func (HTTPIngressRuleValue) SwaggerDoc() map[string]string {
 }
 
 var map_HorizontalPodAutoscaler = map[string]string{
-	"":         "HorizontalPodAutoscaler represents the configuration of a horizontal pod autoscaler.",
+	"":         "configuration of a horizontal pod autoscaler.",
 	"metadata": "Standard object metadata. More info: http://releases.k8s.io/HEAD/docs/devel/api-conventions.md#metadata",
-	"spec":     "Spec defines the behaviour of autoscaler. More info: http://releases.k8s.io/HEAD/docs/devel/api-conventions.md#spec-and-status.",
-	"status":   "Status represents the current information about the autoscaler.",
+	"spec":     "behaviour of autoscaler. More info: http://releases.k8s.io/HEAD/docs/devel/api-conventions.md#spec-and-status.",
+	"status":   "current information about the autoscaler.",
 }
 
 func (HorizontalPodAutoscaler) SwaggerDoc() map[string]string {
@@ -193,9 +201,9 @@ func (HorizontalPodAutoscaler) SwaggerDoc() map[string]string {
 }
 
 var map_HorizontalPodAutoscalerList = map[string]string{
-	"":         "HorizontalPodAutoscalerList is a list of HorizontalPodAutoscalers.",
+	"":         "list of horizontal pod autoscaler objects.",
 	"metadata": "Standard list metadata.",
-	"items":    "Items is the list of HorizontalPodAutoscalers.",
+	"items":    "list of horizontal pod autoscaler objects.",
 }
 
 func (HorizontalPodAutoscalerList) SwaggerDoc() map[string]string {
@@ -203,11 +211,11 @@ func (HorizontalPodAutoscalerList) SwaggerDoc() map[string]string {
 }
 
 var map_HorizontalPodAutoscalerSpec = map[string]string{
-	"":            "HorizontalPodAutoscalerSpec is the specification of a horizontal pod autoscaler.",
-	"scaleRef":    "ScaleRef is a reference to Scale subresource. HorizontalPodAutoscaler will learn the current resource consumption from its status, and will set the desired number of pods by modyfying its spec.",
-	"minReplicas": "MinReplicas is the lower limit for the number of pods that can be set by the autoscaler.",
-	"maxReplicas": "MaxReplicas is the upper limit for the number of pods that can be set by the autoscaler. It cannot be smaller than MinReplicas.",
-	"target":      "Target is the target average consumption of the given resource that the autoscaler will try to maintain by adjusting the desired number of pods. Currently two types of resources are supported: \"cpu\" and \"memory\".",
+	"":               "specification of a horizontal pod autoscaler.",
+	"scaleRef":       "reference to Scale subresource; horizontal pod autoscaler will learn the current resource consumption from its status, and will set the desired number of pods by modifying its spec.",
+	"minReplicas":    "lower limit for the number of pods that can be set by the autoscaler, default 1.",
+	"maxReplicas":    "upper limit for the number of pods that can be set by the autoscaler; cannot be smaller than MinReplicas.",
+	"cpuUtilization": "target average CPU utilization (represented as a percentage of requested CPU) over all the pods; if not specified it defaults to the target CPU utilization at 80% of the requested resources.",
 }
 
 func (HorizontalPodAutoscalerSpec) SwaggerDoc() map[string]string {
@@ -215,11 +223,12 @@ func (HorizontalPodAutoscalerSpec) SwaggerDoc() map[string]string {
 }
 
 var map_HorizontalPodAutoscalerStatus = map[string]string{
-	"":                   "HorizontalPodAutoscalerStatus contains the current status of a horizontal pod autoscaler",
-	"currentReplicas":    "CurrentReplicas is the number of replicas of pods managed by this autoscaler.",
-	"desiredReplicas":    "DesiredReplicas is the desired number of replicas of pods managed by this autoscaler.",
-	"currentConsumption": "CurrentConsumption is the current average consumption of the given resource that the autoscaler will try to maintain by adjusting the desired number of pods. Two types of resources are supported: \"cpu\" and \"memory\".",
-	"lastScaleTimestamp": "LastScaleTimestamp is the last time the HorizontalPodAutoscaler scaled the number of pods. This is used by the autoscaler to controll how often the number of pods is changed.",
+	"":                                "current status of a horizontal pod autoscaler",
+	"observedGeneration":              "most recent generation observed by this autoscaler.",
+	"lastScaleTime":                   "last time the HorizontalPodAutoscaler scaled the number of pods; used by the autoscaler to control how often the number of pods is changed.",
+	"currentReplicas":                 "current number of replicas of pods managed by this autoscaler.",
+	"desiredReplicas":                 "desired number of replicas of pods managed by this autoscaler.",
+	"currentCPUUtilizationPercentage": "current average CPU utilization over all pods, represented as a percentage of requested CPU, e.g. 70 means that an average pod is using now 70% of its requested CPU.",
 }
 
 func (HorizontalPodAutoscalerStatus) SwaggerDoc() map[string]string {
@@ -238,7 +247,7 @@ func (Ingress) SwaggerDoc() map[string]string {
 }
 
 var map_IngressBackend = map[string]string{
-	"":            "IngressBackend describes all endpoints for a given Service and port.",
+	"":            "IngressBackend describes all endpoints for a given service and port.",
 	"serviceName": "Specifies the name of the referenced service.",
 	"servicePort": "Specifies the port of the referenced service.",
 }
@@ -258,8 +267,8 @@ func (IngressList) SwaggerDoc() map[string]string {
 }
 
 var map_IngressRule = map[string]string{
-	"":     "IngressRule represents the rules mapping the paths under a specified host to the related backend services.",
-	"host": "Host is the fully qualified domain name of a network host, as defined by RFC 3986. Note the following deviations from the \"host\" part of the URI as defined in the RFC: 1. IPs are not allowed. Currently an IngressRuleValue can only apply to the\n\t  IP in the Spec of the parent Ingress.\n2. The `:` delimiter is not respected because ports are not allowed.\n\t  Currently the port of an Ingress is implicitly :80 for http and\n\t  :443 for https.\nBoth these may change in the future. Incoming requests are matched against the Host before the IngressRuleValue.",
+	"":     "IngressRule represents the rules mapping the paths under a specified host to the related backend services. Incoming requests are first evaluated for a host match, then routed to the backend associated with the matching IngressRuleValue.",
+	"host": "Host is the fully qualified domain name of a network host, as defined by RFC 3986. Note the following deviations from the \"host\" part of the URI as defined in the RFC: 1. IPs are not allowed. Currently an IngressRuleValue can only apply to the\n\t  IP in the Spec of the parent Ingress.\n2. The `:` delimiter is not respected because ports are not allowed.\n\t  Currently the port of an Ingress is implicitly :80 for http and\n\t  :443 for https.\nBoth these may change in the future. Incoming requests are matched against the host before the IngressRuleValue. If the host is unspecified, the Ingress routes all traffic based on the specified IngressRuleValue.",
 }
 
 func (IngressRule) SwaggerDoc() map[string]string {
@@ -267,8 +276,7 @@ func (IngressRule) SwaggerDoc() map[string]string {
 }
 
 var map_IngressRuleValue = map[string]string{
-	"":     "IngressRuleValue represents a rule to apply against incoming requests. If the rule is satisfied, the request is routed to the specified backend.",
-	"http": "Currently mixing different types of rules in a single Ingress is disallowed, so exactly one of the following must be set.",
+	"": "IngressRuleValue represents a rule to apply against incoming requests. If the rule is satisfied, the request is routed to the specified backend. Currently mixing different types of rules in a single Ingress is disallowed, so exactly one of the following must be set.",
 }
 
 func (IngressRuleValue) SwaggerDoc() map[string]string {
@@ -277,8 +285,8 @@ func (IngressRuleValue) SwaggerDoc() map[string]string {
 
 var map_IngressSpec = map[string]string{
 	"":        "IngressSpec describes the Ingress the user wishes to exist.",
-	"backend": "A default backend capable of servicing requests that don't match any IngressRule. It is optional to allow the loadbalancer controller or defaulting logic to specify a global default.",
-	"rules":   "A list of host rules used to configure the Ingress.",
+	"backend": "A default backend capable of servicing requests that don't match any rule. At least one of 'backend' or 'rules' must be specified. This field is optional to allow the loadbalancer controller or defaulting logic to specify a global default.",
+	"rules":   "A list of host rules used to configure the Ingress. If unspecified, or no rule matches, all traffic is sent to the default backend.",
 }
 
 func (IngressSpec) SwaggerDoc() map[string]string {
@@ -364,22 +372,33 @@ func (NodeUtilization) SwaggerDoc() map[string]string {
 	return map_NodeUtilization
 }
 
+var map_PodSelector = map[string]string{
+	"":                 "A pod selector is a label query over a set of pods. The result of matchLabels and matchExpressions are ANDed. An empty pod selector matches all objects. A null pod selector matches no objects.",
+	"matchLabels":      "matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels map is equivalent to an element of matchExpressions, whose key field is \"key\", the operator is \"In\", and the values array contains only \"value\". The requirements are ANDed.",
+	"matchExpressions": "matchExpressions is a list of pod selector requirements. The requirements are ANDed.",
+}
+
+func (PodSelector) SwaggerDoc() map[string]string {
+	return map_PodSelector
+}
+
+var map_PodSelectorRequirement = map[string]string{
+	"":         "A pod selector requirement is a selector that contains values, a key, and an operator that relates the key and values.",
+	"key":      "key is the label key that the selector applies to.",
+	"operator": "operator represents a key's relationship to a set of values. Valid operators ard In, NotIn, Exists and DoesNotExist.",
+	"values":   "values is an array of string values. If the operator is In or NotIn, the values array must be non-empty. If the operator is Exists or DoesNotExist, the values array must be empty. This array is replaced during a strategic merge patch.",
+}
+
+func (PodSelectorRequirement) SwaggerDoc() map[string]string {
+	return map_PodSelectorRequirement
+}
+
 var map_ReplicationControllerDummy = map[string]string{
 	"": "Dummy definition",
 }
 
 func (ReplicationControllerDummy) SwaggerDoc() map[string]string {
 	return map_ReplicationControllerDummy
-}
-
-var map_ResourceConsumption = map[string]string{
-	"":         "ResourceConsumption is an object for specifying average resource consumption of a particular resource.",
-	"resource": "Resource specifies either the name of the target resource when present in the spec, or the name of the observed resource when present in the status.",
-	"quantity": "Quantity specifies either the target average consumption of the resource when present in the spec, or the observed average consumption when present in the status.",
-}
-
-func (ResourceConsumption) SwaggerDoc() map[string]string {
-	return map_ResourceConsumption
 }
 
 var map_RollingUpdateDeployment = map[string]string{
@@ -394,10 +413,10 @@ func (RollingUpdateDeployment) SwaggerDoc() map[string]string {
 }
 
 var map_Scale = map[string]string{
-	"":         "Scale subresource, applicable to ReplicationControllers and (in future) Deployment.",
+	"":         "represents a scaling request for a resource.",
 	"metadata": "Standard object metadata; More info: http://releases.k8s.io/HEAD/docs/devel/api-conventions.md#metadata.",
-	"spec":     "Spec defines the behavior of the scale. More info: http://releases.k8s.io/HEAD/docs/devel/api-conventions.md#spec-and-status.",
-	"status":   "Status represents the current status of the scale. More info: http://releases.k8s.io/HEAD/docs/devel/api-conventions.md#spec-and-status. Read-only.",
+	"spec":     "defines the behavior of the scale. More info: http://releases.k8s.io/HEAD/docs/devel/api-conventions.md#spec-and-status.",
+	"status":   "current status of the scale. More info: http://releases.k8s.io/HEAD/docs/devel/api-conventions.md#spec-and-status. Read-only.",
 }
 
 func (Scale) SwaggerDoc() map[string]string {
@@ -405,8 +424,8 @@ func (Scale) SwaggerDoc() map[string]string {
 }
 
 var map_ScaleSpec = map[string]string{
-	"":         "ScaleSpec describes the attributes a Scale subresource",
-	"replicas": "Replicas is the number of desired replicas. More info: http://releases.k8s.io/HEAD/docs/user-guide/replication-controller.md#what-is-a-replication-controller\"",
+	"":         "describes the attributes of a scale subresource",
+	"replicas": "desired number of instances for the scaled object.",
 }
 
 func (ScaleSpec) SwaggerDoc() map[string]string {
@@ -414,9 +433,9 @@ func (ScaleSpec) SwaggerDoc() map[string]string {
 }
 
 var map_ScaleStatus = map[string]string{
-	"":         "ScaleStatus represents the current status of a Scale subresource.",
-	"replicas": "Replicas is the number of actual replicas. More info: http://releases.k8s.io/HEAD/docs/user-guide/replication-controller.md#what-is-a-replication-controller",
-	"selector": "Selector is a label query over pods that should match the replicas count. If it is empty, it is defaulted to labels on Pod template; More info: http://releases.k8s.io/HEAD/docs/user-guide/labels.md#label-selectors",
+	"":         "represents the current status of a scale subresource.",
+	"replicas": "actual number of observed instances of the scaled object.",
+	"selector": "label query over pods that should match the replicas count. More info: http://releases.k8s.io/HEAD/docs/user-guide/labels.md#label-selectors",
 }
 
 func (ScaleStatus) SwaggerDoc() map[string]string {
@@ -426,7 +445,6 @@ func (ScaleStatus) SwaggerDoc() map[string]string {
 var map_SubresourceReference = map[string]string{
 	"":            "SubresourceReference contains enough information to let you inspect or modify the referred subresource.",
 	"kind":        "Kind of the referent; More info: http://releases.k8s.io/HEAD/docs/devel/api-conventions.md#types-kinds\"",
-	"namespace":   "Namespace of the referent; More info: http://releases.k8s.io/HEAD/docs/user-guide/namespaces.md",
 	"name":        "Name of the referent; More info: http://releases.k8s.io/HEAD/docs/user-guide/identifiers.md#names",
 	"apiVersion":  "API version of the referent",
 	"subresource": "Subresource name of the referent",

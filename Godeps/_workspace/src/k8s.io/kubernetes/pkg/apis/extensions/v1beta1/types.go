@@ -17,37 +17,36 @@ limitations under the License.
 package v1beta1
 
 import (
-	"k8s.io/kubernetes/pkg/api/resource"
 	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/api/v1"
-	"k8s.io/kubernetes/pkg/util"
+	"k8s.io/kubernetes/pkg/util/intstr"
 )
 
-// ScaleSpec describes the attributes a Scale subresource
+// describes the attributes of a scale subresource
 type ScaleSpec struct {
-	// Replicas is the number of desired replicas. More info: http://releases.k8s.io/HEAD/docs/user-guide/replication-controller.md#what-is-a-replication-controller"
-	Replicas int `json:"replicas,omitempty"`
+	// desired number of instances for the scaled object.
+	Replicas int32 `json:"replicas,omitempty"`
 }
 
-// ScaleStatus represents the current status of a Scale subresource.
+// represents the current status of a scale subresource.
 type ScaleStatus struct {
-	// Replicas is the number of actual replicas. More info: http://releases.k8s.io/HEAD/docs/user-guide/replication-controller.md#what-is-a-replication-controller
-	Replicas int `json:"replicas"`
+	// actual number of observed instances of the scaled object.
+	Replicas int32 `json:"replicas"`
 
-	// Selector is a label query over pods that should match the replicas count. If it is empty, it is defaulted to labels on Pod template; More info: http://releases.k8s.io/HEAD/docs/user-guide/labels.md#label-selectors
+	// label query over pods that should match the replicas count. More info: http://releases.k8s.io/HEAD/docs/user-guide/labels.md#label-selectors
 	Selector map[string]string `json:"selector,omitempty"`
 }
 
-// Scale subresource, applicable to ReplicationControllers and (in future) Deployment.
+// represents a scaling request for a resource.
 type Scale struct {
 	unversioned.TypeMeta `json:",inline"`
 	// Standard object metadata; More info: http://releases.k8s.io/HEAD/docs/devel/api-conventions.md#metadata.
 	v1.ObjectMeta `json:"metadata,omitempty"`
 
-	// Spec defines the behavior of the scale. More info: http://releases.k8s.io/HEAD/docs/devel/api-conventions.md#spec-and-status.
+	// defines the behavior of the scale. More info: http://releases.k8s.io/HEAD/docs/devel/api-conventions.md#spec-and-status.
 	Spec ScaleSpec `json:"spec,omitempty"`
 
-	// Status represents the current status of the scale. More info: http://releases.k8s.io/HEAD/docs/devel/api-conventions.md#spec-and-status. Read-only.
+	// current status of the scale. More info: http://releases.k8s.io/HEAD/docs/devel/api-conventions.md#spec-and-status. Read-only.
 	Status ScaleStatus `json:"status,omitempty"`
 }
 
@@ -60,8 +59,6 @@ type ReplicationControllerDummy struct {
 type SubresourceReference struct {
 	// Kind of the referent; More info: http://releases.k8s.io/HEAD/docs/devel/api-conventions.md#types-kinds"
 	Kind string `json:"kind,omitempty"`
-	// Namespace of the referent; More info: http://releases.k8s.io/HEAD/docs/user-guide/namespaces.md
-	Namespace string `json:"namespace,omitempty"`
 	// Name of the referent; More info: http://releases.k8s.io/HEAD/docs/user-guide/identifiers.md#names
 	Name string `json:"name,omitempty"`
 	// API version of the referent
@@ -70,66 +67,66 @@ type SubresourceReference struct {
 	Subresource string `json:"subresource,omitempty"`
 }
 
-// ResourceConsumption is an object for specifying average resource consumption of a particular resource.
-type ResourceConsumption struct {
-	// Resource specifies either the name of the target resource when present in the spec, or the name of the observed resource when present in the status.
-	Resource v1.ResourceName `json:"resource,omitempty"`
-	// Quantity specifies either the target average consumption of the resource when present in the spec, or the observed average consumption when present in the status.
-	Quantity resource.Quantity `json:"quantity,omitempty"`
+type CPUTargetUtilization struct {
+	// fraction of the requested CPU that should be utilized/used,
+	// e.g. 70 means that 70% of the requested CPU should be in use.
+	TargetPercentage int32 `json:"targetPercentage"`
 }
 
-// HorizontalPodAutoscalerSpec is the specification of a horizontal pod autoscaler.
+// specification of a horizontal pod autoscaler.
 type HorizontalPodAutoscalerSpec struct {
-	// ScaleRef is a reference to Scale subresource. HorizontalPodAutoscaler will learn the current resource consumption from its status,
-	// and will set the desired number of pods by modyfying its spec.
-	ScaleRef *SubresourceReference `json:"scaleRef"`
-	// MinReplicas is the lower limit for the number of pods that can be set by the autoscaler.
-	MinReplicas int `json:"minReplicas"`
-	// MaxReplicas is the upper limit for the number of pods that can be set by the autoscaler. It cannot be smaller than MinReplicas.
-	MaxReplicas int `json:"maxReplicas"`
-	// Target is the target average consumption of the given resource that the autoscaler will try to maintain by adjusting the desired number of pods.
-	// Currently two types of resources are supported: "cpu" and "memory".
-	Target ResourceConsumption `json:"target"`
+	// reference to Scale subresource; horizontal pod autoscaler will learn the current resource consumption from its status,
+	// and will set the desired number of pods by modifying its spec.
+	ScaleRef SubresourceReference `json:"scaleRef"`
+	// lower limit for the number of pods that can be set by the autoscaler, default 1.
+	MinReplicas *int32 `json:"minReplicas,omitempty"`
+	// upper limit for the number of pods that can be set by the autoscaler; cannot be smaller than MinReplicas.
+	MaxReplicas int32 `json:"maxReplicas"`
+	// target average CPU utilization (represented as a percentage of requested CPU) over all the pods;
+	// if not specified it defaults to the target CPU utilization at 80% of the requested resources.
+	CPUUtilization *CPUTargetUtilization `json:"cpuUtilization,omitempty"`
 }
 
-// HorizontalPodAutoscalerStatus contains the current status of a horizontal pod autoscaler
+// current status of a horizontal pod autoscaler
 type HorizontalPodAutoscalerStatus struct {
-	// CurrentReplicas is the number of replicas of pods managed by this autoscaler.
-	CurrentReplicas int `json:"currentReplicas"`
+	// most recent generation observed by this autoscaler.
+	ObservedGeneration *int64 `json:"observedGeneration,omitempty"`
 
-	// DesiredReplicas is the desired number of replicas of pods managed by this autoscaler.
-	DesiredReplicas int `json:"desiredReplicas"`
+	// last time the HorizontalPodAutoscaler scaled the number of pods;
+	// used by the autoscaler to control how often the number of pods is changed.
+	LastScaleTime *unversioned.Time `json:"lastScaleTime,omitempty"`
 
-	// CurrentConsumption is the current average consumption of the given resource that the autoscaler will
-	// try to maintain by adjusting the desired number of pods.
-	// Two types of resources are supported: "cpu" and "memory".
-	CurrentConsumption *ResourceConsumption `json:"currentConsumption"`
+	// current number of replicas of pods managed by this autoscaler.
+	CurrentReplicas int32 `json:"currentReplicas"`
 
-	// LastScaleTimestamp is the last time the HorizontalPodAutoscaler scaled the number of pods.
-	// This is used by the autoscaler to controll how often the number of pods is changed.
-	LastScaleTimestamp *unversioned.Time `json:"lastScaleTimestamp,omitempty"`
+	// desired number of replicas of pods managed by this autoscaler.
+	DesiredReplicas int32 `json:"desiredReplicas"`
+
+	// current average CPU utilization over all pods, represented as a percentage of requested CPU,
+	// e.g. 70 means that an average pod is using now 70% of its requested CPU.
+	CurrentCPUUtilizationPercentage *int32 `json:"currentCPUUtilizationPercentage,omitempty"`
 }
 
-// HorizontalPodAutoscaler represents the configuration of a horizontal pod autoscaler.
+// configuration of a horizontal pod autoscaler.
 type HorizontalPodAutoscaler struct {
 	unversioned.TypeMeta `json:",inline"`
 	// Standard object metadata. More info: http://releases.k8s.io/HEAD/docs/devel/api-conventions.md#metadata
 	v1.ObjectMeta `json:"metadata,omitempty"`
 
-	// Spec defines the behaviour of autoscaler. More info: http://releases.k8s.io/HEAD/docs/devel/api-conventions.md#spec-and-status.
+	// behaviour of autoscaler. More info: http://releases.k8s.io/HEAD/docs/devel/api-conventions.md#spec-and-status.
 	Spec HorizontalPodAutoscalerSpec `json:"spec,omitempty"`
 
-	// Status represents the current information about the autoscaler.
+	// current information about the autoscaler.
 	Status HorizontalPodAutoscalerStatus `json:"status,omitempty"`
 }
 
-// HorizontalPodAutoscalerList is a list of HorizontalPodAutoscalers.
+// list of horizontal pod autoscaler objects.
 type HorizontalPodAutoscalerList struct {
 	unversioned.TypeMeta `json:",inline"`
 	// Standard list metadata.
 	unversioned.ListMeta `json:"metadata,omitempty"`
 
-	// Items is the list of HorizontalPodAutoscalers.
+	// list of horizontal pod autoscaler objects.
 	Items []HorizontalPodAutoscaler `json:"items"`
 }
 
@@ -195,14 +192,14 @@ type Deployment struct {
 type DeploymentSpec struct {
 	// Number of desired pods. This is a pointer to distinguish between explicit
 	// zero and not specified. Defaults to 1.
-	Replicas *int `json:"replicas,omitempty"`
+	Replicas *int32 `json:"replicas,omitempty"`
 
 	// Label selector for pods. Existing ReplicationControllers whose pods are
 	// selected by this will be the ones affected by this deployment.
 	Selector map[string]string `json:"selector,omitempty"`
 
 	// Template describes the pods that will be created.
-	Template *v1.PodTemplateSpec `json:"template,omitempty"`
+	Template v1.PodTemplateSpec `json:"template"`
 
 	// The deployment strategy to use to replace existing pods with new ones.
 	Strategy DeploymentStrategy `json:"strategy,omitempty"`
@@ -253,7 +250,7 @@ type RollingUpdateDeployment struct {
 	// can be scaled down further, followed by scaling up the new RC, ensuring
 	// that the total number of pods available at all times during the update is at
 	// least 70% of desired pods.
-	MaxUnavailable *util.IntOrString `json:"maxUnavailable,omitempty"`
+	MaxUnavailable *intstr.IntOrString `json:"maxUnavailable,omitempty"`
 
 	// The maximum number of pods that can be scheduled above the desired number of
 	// pods.
@@ -266,21 +263,21 @@ type RollingUpdateDeployment struct {
 	// 130% of desired pods. Once old pods have been killed,
 	// new RC can be scaled up further, ensuring that total number of pods running
 	// at any time during the update is atmost 130% of desired pods.
-	MaxSurge *util.IntOrString `json:"maxSurge,omitempty"`
+	MaxSurge *intstr.IntOrString `json:"maxSurge,omitempty"`
 
 	// Minimum number of seconds for which a newly created pod should be ready
 	// without any of its container crashing, for it to be considered available.
 	// Defaults to 0 (pod will be considered available as soon as it is ready)
-	MinReadySeconds int `json:"minReadySeconds,omitempty"`
+	MinReadySeconds int32 `json:"minReadySeconds,omitempty"`
 }
 
 // DeploymentStatus is the most recently observed status of the Deployment.
 type DeploymentStatus struct {
 	// Total number of non-terminated pods targeted by this deployment (their labels match the selector).
-	Replicas int `json:"replicas,omitempty"`
+	Replicas int32 `json:"replicas,omitempty"`
 
 	// Total number of non-terminated pods targeted by this deployment that have the desired template spec.
-	UpdatedReplicas int `json:"updatedReplicas,omitempty"`
+	UpdatedReplicas int32 `json:"updatedReplicas,omitempty"`
 }
 
 // DeploymentList is a list of Deployments.
@@ -299,7 +296,7 @@ type DaemonSetSpec struct {
 	// Must match in order to be controlled.
 	// If empty, defaulted to labels on Pod template.
 	// More info: http://releases.k8s.io/HEAD/docs/user-guide/labels.md#label-selectors
-	Selector map[string]string `json:"selector,omitempty"`
+	Selector *PodSelector `json:"selector,omitempty"`
 
 	// Template is the object that describes the pod that will be created.
 	// The DaemonSet will create exactly one copy of this pod on every node
@@ -314,17 +311,17 @@ type DaemonSetStatus struct {
 	// CurrentNumberScheduled is the number of nodes that are running at least 1
 	// daemon pod and are supposed to run the daemon pod.
 	// More info: http://releases.k8s.io/HEAD/docs/admin/daemon.md
-	CurrentNumberScheduled int `json:"currentNumberScheduled"`
+	CurrentNumberScheduled int32 `json:"currentNumberScheduled"`
 
 	// NumberMisscheduled is the number of nodes that are running the daemon pod, but are
 	// not supposed to run the daemon pod.
 	// More info: http://releases.k8s.io/HEAD/docs/admin/daemon.md
-	NumberMisscheduled int `json:"numberMisscheduled"`
+	NumberMisscheduled int32 `json:"numberMisscheduled"`
 
 	// DesiredNumberScheduled is the total number of nodes that should be running the daemon
 	// pod (including nodes correctly running the daemon pod).
 	// More info: http://releases.k8s.io/HEAD/docs/admin/daemon.md
-	DesiredNumberScheduled int `json:"desiredNumberScheduled"`
+	DesiredNumberScheduled int32 `json:"desiredNumberScheduled"`
 }
 
 // DaemonSet represents the configuration of a daemon set.
@@ -403,21 +400,21 @@ type JobSpec struct {
 	// be less than this number when ((.spec.completions - .status.successful) < .spec.parallelism),
 	// i.e. when the work left to do is less than max parallelism.
 	// More info: http://releases.k8s.io/HEAD/docs/user-guide/jobs.md
-	Parallelism *int `json:"parallelism,omitempty"`
+	Parallelism *int32 `json:"parallelism,omitempty"`
 
 	// Completions specifies the desired number of successfully finished pods the
 	// job should be run with. Defaults to 1.
 	// More info: http://releases.k8s.io/HEAD/docs/user-guide/jobs.md
-	Completions *int `json:"completions,omitempty"`
+	Completions *int32 `json:"completions,omitempty"`
 
 	// Selector is a label query over pods that should match the pod count.
 	// More info: http://releases.k8s.io/HEAD/docs/user-guide/labels.md#label-selectors
-	Selector map[string]string `json:"selector,omitempty"`
+	Selector *PodSelector `json:"selector,omitempty"`
 
 	// Template is the object that describes the pod that will be created when
 	// executing a job.
 	// More info: http://releases.k8s.io/HEAD/docs/user-guide/jobs.md
-	Template *v1.PodTemplateSpec `json:"template"`
+	Template v1.PodTemplateSpec `json:"template"`
 }
 
 // JobStatus represents the current state of a Job.
@@ -438,13 +435,13 @@ type JobStatus struct {
 	CompletionTime *unversioned.Time `json:"completionTime,omitempty"`
 
 	// Active is the number of actively running pods.
-	Active int `json:"active,omitempty"`
+	Active int32 `json:"active,omitempty"`
 
 	// Succeeded is the number of pods which reached Phase Succeeded.
-	Succeeded int `json:"succeeded,omitempty"`
+	Succeeded int32 `json:"succeeded,omitempty"`
 
 	// Failed is the number of pods which reached Phase Failed.
-	Failed int `json:"failed,omitempty"`
+	Failed int32 `json:"failed,omitempty"`
 }
 
 type JobConditionType string
@@ -504,11 +501,13 @@ type IngressList struct {
 // IngressSpec describes the Ingress the user wishes to exist.
 type IngressSpec struct {
 	// A default backend capable of servicing requests that don't match any
-	// IngressRule. It is optional to allow the loadbalancer controller or
-	// defaulting logic to specify a global default.
+	// rule. At least one of 'backend' or 'rules' must be specified. This field
+	// is optional to allow the loadbalancer controller or defaulting logic to
+	// specify a global default.
 	Backend *IngressBackend `json:"backend,omitempty"`
-	// A list of host rules used to configure the Ingress.
-	Rules []IngressRule `json:"rules"`
+	// A list of host rules used to configure the Ingress. If unspecified, or
+	// no rule matches, all traffic is sent to the default backend.
+	Rules []IngressRule `json:"rules,omitempty"`
 	// TODO: Add the ability to specify load-balancer IP through claims
 }
 
@@ -519,7 +518,8 @@ type IngressStatus struct {
 }
 
 // IngressRule represents the rules mapping the paths under a specified host to
-// the related backend services.
+// the related backend services. Incoming requests are first evaluated for a host
+// match, then routed to the backend associated with the matching IngressRuleValue.
 type IngressRule struct {
 	// Host is the fully qualified domain name of a network host, as defined
 	// by RFC 3986. Note the following deviations from the "host" part of the
@@ -530,14 +530,22 @@ type IngressRule struct {
 	//	  Currently the port of an Ingress is implicitly :80 for http and
 	//	  :443 for https.
 	// Both these may change in the future.
-	// Incoming requests are matched against the Host before the IngressRuleValue.
+	// Incoming requests are matched against the host before the IngressRuleValue.
+	// If the host is unspecified, the Ingress routes all traffic based on the
+	// specified IngressRuleValue.
 	Host string `json:"host,omitempty"`
 	// IngressRuleValue represents a rule to route requests for this IngressRule.
-	IngressRuleValue `json:",inline"`
+	// If unspecified, the rule defaults to a http catch-all. Whether that sends
+	// just traffic matching the host to the default backend or all traffic to the
+	// default backend, is left to the controller fulfilling the Ingress. Http is
+	// currently the only supported IngressRuleValue.
+	IngressRuleValue `json:",inline,omitempty"`
 }
 
 // IngressRuleValue represents a rule to apply against incoming requests. If the
-// rule is satisfied, the request is routed to the specified backend.
+// rule is satisfied, the request is routed to the specified backend. Currently
+// mixing different types of rules in a single Ingress is disallowed, so exactly
+// one of the following must be set.
 type IngressRuleValue struct {
 	//TODO:
 	// 1. Consider renaming this resource and the associated rules so they
@@ -545,39 +553,45 @@ type IngressRuleValue struct {
 	// 2. Consider adding fields for ingress-type specific global options
 	// usable by a loadbalancer, like http keep-alive.
 
-	// Currently mixing different types of rules in a single Ingress is
-	// disallowed, so exactly one of the following must be set.
-	HTTP *HTTPIngressRuleValue `json:"http"`
+	HTTP *HTTPIngressRuleValue `json:"http,omitempty"`
 }
 
-// HTTPIngressRuleValue is a list of http selectors pointing to IngressBackends.
-// In the example: http://<host>/<path>?<searchpart> -> IngressBackend where
-// parts of the url correspond to RFC 3986, this resource will be used to
+// HTTPIngressRuleValue is a list of http selectors pointing to backends.
+// In the example: http://<host>/<path>?<searchpart> -> backend where
+// where parts of the url correspond to RFC 3986, this resource will be used
 // to match against everything after the last '/' and before the first '?'
 // or '#'.
 type HTTPIngressRuleValue struct {
-	// A collection of paths that map requests to IngressBackends.
+	// A collection of paths that map requests to backends.
 	Paths []HTTPIngressPath `json:"paths"`
+	// TODO: Consider adding fields for ingress-type specific global
+	// options usable by a loadbalancer, like http keep-alive.
 }
 
-// IngressPath associates a path regex with an IngressBackend.
-// Incoming urls matching the Path are forwarded to the Backend.
+// HTTPIngressPath associates a path regex with a backend. Incoming urls matching
+// the path are forwarded to the backend.
 type HTTPIngressPath struct {
-	// Path is a regex matched against the url of an incoming request.
+	// Path is a extended POSIX regex as defined by IEEE Std 1003.1,
+	// (i.e this follows the egrep/unix syntax, not the perl syntax)
+	// matched against the path of an incoming request. Currently it can
+	// contain characters disallowed from the conventional "path"
+	// part of a URL as defined by RFC 3986. Paths must begin with
+	// a '/'. If unspecified, the path defaults to a catch all sending
+	// traffic to the backend.
 	Path string `json:"path,omitempty"`
 
-	// Define the referenced service endpoint which the traffic will be
-	// forwarded to.
+	// Backend defines the referenced service endpoint to which the traffic
+	// will be forwarded to.
 	Backend IngressBackend `json:"backend"`
 }
 
-// IngressBackend describes all endpoints for a given Service and port.
+// IngressBackend describes all endpoints for a given service and port.
 type IngressBackend struct {
 	// Specifies the name of the referenced service.
 	ServiceName string `json:"serviceName"`
 
 	// Specifies the port of the referenced service.
-	ServicePort util.IntOrString `json:"servicePort"`
+	ServicePort intstr.IntOrString `json:"servicePort"`
 }
 
 type NodeResource string
@@ -607,10 +621,10 @@ type NodeUtilization struct {
 // Configuration of the Cluster Autoscaler
 type ClusterAutoscalerSpec struct {
 	// Minimum number of nodes that the cluster should have.
-	MinNodes int `json:"minNodes"`
+	MinNodes int32 `json:"minNodes"`
 
 	// Maximum number of nodes that the cluster should have.
-	MaxNodes int `json:"maxNodes"`
+	MaxNodes int32 `json:"maxNodes"`
 
 	// Target average utilization of the cluster nodes. New nodes will be added if one of the
 	// targets is exceeded. Cluster size will be decreased if the current utilization is too low
@@ -640,3 +654,40 @@ type ClusterAutoscalerList struct {
 
 	Items []ClusterAutoscaler `json:"items"`
 }
+
+// A pod selector is a label query over a set of pods. The result of matchLabels and
+// matchExpressions are ANDed. An empty pod selector matches all objects. A null
+// pod selector matches no objects.
+type PodSelector struct {
+	// matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+	// map is equivalent to an element of matchExpressions, whose key field is "key", the
+	// operator is "In", and the values array contains only "value". The requirements are ANDed.
+	MatchLabels map[string]string `json:"matchLabels,omitempty"`
+	// matchExpressions is a list of pod selector requirements. The requirements are ANDed.
+	MatchExpressions []PodSelectorRequirement `json:"matchExpressions,omitempty"`
+}
+
+// A pod selector requirement is a selector that contains values, a key, and an operator that
+// relates the key and values.
+type PodSelectorRequirement struct {
+	// key is the label key that the selector applies to.
+	Key string `json:"key" patchStrategy:"merge" patchMergeKey:"key"`
+	// operator represents a key's relationship to a set of values.
+	// Valid operators ard In, NotIn, Exists and DoesNotExist.
+	Operator PodSelectorOperator `json:"operator"`
+	// values is an array of string values. If the operator is In or NotIn,
+	// the values array must be non-empty. If the operator is Exists or DoesNotExist,
+	// the values array must be empty. This array is replaced during a strategic
+	// merge patch.
+	Values []string `json:"values,omitempty"`
+}
+
+// A pod selector operator is the set of operators that can be used in a selector requirement.
+type PodSelectorOperator string
+
+const (
+	PodSelectorOpIn           PodSelectorOperator = "In"
+	PodSelectorOpNotIn        PodSelectorOperator = "NotIn"
+	PodSelectorOpExists       PodSelectorOperator = "Exists"
+	PodSelectorOpDoesNotExist PodSelectorOperator = "DoesNotExist"
+)

@@ -18,6 +18,7 @@ package unversioned
 
 import (
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/apis/extensions"
 	"k8s.io/kubernetes/pkg/fields"
 	"k8s.io/kubernetes/pkg/labels"
@@ -34,19 +35,20 @@ type DeploymentInterface interface {
 	List(label labels.Selector, field fields.Selector) (*extensions.DeploymentList, error)
 	Get(name string) (*extensions.Deployment, error)
 	Delete(name string, options *api.DeleteOptions) error
-	Create(Deployment *extensions.Deployment) (*extensions.Deployment, error)
-	Update(Deployment *extensions.Deployment) (*extensions.Deployment, error)
-	Watch(label labels.Selector, field fields.Selector, resourceVersion string) (watch.Interface, error)
+	Create(*extensions.Deployment) (*extensions.Deployment, error)
+	Update(*extensions.Deployment) (*extensions.Deployment, error)
+	UpdateStatus(*extensions.Deployment) (*extensions.Deployment, error)
+	Watch(label labels.Selector, field fields.Selector, opts unversioned.ListOptions) (watch.Interface, error)
 }
 
 // deployments implements DeploymentInterface
 type deployments struct {
-	client *ExperimentalClient
+	client *ExtensionsClient
 	ns     string
 }
 
 // newDeployments returns a Deployments
-func newDeployments(c *ExperimentalClient, namespace string) *deployments {
+func newDeployments(c *ExtensionsClient, namespace string) *deployments {
 	return &deployments{
 		client: c,
 		ns:     namespace,
@@ -93,13 +95,20 @@ func (c *deployments) Update(deployment *extensions.Deployment) (result *extensi
 	return
 }
 
+func (c *deployments) UpdateStatus(deployment *extensions.Deployment) (result *extensions.Deployment, err error) {
+	result = &extensions.Deployment{}
+	err = c.client.Put().Namespace(c.ns).Resource("deployments").Name(deployment.Name).SubResource("status").Body(deployment).Do().Into(result)
+	return
+}
+
 // Watch returns a watch.Interface that watches the requested deployments.
-func (c *deployments) Watch(label labels.Selector, field fields.Selector, resourceVersion string) (watch.Interface, error) {
+func (c *deployments) Watch(label labels.Selector, field fields.Selector, opts unversioned.ListOptions) (watch.Interface, error) {
 	return c.client.Get().
 		Prefix("watch").
 		Namespace(c.ns).
 		Resource("deployments").
-		Param("resourceVersion", resourceVersion).
+		Param("resourceVersion", opts.ResourceVersion).
+		TimeoutSeconds(TimeoutFromListOptions(opts)).
 		LabelsSelectorParam(label).
 		FieldsSelectorParam(field).
 		Watch()

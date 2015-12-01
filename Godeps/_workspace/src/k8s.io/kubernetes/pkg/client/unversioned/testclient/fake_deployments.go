@@ -18,6 +18,7 @@ package testclient
 
 import (
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/apis/extensions"
 	"k8s.io/kubernetes/pkg/fields"
 	"k8s.io/kubernetes/pkg/labels"
@@ -72,11 +73,20 @@ func (c *FakeDeployments) Update(deployment *extensions.Deployment) (*extensions
 	return obj.(*extensions.Deployment), err
 }
 
+func (c *FakeDeployments) UpdateStatus(deployment *extensions.Deployment) (*extensions.Deployment, error) {
+	obj, err := c.Fake.Invokes(NewUpdateSubresourceAction("deployments", "status", c.Namespace, deployment), deployment)
+	if obj == nil {
+		return nil, err
+	}
+
+	return obj.(*extensions.Deployment), err
+}
+
 func (c *FakeDeployments) Delete(name string, options *api.DeleteOptions) error {
 	_, err := c.Fake.Invokes(NewDeleteAction("deployments", c.Namespace, name), &extensions.Deployment{})
 	return err
 }
 
-func (c *FakeDeployments) Watch(label labels.Selector, field fields.Selector, resourceVersion string) (watch.Interface, error) {
-	return c.Fake.InvokesWatch(NewWatchAction("deployments", c.Namespace, label, field, resourceVersion))
+func (c *FakeDeployments) Watch(label labels.Selector, field fields.Selector, opts unversioned.ListOptions) (watch.Interface, error) {
+	return c.Fake.InvokesWatch(NewWatchAction("deployments", c.Namespace, label, field, opts))
 }

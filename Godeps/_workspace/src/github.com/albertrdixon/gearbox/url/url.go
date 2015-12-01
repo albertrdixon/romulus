@@ -47,6 +47,14 @@ func (u *URL) GetHost() string {
 	return u.Host[0:i]
 }
 
+func Parse(raw string) (*URL, error) {
+	u, er := url.Parse(raw)
+	if er != nil {
+		return nil, er
+	}
+	return (*URL)(u), nil
+}
+
 // String returns the string representation
 func (u *URL) String() string {
 	return (*url.URL)(u).String()

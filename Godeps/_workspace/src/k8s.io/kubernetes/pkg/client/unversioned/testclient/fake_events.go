@@ -18,6 +18,7 @@ package testclient
 
 import (
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/fields"
 	"k8s.io/kubernetes/pkg/labels"
 	"k8s.io/kubernetes/pkg/runtime"
@@ -87,6 +88,20 @@ func (c *FakeEvents) Update(event *api.Event) (*api.Event, error) {
 	return obj.(*api.Event), err
 }
 
+// Patch patches an existing event. Returns the copy of the event the server returns, or an error.
+func (c *FakeEvents) Patch(event *api.Event, data []byte) (*api.Event, error) {
+	action := NewRootPatchAction("events", event)
+	if c.Namespace != "" {
+		action = NewPatchAction("events", c.Namespace, event)
+	}
+	obj, err := c.Fake.Invokes(action, event)
+	if obj == nil {
+		return nil, err
+	}
+
+	return obj.(*api.Event), err
+}
+
 func (c *FakeEvents) Delete(name string) error {
 	action := NewRootDeleteAction("events", name)
 	if c.Namespace != "" {
@@ -97,10 +112,10 @@ func (c *FakeEvents) Delete(name string) error {
 }
 
 // Watch starts watching for events matching the given selectors.
-func (c *FakeEvents) Watch(label labels.Selector, field fields.Selector, resourceVersion string) (watch.Interface, error) {
-	action := NewRootWatchAction("events", label, field, resourceVersion)
+func (c *FakeEvents) Watch(label labels.Selector, field fields.Selector, opts unversioned.ListOptions) (watch.Interface, error) {
+	action := NewRootWatchAction("events", label, field, opts)
 	if c.Namespace != "" {
-		action = NewWatchAction("events", c.Namespace, label, field, resourceVersion)
+		action = NewWatchAction("events", c.Namespace, label, field, opts)
 	}
 	return c.Fake.InvokesWatch(action)
 }

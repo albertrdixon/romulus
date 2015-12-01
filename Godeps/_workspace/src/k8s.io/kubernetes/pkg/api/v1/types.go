@@ -21,7 +21,7 @@ import (
 	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/runtime"
 	"k8s.io/kubernetes/pkg/types"
-	"k8s.io/kubernetes/pkg/util"
+	"k8s.io/kubernetes/pkg/util/intstr"
 )
 
 // The comments for the structs and fields can be used from go-resful to
@@ -635,7 +635,7 @@ type GCEPersistentDiskVolumeSource struct {
 	// Examples: For volume /dev/sda1, you specify the partition as "1".
 	// Similarly, the volume partition for /dev/sda is "0" (or you can leave the property empty).
 	// More info: http://releases.k8s.io/HEAD/docs/user-guide/volumes.md#gcepersistentdisk
-	Partition int `json:"partition,omitempty"`
+	Partition int32 `json:"partition,omitempty"`
 	// ReadOnly here will force the ReadOnly setting in VolumeMounts.
 	// Defaults to false.
 	// More info: http://releases.k8s.io/HEAD/docs/user-guide/volumes.md#gcepersistentdisk
@@ -661,7 +661,7 @@ type AWSElasticBlockStoreVolumeSource struct {
 	// If omitted, the default is to mount by volume name.
 	// Examples: For volume /dev/sda1, you specify the partition as "1".
 	// Similarly, the volume partition for /dev/sda is "0" (or you can leave the property empty).
-	Partition int `json:"partition,omitempty"`
+	Partition int32 `json:"partition,omitempty"`
 	// Specify "true" to force and set the ReadOnly property in VolumeMounts to "true".
 	// If omitted, the default is "false".
 	// More info: http://releases.k8s.io/HEAD/docs/user-guide/volumes.md#awselasticblockstore
@@ -709,7 +709,7 @@ type ISCSIVolumeSource struct {
 	// Target iSCSI Qualified Name.
 	IQN string `json:"iqn"`
 	// iSCSI target lun number.
-	Lun int `json:"lun"`
+	Lun int32 `json:"lun"`
 	// Filesystem type of the volume that you want to mount.
 	// Tip: Ensure that the filesystem type is supported by the host operating system.
 	// Examples: "ext4", "xfs", "ntfs".
@@ -726,7 +726,7 @@ type FCVolumeSource struct {
 	// Required: FC target world wide names (WWNs)
 	TargetWWNs []string `json:"targetWWNs"`
 	// Required: FC target lun number
-	Lun *int `json:"lun"`
+	Lun *int32 `json:"lun"`
 	// Required: Filesystem type to mount.
 	// Must be a filesystem type supported by the host operating system.
 	// Ex. "ext4", "xfs", "ntfs"
@@ -747,10 +747,10 @@ type ContainerPort struct {
 	// If specified, this must be a valid port number, 0 < x < 65536.
 	// If HostNetwork is specified, this must match ContainerPort.
 	// Most containers do not need this.
-	HostPort int `json:"hostPort,omitempty"`
+	HostPort int32 `json:"hostPort,omitempty"`
 	// Number of port to expose on the pod's IP address.
 	// This must be a valid port number, 0 < x < 65536.
-	ContainerPort int `json:"containerPort"`
+	ContainerPort int32 `json:"containerPort"`
 	// Protocol for port. Must be UDP or TCP.
 	// Defaults to "TCP".
 	Protocol Protocol `json:"protocol,omitempty"`
@@ -810,7 +810,7 @@ type HTTPGetAction struct {
 	// Name or number of the port to access on the container.
 	// Number must be in the range 1 to 65535.
 	// Name must be an IANA_SVC_NAME.
-	Port util.IntOrString `json:"port"`
+	Port intstr.IntOrString `json:"port"`
 	// Host name to connect to, defaults to the pod IP.
 	Host string `json:"host,omitempty"`
 	// Scheme to use for connecting to the host.
@@ -833,7 +833,7 @@ type TCPSocketAction struct {
 	// Number or name of the port to access on the container.
 	// Number must be in the range 1 to 65535.
 	// Name must be an IANA_SVC_NAME.
-	Port util.IntOrString `json:"port"`
+	Port intstr.IntOrString `json:"port"`
 }
 
 // ExecAction describes a "run in container" action.
@@ -846,17 +846,27 @@ type ExecAction struct {
 	Command []string `json:"command,omitempty"`
 }
 
-// Probe describes a liveness probe to be examined to the container.
+// Probe describes a health check to be performed against a container to determine whether it is
+// alive or ready to receive traffic.
 type Probe struct {
 	// The action taken to determine the health of a container
 	Handler `json:",inline"`
 	// Number of seconds after the container has started before liveness probes are initiated.
 	// More info: http://releases.k8s.io/HEAD/docs/user-guide/pod-states.md#container-probes
-	InitialDelaySeconds int64 `json:"initialDelaySeconds,omitempty"`
-	// Number of seconds after which liveness probes timeout.
-	// Defaults to 1 second.
+	InitialDelaySeconds int32 `json:"initialDelaySeconds,omitempty"`
+	// Number of seconds after which the probe times out.
+	// Defaults to 1 second. Minimum value is 1.
 	// More info: http://releases.k8s.io/HEAD/docs/user-guide/pod-states.md#container-probes
-	TimeoutSeconds int64 `json:"timeoutSeconds,omitempty"`
+	TimeoutSeconds int32 `json:"timeoutSeconds,omitempty"`
+	// How often (in seconds) to perform the probe.
+	// Default to 10 seconds. Minimum value is 1.
+	PeriodSeconds int32 `json:"periodSeconds,omitempty"`
+	// Minimum consecutive successes for the probe to be considered successful after having failed.
+	// Defaults to 1. Must be 1 for liveness. Minimum value is 1.
+	SuccessThreshold int32 `json:"successThreshold,omitempty"`
+	// Minimum consecutive failures for the probe to be considered failed after having succeeded.
+	// Defaults to 3. Minimum value is 1.
+	FailureThreshold int32 `json:"failureThreshold,omitempty"`
 }
 
 // PullPolicy describes a policy for if/when to pull a container image
@@ -976,9 +986,18 @@ type Container struct {
 	// Variables for interactive containers, these have very specialized use-cases (e.g. debugging)
 	// and shouldn't be used for general purpose containers.
 
-	// Whether this container should allocate a buffer for stdin in the container runtime.
+	// Whether this container should allocate a buffer for stdin in the container runtime. If this
+	// is not set, reads from stdin in the container will always result in EOF.
 	// Default is false.
 	Stdin bool `json:"stdin,omitempty"`
+	// Whether the container runtime should close the stdin channel after it has been opened by
+	// a single attach. When stdin is true the stdin stream will remain open across multiple attach
+	// sessions. If stdinOnce is set to true, stdin is opened on container start, is empty until the
+	// first client attaches to stdin, and then remains open and accepts data until the client disconnects,
+	// at which time stdin is closed and remains closed until the container is restarted. If this
+	// flag is false, a container processes that reads from stdin will never receive an EOF.
+	// Default is false
+	StdinOnce bool `json:"stdinOnce,omitempty"`
 	// Whether this container should allocate a TTY for itself, also requires 'stdin' to be true.
 	// Default is false.
 	TTY bool `json:"tty,omitempty"`
@@ -1045,9 +1064,9 @@ type ContainerStateRunning struct {
 // ContainerStateTerminated is a terminated state of a container.
 type ContainerStateTerminated struct {
 	// Exit status from the last termination of the container
-	ExitCode int `json:"exitCode"`
+	ExitCode int32 `json:"exitCode"`
 	// Signal from the last termination of the container
-	Signal int `json:"signal,omitempty"`
+	Signal int32 `json:"signal,omitempty"`
 	// (brief) reason from the last termination of the container
 	Reason string `json:"reason,omitempty"`
 	// Message regarding the last termination of the container
@@ -1087,7 +1106,7 @@ type ContainerStatus struct {
 	// the number of dead containers that have not yet been removed.
 	// Note that this is calculated from dead containers. But those containers are subject to
 	// garbage collection. This value will get capped at 5 by GC.
-	RestartCount int `json:"restartCount"`
+	RestartCount int32 `json:"restartCount"`
 	// The image the container is running.
 	// More info: http://releases.k8s.io/HEAD/docs/user-guide/images.md
 	// TODO(dchen1107): Which image the container is running with?
@@ -1238,7 +1257,8 @@ type PodSpec struct {
 	// Use the host's ipc namespace.
 	// Optional: Default to false.
 	HostIPC bool `json:"hostIPC,omitempty"`
-	// SecurityContext holds pod-level security attributes and common container settings
+	// SecurityContext holds pod-level security attributes and common container settings.
+	// Optional: Defaults to empty.  See type description for default values of each field.
 	SecurityContext *PodSecurityContext `json:"securityContext,omitempty"`
 	// ImagePullSecrets is an optional list of references to secrets in the same namespace to use for pulling any of the images used by this PodSpec.
 	// If specified, these secrets will be passed to individual puller implementations for them to use. For example,
@@ -1248,7 +1268,42 @@ type PodSpec struct {
 }
 
 // PodSecurityContext holds pod-level security attributes and common container settings.
+// Some fields are also present in container.securityContext.  Field values of
+// container.securityContext take precedence over field values of PodSecurityContext.
 type PodSecurityContext struct {
+	// The SELinux context to be applied to all containers.
+	// If unspecified, the container runtime will allocate a random SELinux context for each
+	// container.  May also be set in SecurityContext.  If set in
+	// both SecurityContext and PodSecurityContext, the value specified in SecurityContext
+	// takes precedence for that container.
+	SELinuxOptions *SELinuxOptions `json:"seLinuxOptions,omitempty"`
+	// The UID to run the entrypoint of the container process.
+	// Defaults to user specified in image metadata if unspecified.
+	// May also be set in SecurityContext.  If set in both SecurityContext and
+	// PodSecurityContext, the value specified in SecurityContext takes precedence
+	// for that container.
+	RunAsUser *int64 `json:"runAsUser,omitempty"`
+	// Indicates that the container must run as a non-root user.
+	// If true, the Kubelet will validate the image at runtime to ensure that it
+	// does not run as UID 0 (root) and fail to start the container if it does.
+	// If unset or false, no such validation will be performed.
+	// May also be set in SecurityContext.  If set in both SecurityContext and
+	// PodSecurityContext, the value specified in SecurityContext takes precedence.
+	RunAsNonRoot *bool `json:"runAsNonRoot,omitempty"`
+	// A list of groups applied to the first process run in each container, in addition
+	// to the container's primary GID.  If unspecified, no groups will be added to
+	// any container.
+	SupplementalGroups []int64 `json:"supplementalGroups,omitempty"`
+	// A special supplemental group that applies to all containers in a pod.
+	// Some volume types allow the Kubelet to change the ownership of that volume
+	// to be owned by the pod:
+	//
+	// 1. The owning GID will be the FSGroup
+	// 2. The setgid bit is set (new files created in the volume will be owned by FSGroup)
+	// 3. The permission bits are OR'd with rw-rw----
+	//
+	// If unset, the Kubelet will not modify the ownership and permissions of any volume.
+	FSGroup *int64 `json:"fsGroup,omitempty"`
 }
 
 // PodStatus represents information about the status of a pod. Status may trail the actual
@@ -1368,7 +1423,7 @@ type ReplicationControllerSpec struct {
 	// This is a pointer to distinguish between explicit zero and unspecified.
 	// Defaults to 1.
 	// More info: http://releases.k8s.io/HEAD/docs/user-guide/replication-controller.md#what-is-a-replication-controller
-	Replicas *int `json:"replicas,omitempty"`
+	Replicas *int32 `json:"replicas,omitempty"`
 
 	// Selector is a label query over pods that should match the Replicas count.
 	// If Selector is empty, it is defaulted to the labels present on the Pod template.
@@ -1393,7 +1448,7 @@ type ReplicationControllerSpec struct {
 type ReplicationControllerStatus struct {
 	// Replicas is the most recently oberved number of replicas.
 	// More info: http://releases.k8s.io/HEAD/docs/user-guide/replication-controller.md#what-is-a-replication-controller
-	Replicas int `json:"replicas"`
+	Replicas int32 `json:"replicas"`
 
 	// ObservedGeneration reflects the generation of the most recently observed replication controller.
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
@@ -1557,7 +1612,7 @@ type ServicePort struct {
 	Protocol Protocol `json:"protocol,omitempty"`
 
 	// The port that will be exposed by this service.
-	Port int `json:"port"`
+	Port int32 `json:"port"`
 
 	// Number or name of the port to access on the pods targeted by the service.
 	// Number must be in the range 1 to 65535. Name must be an IANA_SVC_NAME.
@@ -1566,14 +1621,14 @@ type ServicePort struct {
 	// of Port is used (an identity map).
 	// Defaults to the service port.
 	// More info: http://releases.k8s.io/HEAD/docs/user-guide/services.md#defining-a-service
-	TargetPort util.IntOrString `json:"targetPort,omitempty"`
+	TargetPort intstr.IntOrString `json:"targetPort,omitempty"`
 
 	// The port on each node on which this service is exposed when type=NodePort or LoadBalancer.
 	// Usually assigned by the system. If specified, it will be allocated to the service
 	// if unused or else creation of the service will fail.
 	// Default is to auto-allocate a port if the ServiceType of this Service requires one.
 	// More info: http://releases.k8s.io/HEAD/docs/user-guide/services.md#type--nodeport
-	NodePort int `json:"nodePort,omitempty"`
+	NodePort int32 `json:"nodePort,omitempty"`
 }
 
 // Service is a named abstraction of software service (for example, mysql) consisting of local port
@@ -1716,7 +1771,7 @@ type EndpointPort struct {
 	Name string `json:"name,omitempty"`
 
 	// The port number of the endpoint.
-	Port int `json:"port"`
+	Port int32 `json:"port"`
 
 	// The IP protocol for this port.
 	// Must be UDP or TCP.
@@ -1752,7 +1807,7 @@ type NodeSpec struct {
 // DaemonEndpoint contains information about a single Daemon endpoint.
 type DaemonEndpoint struct {
 	// Port number of the given endpoint.
-	Port int `json:port`
+	Port int32 `json:port`
 }
 
 // NodeDaemonEndpoints lists ports opened by daemons running on the Node.
@@ -1823,6 +1878,9 @@ type NodeConditionType string
 const (
 	// NodeReady means kubelet is healthy and ready to accept pods.
 	NodeReady NodeConditionType = "Ready"
+	// NodeOutOfDisk means the kubelet will not accept new pods due to insufficient free disk
+	// space on the node.
+	NodeOutOfDisk NodeConditionType = "OutOfDisk"
 )
 
 // NodeCondition contains condition infromation for a node.
@@ -2002,6 +2060,8 @@ type ListOptions struct {
 	// When specified with a watch call, shows changes that occur after that particular version of a resource.
 	// Defaults to changes from the beginning of history.
 	ResourceVersion string `json:"resourceVersion,omitempty"`
+	// Timeout for the list/watch call.
+	TimeoutSeconds *int64 `json:"timeoutSeconds,omitempty"`
 }
 
 // PodLogOptions is the query options for a Pod's logs REST call.
@@ -2160,6 +2220,14 @@ type EventSource struct {
 	Host string `json:"host,omitempty"`
 }
 
+// Valid values for event types (new types could be added in future)
+const (
+	// Information only and will not cause any problems
+	EventTypeNormal string = "Normal"
+	// These events are to warn that something might go wrong
+	EventTypeWarning string = "Warning"
+)
+
 // Event is a report of an event somewhere in the cluster.
 // TODO: Decide whether to store these separately or with the object they apply to.
 type Event struct {
@@ -2190,7 +2258,10 @@ type Event struct {
 	LastTimestamp unversioned.Time `json:"lastTimestamp,omitempty"`
 
 	// The number of times this event has occurred.
-	Count int `json:"count,omitempty"`
+	Count int32 `json:"count,omitempty"`
+
+	// Type of this event (Normal, Warning), new types could be added in the future
+	Type string `json:"type,omitempty"`
 }
 
 // EventList is a list of events.
@@ -2460,50 +2531,44 @@ type DownwardAPIVolumeFile struct {
 }
 
 // SecurityContext holds security configuration that will be applied to a container.
+// Some fields are present in both SecurityContext and PodSecurityContext.  When both
+// are set, the values in SecurityContext take precedence.
 type SecurityContext struct {
-	// The linux kernel capabilites that should be added or removed.
-	// Default to Container.Capabilities if left unset.
-	// More info: http://releases.k8s.io/HEAD/docs/design/security_context.md#security-context
+	// The capabilities to add/drop when running containers.
+	// Defaults to the default set of capabilities granted by the container runtime.
 	Capabilities *Capabilities `json:"capabilities,omitempty"`
-
-	// Run the container in privileged mode.
-	// Default to Container.Privileged if left unset.
-	// More info: http://releases.k8s.io/HEAD/docs/design/security_context.md#security-context
+	// Run container in privileged mode.
+	// Processes in privileged containers are essentially equivalent to root on the host.
+	// Defaults to false.
 	Privileged *bool `json:"privileged,omitempty"`
-
-	// SELinuxOptions are the labels to be applied to the container
-	// and volumes.
-	// Options that control the SELinux labels applied.
-	// More info: http://releases.k8s.io/HEAD/docs/design/security_context.md#security-context
+	// The SELinux context to be applied to the container.
+	// If unspecified, the container runtime will allocate a random SELinux context for each
+	// container.  May also be set in PodSecurityContext.  If set in both SecurityContext and
+	// PodSecurityContext, the value specified in SecurityContext takes precedence.
 	SELinuxOptions *SELinuxOptions `json:"seLinuxOptions,omitempty"`
-
-	// RunAsUser is the UID to run the entrypoint of the container process.
-	// The user id that runs the first process in the container.
-	// More info: http://releases.k8s.io/HEAD/docs/design/security_context.md#security-context
+	// The UID to run the entrypoint of the container process.
+	// Defaults to user specified in image metadata if unspecified.
+	// May also be set in PodSecurityContext.  If set in both SecurityContext and
+	// PodSecurityContext, the value specified in SecurityContext takes precedence.
 	RunAsUser *int64 `json:"runAsUser,omitempty"`
-
-	// RunAsNonRoot indicates that the container should be run as a non-root user. If the RunAsUser
-	// field is not explicitly set then the kubelet may check the image for a specified user or
-	// perform defaulting to specify a user.
-	RunAsNonRoot bool `json:"runAsNonRoot,omitempty"`
+	// Indicates that the container must run as a non-root user.
+	// If true, the Kubelet will validate the image at runtime to ensure that it
+	// does not run as UID 0 (root) and fail to start the container if it does.
+	// If unset or false, no such validation will be performed.
+	// May also be set in PodSecurityContext.  If set in both SecurityContext and
+	// PodSecurityContext, the value specified in SecurityContext takes precedence.
+	RunAsNonRoot *bool `json:"runAsNonRoot,omitempty"`
 }
 
 // SELinuxOptions are the labels to be applied to the container
 type SELinuxOptions struct {
 	// User is a SELinux user label that applies to the container.
-	// More info: http://releases.k8s.io/HEAD/docs/user-guide/labels.md
 	User string `json:"user,omitempty"`
-
 	// Role is a SELinux role label that applies to the container.
-	// More info: http://releases.k8s.io/HEAD/docs/user-guide/labels.md
 	Role string `json:"role,omitempty"`
-
 	// Type is a SELinux type label that applies to the container.
-	// More info: http://releases.k8s.io/HEAD/docs/user-guide/labels.md
 	Type string `json:"type,omitempty"`
-
 	// Level is SELinux level label that applies to the container.
-	// More info: http://releases.k8s.io/HEAD/docs/user-guide/labels.md
 	Level string `json:"level,omitempty"`
 }
 

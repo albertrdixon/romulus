@@ -18,6 +18,7 @@ package testclient
 
 import (
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/fields"
 	"k8s.io/kubernetes/pkg/labels"
 	"k8s.io/kubernetes/pkg/watch"
@@ -70,8 +71,8 @@ func (c *FakeNodes) Delete(name string) error {
 	return err
 }
 
-func (c *FakeNodes) Watch(label labels.Selector, field fields.Selector, resourceVersion string) (watch.Interface, error) {
-	return c.Fake.InvokesWatch(NewRootWatchAction("nodes", label, field, resourceVersion))
+func (c *FakeNodes) Watch(label labels.Selector, field fields.Selector, opts unversioned.ListOptions) (watch.Interface, error) {
+	return c.Fake.InvokesWatch(NewRootWatchAction("nodes", label, field, opts))
 }
 
 func (c *FakeNodes) UpdateStatus(node *api.Node) (*api.Node, error) {
