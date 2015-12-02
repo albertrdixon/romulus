@@ -6,11 +6,6 @@
 	],
 	"Deps": [
 		{
-			"ImportPath": "bitbucket.org/ww/goautoneg",
-			"Comment": "null-5",
-			"Rev": "75cd24fc2f2c2a2088577d12123ddee5f54e0675"
-		},
-		{
 			"ImportPath": "github.com/albertrdixon/gearbox/logger",
 			"Rev": "046fae2981bd7c54ea443c938d194413154174ea"
 		},
@@ -60,6 +55,11 @@
 			"ImportPath": "github.com/emicklei/go-restful",
 			"Comment": "v1.1.3-141-gf3b10ff",
 			"Rev": "f3b10ff408486b3e248197254514778285fbdea1"
+		},
+		{
+			"ImportPath": "github.com/emilevauge/traefik/types",
+			"Comment": "v1.0.alpha.329",
+			"Rev": "4e9ff45747f9172809065fb63c6d0baca782dad1"
 		},
 		{
 			"ImportPath": "github.com/ghodss/yaml",
@@ -150,8 +150,8 @@
 		},
 		{
 			"ImportPath": "github.com/prometheus/client_golang/prometheus",
-			"Comment": "0.7.0-52-ge51041b",
-			"Rev": "e51041b3fa41cece0dca035740ba6411905be473"
+			"Comment": "0.7.0-68-g67994f1",
+			"Rev": "67994f177195311c3ea3d4407ed0175e34a4256f"
 		},
 		{
 			"ImportPath": "github.com/prometheus/client_model/go",
@@ -160,19 +160,27 @@
 		},
 		{
 			"ImportPath": "github.com/prometheus/common/expfmt",
-			"Rev": "1cc3e4c3b28fd42633a8c389c98cfbadf42621b1"
+			"Rev": "ff97411a094ae922768acd11f05f44677a9d543b"
+		},
+		{
+			"ImportPath": "github.com/prometheus/common/internal/bitbucket.org/ww/goautoneg",
+			"Rev": "ff97411a094ae922768acd11f05f44677a9d543b"
 		},
 		{
 			"ImportPath": "github.com/prometheus/common/model",
-			"Rev": "1cc3e4c3b28fd42633a8c389c98cfbadf42621b1"
+			"Rev": "ff97411a094ae922768acd11f05f44677a9d543b"
 		},
 		{
 			"ImportPath": "github.com/prometheus/procfs",
-			"Rev": "454a56f35412459b5e684fd5ec0f9211b94f002a"
+			"Rev": "406e5b7bfd8201a36e2bb5f7bdae0b03380c2ce8"
 		},
 		{
 			"ImportPath": "github.com/spf13/pflag",
 			"Rev": "b084184666e02084b8ccb9b704bf0d79c466eb1d"
+		},
+		{
+			"ImportPath": "github.com/timelinelabs/pkg/store",
+			"Rev": "52baf257f1b90ed2f42d96ae9284c837730a9c7a"
 		},
 		{
 			"ImportPath": "github.com/ugorji/go/codec",
@@ -238,10 +246,6 @@
 			"ImportPath": "github.com/vulcand/vulcand/router",
 			"Comment": "v0.8.0-beta.3-56-g8110c02",
 			"Rev": "8110c022c2a4e2b73746f0d7b84f3aff195972ee"
-		},
-		{
-			"ImportPath": "github.com/ugorji/go/codec",
-			"Rev": "357a44b2b13e2711a45e30016508134101477610"
 		},
 		{
 			"ImportPath": "golang.org/x/crypto/curve25519",
