@@ -4,7 +4,7 @@ dependencies:
     - if [ ! -e  ~/.go_workspace/src/github.com/timelinelabs/romulus ]; then ln -s ~/romulus ~/.go_workspace/src/github.com/timelinelabs; fi
     - which godep >/dev/null ; if [ $? == 1 ] ; then go get github.com/tools/godep; fi
   override:
-    - make dep-restore
+    - make dep-restore || true
 
 test:
   override:
