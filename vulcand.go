@@ -98,7 +98,7 @@ func (v *vulcan) NewBackend(meta *Metadata) (Backend, error) {
 		return nil, er
 	}
 	if kind, ok := meta.Annotations[AnnotationsKeyf(BackendTypeKey)]; ok {
-		if kind == "websocket" {
+		if kind == websocket || kind == WS {
 			b.Type = WS
 		}
 	}
@@ -320,9 +320,10 @@ const (
 	BackendTypeKey             = "backendType"
 	CustomMiddlewareKeyPattern = `^romulus/middleware\.([^\.]+)`
 
-	WS      = "ws"
-	HTTP    = "http"
-	Enabled = "enabled"
+	websocket = "websocket"
+	WS        = "ws"
+	HTTP      = "http"
+	Enabled   = "enabled"
 )
 
 func buildVulcanRoute(meta *Metadata) string {
