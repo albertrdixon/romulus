@@ -176,7 +176,7 @@
 		},
 		{
 			"ImportPath": "github.com/ugorji/go/codec",
-			"Rev": "ea9cd21fa0bc41ee4bdd50ac7ed8cbc7ea2ed960"
+			"Rev": "357a44b2b13e2711a45e30016508134101477610"
 		},
 		{
 			"ImportPath": "github.com/vulcand/oxy/cbreaker",
@@ -241,7 +241,7 @@
 		},
 		{
 			"ImportPath": "github.com/ugorji/go/codec",
-			"Rev": "b331ab22c37e164df5bf90655ae4f1c59f13b547"
+			"Rev": "357a44b2b13e2711a45e30016508134101477610"
 		},
 		{
 			"ImportPath": "golang.org/x/crypto/curve25519",

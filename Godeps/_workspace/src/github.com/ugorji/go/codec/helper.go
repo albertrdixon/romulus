@@ -911,8 +911,8 @@ LOOP:
 		if f.PkgPath != "" && !f.Anonymous { // unexported, not embedded
 			continue
 		}
-		// if r1, _ := utf8.DecodeRuneInString(f.Name); r1 == utf8.RuneError || !unicode.IsUpper(r1) {
-		if f.PkgPath != "" && !f.Anonymous { // unexported, not embedded
+		stag := x.structTag(f.Tag)
+		if stag == "-" {
 			continue
 		}
 		var si *structFieldInfo

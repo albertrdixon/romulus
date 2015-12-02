@@ -1116,10 +1116,6 @@ func (h *JsonHandle) SetInterfaceExt(rt reflect.Type, tag uint64, ext InterfaceE
 	return h.SetExt(rt, tag, &setExtWrapper{i: ext})
 }
 
-func (h *JsonHandle) SetInterfaceExt(rt reflect.Type, tag uint64, ext InterfaceExt) (err error) {
-	return h.SetExt(rt, tag, &setExtWrapper{i: ext})
-}
-
 func (h *JsonHandle) newEncDriver(e *Encoder) encDriver {
 	hd := jsonEncDriver{e: e, h: h}
 	hd.bs = hd.b[:0]
