@@ -76,7 +76,7 @@ func (v *vulcan) NewFrontend(meta *Metadata) (Frontend, error) {
 		}
 	}
 
-	f, er := engine.NewHTTPFrontend(route.NewMux(), id, id, buildRoute(meta), s)
+	f, er := engine.NewHTTPFrontend(route.NewMux(), id, id, buildVulcanRoute(meta), s)
 	if er != nil {
 		return nil, er
 	}
@@ -313,7 +313,7 @@ type vMiddleware struct {
 }
 
 const (
-	DefaultRoute = "Path(`/`)"
+	DefaultVulcanRoute = "Path(`/`)"
 
 	FrontendSettingsKey        = "frontendSettings"
 	BackendSettingsKey         = "backendSettings"
@@ -325,9 +325,9 @@ const (
 	Enabled = "enabled"
 )
 
-func buildRoute(meta *Metadata) string {
+func buildVulcanRoute(meta *Metadata) string {
 	if meta.Annotations == nil || len(meta.Annotations) < 1 {
-		return DefaultRoute
+		return DefaultVulcanRoute
 	}
 
 	bits := []string{}
@@ -346,7 +346,7 @@ func buildRoute(meta *Metadata) string {
 	}
 	expr := strings.Join(bits, " && ")
 	if len(expr) < 1 || !route.IsValid(expr) {
-		return DefaultRoute
+		return DefaultVulcanRoute
 	}
 	return expr
 }

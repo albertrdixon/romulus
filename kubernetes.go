@@ -33,18 +33,28 @@ var (
 )
 
 func newKubeClient(url, ver string, insecure bool) (*unversioned.Client, error) {
-	config, er := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-		clientcmd.NewDefaultClientConfigLoadingRules(),
-		&clientcmd.ConfigOverrides{},
-	).ClientConfig()
-
+	config, er := getKubeConfig(url, insecure)
 	if er != nil {
 		return nil, er
 	}
-	config.Host = url
-	config.Insecure = insecure
-
 	return unversioned.New(config)
+}
+
+func getKubeConfig(url string, insecure bool) (*unversioned.Config, error) {
+	config, er := unversioned.InClusterConfig()
+	if er != nil {
+		config, er = clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+			clientcmd.NewDefaultClientConfigLoadingRules(),
+			&clientcmd.ConfigOverrides{},
+		).ClientConfig()
+		if er != nil {
+			return nil, er
+		}
+		config.Host = url
+	}
+
+	config.Insecure = insecure
+	return config, nil
 }
 
 func ResetFakeClient() {

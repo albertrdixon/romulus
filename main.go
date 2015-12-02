@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -29,6 +30,7 @@ var (
 )
 
 func main() {
+	runtime.GOMAXPROCS(runtime.NumCPU())
 	kingpin.Version(getVersion())
 	kingpin.MustParse(ro.Parse(os.Args[1:]))
 	logger.Configure(*logLevel, "[romulusd] ", os.Stdout)
