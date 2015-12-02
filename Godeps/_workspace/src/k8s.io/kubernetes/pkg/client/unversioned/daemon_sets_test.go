@@ -22,6 +22,7 @@ import (
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/testapi"
 	"k8s.io/kubernetes/pkg/apis/extensions"
+	"k8s.io/kubernetes/pkg/fields"
 	"k8s.io/kubernetes/pkg/labels"
 )
 
@@ -55,7 +56,7 @@ func TestListDaemonSets(t *testing.T) {
 			},
 		},
 	}
-	receivedDSs, err := c.Setup(t).Experimental().DaemonSets(ns).List(labels.Everything())
+	receivedDSs, err := c.Setup(t).Extensions().DaemonSets(ns).List(labels.Everything(), fields.Everything())
 	c.Validate(t, receivedDSs, err)
 
 }
@@ -80,14 +81,14 @@ func TestGetDaemonSet(t *testing.T) {
 			},
 		},
 	}
-	receivedDaemonSet, err := c.Setup(t).Experimental().DaemonSets(ns).Get("foo")
+	receivedDaemonSet, err := c.Setup(t).Extensions().DaemonSets(ns).Get("foo")
 	c.Validate(t, receivedDaemonSet, err)
 }
 
 func TestGetDaemonSetWithNoName(t *testing.T) {
 	ns := api.NamespaceDefault
 	c := &testClient{Error: true}
-	receivedPod, err := c.Setup(t).Experimental().DaemonSets(ns).Get("")
+	receivedPod, err := c.Setup(t).Extensions().DaemonSets(ns).Get("")
 	if (err != nil) && (err.Error() != nameRequiredError) {
 		t.Errorf("Expected error: %v, but got %v", nameRequiredError, err)
 	}
@@ -118,7 +119,7 @@ func TestUpdateDaemonSet(t *testing.T) {
 			},
 		},
 	}
-	receivedDaemonSet, err := c.Setup(t).Experimental().DaemonSets(ns).Update(requestDaemonSet)
+	receivedDaemonSet, err := c.Setup(t).Extensions().DaemonSets(ns).Update(requestDaemonSet)
 	c.Validate(t, receivedDaemonSet, err)
 }
 
@@ -146,7 +147,7 @@ func TestUpdateDaemonSetUpdateStatus(t *testing.T) {
 			},
 		},
 	}
-	receivedDaemonSet, err := c.Setup(t).Experimental().DaemonSets(ns).UpdateStatus(requestDaemonSet)
+	receivedDaemonSet, err := c.Setup(t).Extensions().DaemonSets(ns).UpdateStatus(requestDaemonSet)
 	c.Validate(t, receivedDaemonSet, err)
 }
 
@@ -156,7 +157,7 @@ func TestDeleteDaemon(t *testing.T) {
 		Request:  testRequest{Method: "DELETE", Path: testapi.Extensions.ResourcePath(getDSResourceName(), ns, "foo"), Query: buildQueryValues(nil)},
 		Response: Response{StatusCode: 200},
 	}
-	err := c.Setup(t).Experimental().DaemonSets(ns).Delete("foo")
+	err := c.Setup(t).Extensions().DaemonSets(ns).Delete("foo")
 	c.Validate(t, nil, err)
 }
 
@@ -183,6 +184,6 @@ func TestCreateDaemonSet(t *testing.T) {
 			},
 		},
 	}
-	receivedDaemonSet, err := c.Setup(t).Experimental().DaemonSets(ns).Create(requestDaemonSet)
+	receivedDaemonSet, err := c.Setup(t).Extensions().DaemonSets(ns).Create(requestDaemonSet)
 	c.Validate(t, receivedDaemonSet, err)
 }

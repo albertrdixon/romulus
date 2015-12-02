@@ -28,6 +28,7 @@ import (
 	"k8s.io/kubernetes/pkg/api/meta"
 	"k8s.io/kubernetes/pkg/api/testapi"
 	apitesting "k8s.io/kubernetes/pkg/api/testing"
+	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/runtime"
 	"k8s.io/kubernetes/pkg/util"
 	"k8s.io/kubernetes/pkg/util/sets"
@@ -94,6 +95,7 @@ func roundTripSame(t *testing.T, item runtime.Object, except ...string) {
 	codec, err := testapi.GetCodecForObject(item)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
+		return
 	}
 
 	version := testapi.Default.Version()
@@ -109,7 +111,12 @@ func TestSpecificKind(t *testing.T) {
 	defer api.Scheme.Log(nil)
 
 	kind := "Pod"
-	doRoundTripTest(kind, t)
+	for i := 0; i < *fuzzIters; i++ {
+		doRoundTripTest(kind, t)
+		if t.Failed() {
+			break
+		}
+	}
 }
 
 func TestList(t *testing.T) {
@@ -133,13 +140,16 @@ func TestRoundTripTypes(t *testing.T) {
 	// api.Scheme.Log(t)
 	// defer api.Scheme.Log(nil)
 
-	for kind := range api.Scheme.KnownTypes("") {
+	for kind := range api.Scheme.KnownTypes(testapi.Default.InternalGroupVersion()) {
 		if nonRoundTrippableTypes.Has(kind) {
 			continue
 		}
 		// Try a few times, since runTest uses random values.
 		for i := 0; i < *fuzzIters; i++ {
 			doRoundTripTest(kind, t)
+			if t.Failed() {
+				break
+			}
 		}
 	}
 }
@@ -201,6 +211,37 @@ func TestBadJSONRejection(t *testing.T) {
 	if err2 := DecodeInto(badJSONKindMismatch, &Minion{}); err2 == nil {
 		t.Errorf("Kind is set but doesn't match the object type: %s", badJSONKindMismatch)
 	}*/
+}
+
+func TestUnversionedTypes(t *testing.T) {
+	testcases := []runtime.Object{
+		&unversioned.Status{Status: "Failure", Message: "something went wrong"},
+		&unversioned.APIVersions{Versions: []string{"A", "B", "C"}},
+		&unversioned.APIGroupList{Groups: []unversioned.APIGroup{{Name: "mygroup"}}},
+		&unversioned.APIGroup{Name: "mygroup"},
+		&unversioned.APIResourceList{GroupVersion: "mygroup/myversion"},
+	}
+
+	for _, obj := range testcases {
+		// Make sure the unversioned codec can encode
+		unversionedJSON, err := api.Codec.Encode(obj)
+		if err != nil {
+			t.Errorf("%v: unexpected error: %v", obj, err)
+			continue
+		}
+
+		// Make sure the versioned codec under test can decode
+		versionDecodedObject, err := testapi.Default.Codec().Decode(unversionedJSON)
+		if err != nil {
+			t.Errorf("%v: unexpected error: %v", obj, err)
+			continue
+		}
+		// Make sure it decodes correctly
+		if !reflect.DeepEqual(obj, versionDecodedObject) {
+			t.Errorf("%v: expected %#v, got %#v", obj, obj, versionDecodedObject)
+			continue
+		}
+	}
 }
 
 const benchmarkSeed = 100

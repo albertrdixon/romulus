@@ -17,6 +17,7 @@ limitations under the License.
 package unversioned
 
 import (
+	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/apis/extensions"
 	"k8s.io/kubernetes/pkg/fields"
 	"k8s.io/kubernetes/pkg/labels"
@@ -29,31 +30,31 @@ type DaemonSetsNamespacer interface {
 }
 
 type DaemonSetInterface interface {
-	List(selector labels.Selector) (*extensions.DaemonSetList, error)
+	List(label labels.Selector, field fields.Selector) (*extensions.DaemonSetList, error)
 	Get(name string) (*extensions.DaemonSet, error)
 	Create(ctrl *extensions.DaemonSet) (*extensions.DaemonSet, error)
 	Update(ctrl *extensions.DaemonSet) (*extensions.DaemonSet, error)
 	UpdateStatus(ctrl *extensions.DaemonSet) (*extensions.DaemonSet, error)
 	Delete(name string) error
-	Watch(label labels.Selector, field fields.Selector, resourceVersion string) (watch.Interface, error)
+	Watch(label labels.Selector, field fields.Selector, opts unversioned.ListOptions) (watch.Interface, error)
 }
 
 // daemonSets implements DaemonsSetsNamespacer interface
 type daemonSets struct {
-	r  *ExperimentalClient
+	r  *ExtensionsClient
 	ns string
 }
 
-func newDaemonSets(c *ExperimentalClient, namespace string) *daemonSets {
+func newDaemonSets(c *ExtensionsClient, namespace string) *daemonSets {
 	return &daemonSets{c, namespace}
 }
 
 // Ensure statically that daemonSets implements DaemonSetsInterface.
 var _ DaemonSetInterface = &daemonSets{}
 
-func (c *daemonSets) List(selector labels.Selector) (result *extensions.DaemonSetList, err error) {
+func (c *daemonSets) List(label labels.Selector, field fields.Selector) (result *extensions.DaemonSetList, err error) {
 	result = &extensions.DaemonSetList{}
-	err = c.r.Get().Namespace(c.ns).Resource("daemonsets").LabelsSelectorParam(selector).Do().Into(result)
+	err = c.r.Get().Namespace(c.ns).Resource("daemonsets").LabelsSelectorParam(label).FieldsSelectorParam(field).Do().Into(result)
 	return
 }
 
@@ -91,12 +92,13 @@ func (c *daemonSets) Delete(name string) error {
 }
 
 // Watch returns a watch.Interface that watches the requested daemon sets.
-func (c *daemonSets) Watch(label labels.Selector, field fields.Selector, resourceVersion string) (watch.Interface, error) {
+func (c *daemonSets) Watch(label labels.Selector, field fields.Selector, opts unversioned.ListOptions) (watch.Interface, error) {
 	return c.r.Get().
 		Prefix("watch").
 		Namespace(c.ns).
 		Resource("daemonsets").
-		Param("resourceVersion", resourceVersion).
+		Param("resourceVersion", opts.ResourceVersion).
+		TimeoutSeconds(TimeoutFromListOptions(opts)).
 		LabelsSelectorParam(label).
 		FieldsSelectorParam(field).
 		Watch()

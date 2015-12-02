@@ -18,6 +18,7 @@ package unversioned
 
 import (
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/apis/extensions"
 	"k8s.io/kubernetes/pkg/fields"
 	"k8s.io/kubernetes/pkg/labels"
@@ -37,17 +38,17 @@ type HorizontalPodAutoscalerInterface interface {
 	Create(horizontalPodAutoscaler *extensions.HorizontalPodAutoscaler) (*extensions.HorizontalPodAutoscaler, error)
 	Update(horizontalPodAutoscaler *extensions.HorizontalPodAutoscaler) (*extensions.HorizontalPodAutoscaler, error)
 	UpdateStatus(horizontalPodAutoscaler *extensions.HorizontalPodAutoscaler) (*extensions.HorizontalPodAutoscaler, error)
-	Watch(label labels.Selector, field fields.Selector, resourceVersion string) (watch.Interface, error)
+	Watch(label labels.Selector, field fields.Selector, opts unversioned.ListOptions) (watch.Interface, error)
 }
 
 // horizontalPodAutoscalers implements HorizontalPodAutoscalersNamespacer interface
 type horizontalPodAutoscalers struct {
-	client *ExperimentalClient
+	client *ExtensionsClient
 	ns     string
 }
 
 // newHorizontalPodAutoscalers returns a horizontalPodAutoscalers
-func newHorizontalPodAutoscalers(c *ExperimentalClient, namespace string) *horizontalPodAutoscalers {
+func newHorizontalPodAutoscalers(c *ExtensionsClient, namespace string) *horizontalPodAutoscalers {
 	return &horizontalPodAutoscalers{
 		client: c,
 		ns:     namespace,
@@ -103,12 +104,13 @@ func (c *horizontalPodAutoscalers) UpdateStatus(horizontalPodAutoscaler *extensi
 }
 
 // Watch returns a watch.Interface that watches the requested horizontalPodAutoscalers.
-func (c *horizontalPodAutoscalers) Watch(label labels.Selector, field fields.Selector, resourceVersion string) (watch.Interface, error) {
+func (c *horizontalPodAutoscalers) Watch(label labels.Selector, field fields.Selector, opts unversioned.ListOptions) (watch.Interface, error) {
 	return c.client.Get().
 		Prefix("watch").
 		Namespace(c.ns).
 		Resource("horizontalPodAutoscalers").
-		Param("resourceVersion", resourceVersion).
+		Param("resourceVersion", opts.ResourceVersion).
+		TimeoutSeconds(TimeoutFromListOptions(opts)).
 		LabelsSelectorParam(label).
 		FieldsSelectorParam(field).
 		Watch()

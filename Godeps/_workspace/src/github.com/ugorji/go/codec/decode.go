@@ -88,11 +88,13 @@ type decDriver interface {
 	ReadArrayStart() int
 
 	reset()
+	uncacheRead()
 }
 
 type decNoSeparator struct{}
 
-func (_ decNoSeparator) ReadEnd() {}
+func (_ decNoSeparator) ReadEnd()     {}
+func (_ decNoSeparator) uncacheRead() {}
 
 type DecodeOptions struct {
 	// MapType specifies type to use during schema-less decoding of a map in the stream.
@@ -475,12 +477,8 @@ func (f *decFnInfo) textUnmarshal(rv reflect.Value) {
 func (f *decFnInfo) jsonUnmarshal(rv reflect.Value) {
 	tm := f.getValueForUnmarshalInterface(rv, f.ti.junmIndir).(jsonUnmarshaler)
 	// bs := f.d.d.DecodeBytes(f.d.b[:], true, true)
-	// grab the bytes to be read, as UnmarshalJSON wants the full JSON to unmarshal it itself.
-	f.d.r.track()
-	f.d.swallow()
-	bs := f.d.r.stopTrack()
-	// fmt.Printf(">>>>>> REFLECTION JSON: %s\n", bs)
-	fnerr := tm.UnmarshalJSON(bs)
+	// grab the bytes to be read, as UnmarshalJSON needs the full JSON so as to unmarshal it itself.
+	fnerr := tm.UnmarshalJSON(f.d.nextValueBytes())
 	if fnerr != nil {
 		panic(fnerr)
 	}
@@ -1071,6 +1069,13 @@ func (f *decFnInfo) kMap(rv reflect.Value) {
 				if rvk.Type() == uint8SliceTyp {
 					rvk = reflect.ValueOf(d.string(rvk.Bytes()))
 				}
+			} else {
+				if rvz.IsValid() {
+					rvz.Set(reflect.Zero(vtype))
+				} else {
+					rvz = reflect.New(vtype).Elem()
+				}
+				rvv = rvz
 			}
 			mapSet = true // set to false if u do a get, and its a pointer, and exists
 			if mapGet {
@@ -1862,6 +1867,14 @@ func (d *Decoder) intern(s string) {
 	if d.is != nil {
 		d.is[s] = s
 	}
+}
+
+// nextValueBytes returns the next value in the stream as a set of bytes.
+func (d *Decoder) nextValueBytes() []byte {
+	d.d.uncacheRead()
+	d.r.track()
+	d.swallow()
+	return d.r.stopTrack()
 }
 
 // --------------------------------------------------

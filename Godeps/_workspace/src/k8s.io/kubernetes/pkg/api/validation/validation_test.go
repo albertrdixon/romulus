@@ -18,6 +18,7 @@ package validation
 
 import (
 	"math/rand"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -27,16 +28,14 @@ import (
 	"k8s.io/kubernetes/pkg/api/testapi"
 	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/capabilities"
-	"k8s.io/kubernetes/pkg/util"
-	utilerrors "k8s.io/kubernetes/pkg/util/errors"
-	"k8s.io/kubernetes/pkg/util/fielderrors"
-	errors "k8s.io/kubernetes/pkg/util/fielderrors"
+	"k8s.io/kubernetes/pkg/util/intstr"
 	"k8s.io/kubernetes/pkg/util/sets"
+	"k8s.io/kubernetes/pkg/util/validation"
 )
 
-func expectPrefix(t *testing.T, prefix string, errs fielderrors.ValidationErrorList) {
+func expectPrefix(t *testing.T, prefix string, errs validation.ErrorList) {
 	for i := range errs {
-		if f, p := errs[i].(*errors.ValidationError).Field, prefix; !strings.HasPrefix(f, p) {
+		if f, p := errs[i].Field, prefix; !strings.HasPrefix(f, p) {
 			t.Errorf("expected prefix '%s' for field '%s' (%v)", p, f, errs[i])
 		}
 	}
@@ -150,7 +149,7 @@ func TestValidateLabels(t *testing.T) {
 		if len(errs) != 1 {
 			t.Errorf("case[%d] expected failure", i)
 		} else {
-			detail := errs[0].(*errors.ValidationError).Detail
+			detail := errs[0].Detail
 			if detail != qualifiedNameErrorMsg {
 				t.Errorf("error detail %s should be equal %s", detail, qualifiedNameErrorMsg)
 			}
@@ -168,7 +167,7 @@ func TestValidateLabels(t *testing.T) {
 		if len(errs) != 1 {
 			t.Errorf("case[%d] expected failure", i)
 		} else {
-			detail := errs[0].(*errors.ValidationError).Detail
+			detail := errs[0].Detail
 			if detail != labelValueErrorMsg {
 				t.Errorf("error detail %s should be equal %s", detail, labelValueErrorMsg)
 			}
@@ -191,10 +190,10 @@ func TestValidateAnnotations(t *testing.T) {
 		{"1234/5678": "bar"},
 		{"1.2.3.4/5678": "bar"},
 		{"UpperCase123": "bar"},
-		{"a": strings.Repeat("b", (64*1024)-1)},
+		{"a": strings.Repeat("b", totalAnnotationSizeLimitB-1)},
 		{
-			"a": strings.Repeat("b", (32*1024)-1),
-			"c": strings.Repeat("d", (32*1024)-1),
+			"a": strings.Repeat("b", totalAnnotationSizeLimitB/2-1),
+			"c": strings.Repeat("d", totalAnnotationSizeLimitB/2-1),
 		},
 	}
 	for i := range successCases {
@@ -215,16 +214,16 @@ func TestValidateAnnotations(t *testing.T) {
 		if len(errs) != 1 {
 			t.Errorf("case[%d] expected failure", i)
 		}
-		detail := errs[0].(*errors.ValidationError).Detail
+		detail := errs[0].Detail
 		if detail != qualifiedNameErrorMsg {
 			t.Errorf("error detail %s should be equal %s", detail, qualifiedNameErrorMsg)
 		}
 	}
 	totalSizeErrorCases := []map[string]string{
-		{"a": strings.Repeat("b", 64*1024)},
+		{"a": strings.Repeat("b", totalAnnotationSizeLimitB)},
 		{
-			"a": strings.Repeat("b", 32*1024),
-			"c": strings.Repeat("d", 32*1024),
+			"a": strings.Repeat("b", totalAnnotationSizeLimitB/2),
+			"c": strings.Repeat("d", totalAnnotationSizeLimitB/2),
 		},
 	}
 	for i := range totalSizeErrorCases {
@@ -536,30 +535,30 @@ func TestValidateVolumes(t *testing.T) {
 	slashInName := api.VolumeSource{Flocker: &api.FlockerVolumeSource{DatasetName: "foo/bar"}}
 	errorCases := map[string]struct {
 		V []api.Volume
-		T errors.ValidationErrorType
+		T validation.ErrorType
 		F string
 		D string
 	}{
-		"zero-length name":           {[]api.Volume{{Name: "", VolumeSource: emptyVS}}, errors.ValidationErrorTypeRequired, "[0].name", ""},
-		"name > 63 characters":       {[]api.Volume{{Name: strings.Repeat("a", 64), VolumeSource: emptyVS}}, errors.ValidationErrorTypeInvalid, "[0].name", "must be a DNS label (at most 63 characters, matching regex [a-z0-9]([-a-z0-9]*[a-z0-9])?): e.g. \"my-name\""},
-		"name not a DNS label":       {[]api.Volume{{Name: "a.b.c", VolumeSource: emptyVS}}, errors.ValidationErrorTypeInvalid, "[0].name", "must be a DNS label (at most 63 characters, matching regex [a-z0-9]([-a-z0-9]*[a-z0-9])?): e.g. \"my-name\""},
-		"name not unique":            {[]api.Volume{{Name: "abc", VolumeSource: emptyVS}, {Name: "abc", VolumeSource: emptyVS}}, errors.ValidationErrorTypeDuplicate, "[1].name", ""},
-		"empty portal":               {[]api.Volume{{Name: "badportal", VolumeSource: emptyPortal}}, errors.ValidationErrorTypeRequired, "[0].source.iscsi.targetPortal", ""},
-		"empty iqn":                  {[]api.Volume{{Name: "badiqn", VolumeSource: emptyIQN}}, errors.ValidationErrorTypeRequired, "[0].source.iscsi.iqn", ""},
-		"empty hosts":                {[]api.Volume{{Name: "badhost", VolumeSource: emptyHosts}}, errors.ValidationErrorTypeRequired, "[0].source.glusterfs.endpoints", ""},
-		"empty path":                 {[]api.Volume{{Name: "badpath", VolumeSource: emptyPath}}, errors.ValidationErrorTypeRequired, "[0].source.glusterfs.path", ""},
-		"empty datasetName":          {[]api.Volume{{Name: "badname", VolumeSource: emptyName}}, errors.ValidationErrorTypeRequired, "[0].source.flocker.datasetName", ""},
-		"empty mon":                  {[]api.Volume{{Name: "badmon", VolumeSource: emptyMon}}, errors.ValidationErrorTypeRequired, "[0].source.rbd.monitors", ""},
-		"empty image":                {[]api.Volume{{Name: "badimage", VolumeSource: emptyImage}}, errors.ValidationErrorTypeRequired, "[0].source.rbd.image", ""},
-		"empty cephfs mon":           {[]api.Volume{{Name: "badmon", VolumeSource: emptyCephFSMon}}, errors.ValidationErrorTypeRequired, "[0].source.cephfs.monitors", ""},
-		"empty metatada path":        {[]api.Volume{{Name: "emptyname", VolumeSource: emptyPathName}}, errors.ValidationErrorTypeRequired, "[0].source.downwardApi.path", ""},
-		"absolute path":              {[]api.Volume{{Name: "absolutepath", VolumeSource: absolutePathName}}, errors.ValidationErrorTypeForbidden, "[0].source.downwardApi.path", ""},
-		"dot dot path":               {[]api.Volume{{Name: "dotdotpath", VolumeSource: dotDotInPath}}, errors.ValidationErrorTypeInvalid, "[0].source.downwardApi.path", "must not contain \"..\"."},
-		"dot dot file name":          {[]api.Volume{{Name: "dotdotfilename", VolumeSource: dotDotPathName}}, errors.ValidationErrorTypeInvalid, "[0].source.downwardApi.path", "must not start with \"..\"."},
-		"dot dot first level dirent": {[]api.Volume{{Name: "dotdotdirfilename", VolumeSource: dotDotFirstLevelDirent}}, errors.ValidationErrorTypeInvalid, "[0].source.downwardApi.path", "must not start with \"..\"."},
-		"empty wwn":                  {[]api.Volume{{Name: "badimage", VolumeSource: zeroWWN}}, errors.ValidationErrorTypeRequired, "[0].source.fc.targetWWNs", ""},
-		"empty lun":                  {[]api.Volume{{Name: "badimage", VolumeSource: emptyLun}}, errors.ValidationErrorTypeRequired, "[0].source.fc.lun", ""},
-		"slash in datasetName":       {[]api.Volume{{Name: "slashinname", VolumeSource: slashInName}}, errors.ValidationErrorTypeInvalid, "[0].source.flocker.datasetName", "must not contain '/'"},
+		"zero-length name":           {[]api.Volume{{Name: "", VolumeSource: emptyVS}}, validation.ErrorTypeRequired, "[0].name", ""},
+		"name > 63 characters":       {[]api.Volume{{Name: strings.Repeat("a", 64), VolumeSource: emptyVS}}, validation.ErrorTypeInvalid, "[0].name", "must be a DNS label (at most 63 characters, matching regex [a-z0-9]([-a-z0-9]*[a-z0-9])?): e.g. \"my-name\""},
+		"name not a DNS label":       {[]api.Volume{{Name: "a.b.c", VolumeSource: emptyVS}}, validation.ErrorTypeInvalid, "[0].name", "must be a DNS label (at most 63 characters, matching regex [a-z0-9]([-a-z0-9]*[a-z0-9])?): e.g. \"my-name\""},
+		"name not unique":            {[]api.Volume{{Name: "abc", VolumeSource: emptyVS}, {Name: "abc", VolumeSource: emptyVS}}, validation.ErrorTypeDuplicate, "[1].name", ""},
+		"empty portal":               {[]api.Volume{{Name: "badportal", VolumeSource: emptyPortal}}, validation.ErrorTypeRequired, "[0].source.iscsi.targetPortal", ""},
+		"empty iqn":                  {[]api.Volume{{Name: "badiqn", VolumeSource: emptyIQN}}, validation.ErrorTypeRequired, "[0].source.iscsi.iqn", ""},
+		"empty hosts":                {[]api.Volume{{Name: "badhost", VolumeSource: emptyHosts}}, validation.ErrorTypeRequired, "[0].source.glusterfs.endpoints", ""},
+		"empty path":                 {[]api.Volume{{Name: "badpath", VolumeSource: emptyPath}}, validation.ErrorTypeRequired, "[0].source.glusterfs.path", ""},
+		"empty datasetName":          {[]api.Volume{{Name: "badname", VolumeSource: emptyName}}, validation.ErrorTypeRequired, "[0].source.flocker.datasetName", ""},
+		"empty mon":                  {[]api.Volume{{Name: "badmon", VolumeSource: emptyMon}}, validation.ErrorTypeRequired, "[0].source.rbd.monitors", ""},
+		"empty image":                {[]api.Volume{{Name: "badimage", VolumeSource: emptyImage}}, validation.ErrorTypeRequired, "[0].source.rbd.image", ""},
+		"empty cephfs mon":           {[]api.Volume{{Name: "badmon", VolumeSource: emptyCephFSMon}}, validation.ErrorTypeRequired, "[0].source.cephfs.monitors", ""},
+		"empty metatada path":        {[]api.Volume{{Name: "emptyname", VolumeSource: emptyPathName}}, validation.ErrorTypeRequired, "[0].source.downwardApi.path", ""},
+		"absolute path":              {[]api.Volume{{Name: "absolutepath", VolumeSource: absolutePathName}}, validation.ErrorTypeForbidden, "[0].source.downwardApi.path", ""},
+		"dot dot path":               {[]api.Volume{{Name: "dotdotpath", VolumeSource: dotDotInPath}}, validation.ErrorTypeInvalid, "[0].source.downwardApi.path", "must not contain \"..\"."},
+		"dot dot file name":          {[]api.Volume{{Name: "dotdotfilename", VolumeSource: dotDotPathName}}, validation.ErrorTypeInvalid, "[0].source.downwardApi.path", "must not start with \"..\"."},
+		"dot dot first level dirent": {[]api.Volume{{Name: "dotdotdirfilename", VolumeSource: dotDotFirstLevelDirent}}, validation.ErrorTypeInvalid, "[0].source.downwardApi.path", "must not start with \"..\"."},
+		"empty wwn":                  {[]api.Volume{{Name: "badimage", VolumeSource: zeroWWN}}, validation.ErrorTypeRequired, "[0].source.fc.targetWWNs", ""},
+		"empty lun":                  {[]api.Volume{{Name: "badimage", VolumeSource: emptyLun}}, validation.ErrorTypeRequired, "[0].source.fc.lun", ""},
+		"slash in datasetName":       {[]api.Volume{{Name: "slashinname", VolumeSource: slashInName}}, validation.ErrorTypeInvalid, "[0].source.flocker.datasetName", "must not contain '/'"},
 	}
 	for k, v := range errorCases {
 		_, errs := validateVolumes(v.V)
@@ -568,13 +567,13 @@ func TestValidateVolumes(t *testing.T) {
 			continue
 		}
 		for i := range errs {
-			if errs[i].(*errors.ValidationError).Type != v.T {
+			if errs[i].Type != v.T {
 				t.Errorf("%s: expected errors to have type %s: %v", k, v.T, errs[i])
 			}
-			if errs[i].(*errors.ValidationError).Field != v.F {
+			if errs[i].Field != v.F {
 				t.Errorf("%s: expected errors to have field %s: %v", k, v.F, errs[i])
 			}
-			detail := errs[i].(*errors.ValidationError).Detail
+			detail := errs[i].Detail
 			if detail != v.D {
 				t.Errorf("%s: expected error detail \"%s\", got \"%s\"", k, v.D, detail)
 			}
@@ -603,23 +602,23 @@ func TestValidatePorts(t *testing.T) {
 
 	errorCases := map[string]struct {
 		P []api.ContainerPort
-		T errors.ValidationErrorType
+		T validation.ErrorType
 		F string
 		D string
 	}{
-		"name > 15 characters":                     {[]api.ContainerPort{{Name: strings.Repeat("a", 16), ContainerPort: 80, Protocol: "TCP"}}, errors.ValidationErrorTypeInvalid, "[0].name", portNameErrorMsg},
-		"name not a IANA svc name ":                {[]api.ContainerPort{{Name: "a.b.c", ContainerPort: 80, Protocol: "TCP"}}, errors.ValidationErrorTypeInvalid, "[0].name", portNameErrorMsg},
-		"name not a IANA svc name (i.e. a number)": {[]api.ContainerPort{{Name: "80", ContainerPort: 80, Protocol: "TCP"}}, errors.ValidationErrorTypeInvalid, "[0].name", portNameErrorMsg},
+		"name > 15 characters":                     {[]api.ContainerPort{{Name: strings.Repeat("a", 16), ContainerPort: 80, Protocol: "TCP"}}, validation.ErrorTypeInvalid, "[0].name", PortNameErrorMsg},
+		"name not a IANA svc name ":                {[]api.ContainerPort{{Name: "a.b.c", ContainerPort: 80, Protocol: "TCP"}}, validation.ErrorTypeInvalid, "[0].name", PortNameErrorMsg},
+		"name not a IANA svc name (i.e. a number)": {[]api.ContainerPort{{Name: "80", ContainerPort: 80, Protocol: "TCP"}}, validation.ErrorTypeInvalid, "[0].name", PortNameErrorMsg},
 		"name not unique": {[]api.ContainerPort{
 			{Name: "abc", ContainerPort: 80, Protocol: "TCP"},
 			{Name: "abc", ContainerPort: 81, Protocol: "TCP"},
-		}, errors.ValidationErrorTypeDuplicate, "[1].name", ""},
-		"zero container port":    {[]api.ContainerPort{{ContainerPort: 0, Protocol: "TCP"}}, errors.ValidationErrorTypeInvalid, "[0].containerPort", portRangeErrorMsg},
-		"invalid container port": {[]api.ContainerPort{{ContainerPort: 65536, Protocol: "TCP"}}, errors.ValidationErrorTypeInvalid, "[0].containerPort", portRangeErrorMsg},
-		"invalid host port":      {[]api.ContainerPort{{ContainerPort: 80, HostPort: 65536, Protocol: "TCP"}}, errors.ValidationErrorTypeInvalid, "[0].hostPort", portRangeErrorMsg},
-		"invalid protocol case":  {[]api.ContainerPort{{ContainerPort: 80, Protocol: "tcp"}}, errors.ValidationErrorTypeNotSupported, "[0].protocol", "supported values: TCP, UDP"},
-		"invalid protocol":       {[]api.ContainerPort{{ContainerPort: 80, Protocol: "ICMP"}}, errors.ValidationErrorTypeNotSupported, "[0].protocol", "supported values: TCP, UDP"},
-		"protocol required":      {[]api.ContainerPort{{Name: "abc", ContainerPort: 80}}, errors.ValidationErrorTypeRequired, "[0].protocol", ""},
+		}, validation.ErrorTypeDuplicate, "[1].name", ""},
+		"zero container port":    {[]api.ContainerPort{{ContainerPort: 0, Protocol: "TCP"}}, validation.ErrorTypeInvalid, "[0].containerPort", PortRangeErrorMsg},
+		"invalid container port": {[]api.ContainerPort{{ContainerPort: 65536, Protocol: "TCP"}}, validation.ErrorTypeInvalid, "[0].containerPort", PortRangeErrorMsg},
+		"invalid host port":      {[]api.ContainerPort{{ContainerPort: 80, HostPort: 65536, Protocol: "TCP"}}, validation.ErrorTypeInvalid, "[0].hostPort", PortRangeErrorMsg},
+		"invalid protocol case":  {[]api.ContainerPort{{ContainerPort: 80, Protocol: "tcp"}}, validation.ErrorTypeNotSupported, "[0].protocol", "supported values: TCP, UDP"},
+		"invalid protocol":       {[]api.ContainerPort{{ContainerPort: 80, Protocol: "ICMP"}}, validation.ErrorTypeNotSupported, "[0].protocol", "supported values: TCP, UDP"},
+		"protocol required":      {[]api.ContainerPort{{Name: "abc", ContainerPort: 80}}, validation.ErrorTypeRequired, "[0].protocol", ""},
 	}
 	for k, v := range errorCases {
 		errs := validatePorts(v.P)
@@ -627,13 +626,13 @@ func TestValidatePorts(t *testing.T) {
 			t.Errorf("expected failure for %s", k)
 		}
 		for i := range errs {
-			if errs[i].(*errors.ValidationError).Type != v.T {
+			if errs[i].Type != v.T {
 				t.Errorf("%s: expected errors to have type %s: %v", k, v.T, errs[i])
 			}
-			if errs[i].(*errors.ValidationError).Field != v.F {
+			if errs[i].Field != v.F {
 				t.Errorf("%s: expected errors to have field %s: %v", k, v.F, errs[i])
 			}
-			detail := errs[i].(*errors.ValidationError).Detail
+			detail := errs[i].Detail
 			if detail != v.D {
 				t.Errorf("%s: expected error detail either empty or %s, got %s", k, v.D, detail)
 			}
@@ -772,7 +771,7 @@ func TestValidateEnv(t *testing.T) {
 			t.Errorf("expected failure for %s", tc.name)
 		} else {
 			for i := range errs {
-				str := errs[i].(*errors.ValidationError).Error()
+				str := errs[i].Error()
 				if str != "" && str != tc.expectedError {
 					t.Errorf("%s: expected error detail either empty or %s, got %s", tc.name, tc.expectedError, str)
 				}
@@ -807,22 +806,26 @@ func TestValidateVolumeMounts(t *testing.T) {
 
 func TestValidateProbe(t *testing.T) {
 	handler := api.Handler{Exec: &api.ExecAction{Command: []string{"echo"}}}
-	successCases := []*api.Probe{
-		nil,
-		{TimeoutSeconds: 10, InitialDelaySeconds: 0, Handler: handler},
-		{TimeoutSeconds: 0, InitialDelaySeconds: 10, Handler: handler},
+	// These fields must be positive.
+	positiveFields := [...]string{"InitialDelaySeconds", "TimeoutSeconds", "PeriodSeconds", "SuccessThreshold", "FailureThreshold"}
+	successCases := []*api.Probe{nil}
+	for _, field := range positiveFields {
+		probe := &api.Probe{Handler: handler}
+		reflect.ValueOf(probe).Elem().FieldByName(field).SetInt(10)
+		successCases = append(successCases, probe)
 	}
+
 	for _, p := range successCases {
 		if errs := validateProbe(p); len(errs) != 0 {
 			t.Errorf("expected success: %v", errs)
 		}
 	}
 
-	errorCases := []*api.Probe{
-		{TimeoutSeconds: 10, InitialDelaySeconds: 10},
-		{TimeoutSeconds: 10, InitialDelaySeconds: -10, Handler: handler},
-		{TimeoutSeconds: -10, InitialDelaySeconds: 10, Handler: handler},
-		{TimeoutSeconds: -10, InitialDelaySeconds: -10, Handler: handler},
+	errorCases := []*api.Probe{{TimeoutSeconds: 10, InitialDelaySeconds: 10}}
+	for _, field := range positiveFields {
+		probe := &api.Probe{Handler: handler}
+		reflect.ValueOf(probe).Elem().FieldByName(field).SetInt(-10)
+		errorCases = append(errorCases, probe)
 	}
 	for _, p := range errorCases {
 		if errs := validateProbe(p); len(errs) == 0 {
@@ -834,9 +837,9 @@ func TestValidateProbe(t *testing.T) {
 func TestValidateHandler(t *testing.T) {
 	successCases := []api.Handler{
 		{Exec: &api.ExecAction{Command: []string{"echo"}}},
-		{HTTPGet: &api.HTTPGetAction{Path: "/", Port: util.NewIntOrStringFromInt(1), Host: "", Scheme: "HTTP"}},
-		{HTTPGet: &api.HTTPGetAction{Path: "/foo", Port: util.NewIntOrStringFromInt(65535), Host: "host", Scheme: "HTTP"}},
-		{HTTPGet: &api.HTTPGetAction{Path: "/", Port: util.NewIntOrStringFromString("port"), Host: "", Scheme: "HTTP"}},
+		{HTTPGet: &api.HTTPGetAction{Path: "/", Port: intstr.FromInt(1), Host: "", Scheme: "HTTP"}},
+		{HTTPGet: &api.HTTPGetAction{Path: "/foo", Port: intstr.FromInt(65535), Host: "host", Scheme: "HTTP"}},
+		{HTTPGet: &api.HTTPGetAction{Path: "/", Port: intstr.FromString("port"), Host: "", Scheme: "HTTP"}},
 	}
 	for _, h := range successCases {
 		if errs := validateHandler(&h); len(errs) != 0 {
@@ -847,9 +850,9 @@ func TestValidateHandler(t *testing.T) {
 	errorCases := []api.Handler{
 		{},
 		{Exec: &api.ExecAction{Command: []string{}}},
-		{HTTPGet: &api.HTTPGetAction{Path: "", Port: util.NewIntOrStringFromInt(0), Host: ""}},
-		{HTTPGet: &api.HTTPGetAction{Path: "/foo", Port: util.NewIntOrStringFromInt(65536), Host: "host"}},
-		{HTTPGet: &api.HTTPGetAction{Path: "", Port: util.NewIntOrStringFromString(""), Host: ""}},
+		{HTTPGet: &api.HTTPGetAction{Path: "", Port: intstr.FromInt(0), Host: ""}},
+		{HTTPGet: &api.HTTPGetAction{Path: "/foo", Port: intstr.FromInt(65536), Host: "host"}},
+		{HTTPGet: &api.HTTPGetAction{Path: "", Port: intstr.FromString(""), Host: ""}},
 	}
 	for _, h := range errorCases {
 		if errs := validateHandler(&h); len(errs) == 0 {
@@ -1079,7 +1082,7 @@ func TestValidateContainers(t *testing.T) {
 				Lifecycle: &api.Lifecycle{
 					PreStop: &api.Handler{
 						TCPSocket: &api.TCPSocketAction{
-							Port: util.IntOrString{IntVal: 0},
+							Port: intstr.FromInt(0),
 						},
 					},
 				},
@@ -1683,7 +1686,7 @@ func makeValidService() api.Service {
 			Selector:        map[string]string{"key": "val"},
 			SessionAffinity: "None",
 			Type:            api.ServiceTypeClusterIP,
-			Ports:           []api.ServicePort{{Name: "p", Protocol: "TCP", Port: 8675, TargetPort: util.NewIntOrStringFromInt(8675)}},
+			Ports:           []api.ServicePort{{Name: "p", Protocol: "TCP", Port: 8675, TargetPort: intstr.FromInt(8675)}},
 		},
 	}
 }
@@ -1793,6 +1796,14 @@ func TestValidateService(t *testing.T) {
 			numErrs: 1,
 		},
 		{
+			name: "missing ports but headless",
+			tweakSvc: func(s *api.Service) {
+				s.Spec.Ports = nil
+				s.Spec.ClusterIP = api.ClusterIPNone
+			},
+			numErrs: 0,
+		},
+		{
 			name: "empty port[0] name",
 			tweakSvc: func(s *api.Service) {
 				s.Spec.Ports[0].Name = ""
@@ -1802,7 +1813,7 @@ func TestValidateService(t *testing.T) {
 		{
 			name: "empty port[1] name",
 			tweakSvc: func(s *api.Service) {
-				s.Spec.Ports = append(s.Spec.Ports, api.ServicePort{Name: "", Protocol: "TCP", Port: 12345, TargetPort: util.NewIntOrStringFromInt(12345)})
+				s.Spec.Ports = append(s.Spec.Ports, api.ServicePort{Name: "", Protocol: "TCP", Port: 12345, TargetPort: intstr.FromInt(12345)})
 			},
 			numErrs: 1,
 		},
@@ -1810,7 +1821,7 @@ func TestValidateService(t *testing.T) {
 			name: "empty multi-port port[0] name",
 			tweakSvc: func(s *api.Service) {
 				s.Spec.Ports[0].Name = ""
-				s.Spec.Ports = append(s.Spec.Ports, api.ServicePort{Name: "p", Protocol: "TCP", Port: 12345, TargetPort: util.NewIntOrStringFromInt(12345)})
+				s.Spec.Ports = append(s.Spec.Ports, api.ServicePort{Name: "p", Protocol: "TCP", Port: 12345, TargetPort: intstr.FromInt(12345)})
 			},
 			numErrs: 1,
 		},
@@ -1859,7 +1870,7 @@ func TestValidateService(t *testing.T) {
 		{
 			name: "invalid TargetPort int",
 			tweakSvc: func(s *api.Service) {
-				s.Spec.Ports[0].TargetPort = util.NewIntOrStringFromInt(65536)
+				s.Spec.Ports[0].TargetPort = intstr.FromInt(65536)
 			},
 			numErrs: 1,
 		},
@@ -1888,7 +1899,7 @@ func TestValidateService(t *testing.T) {
 			name: "dup port name",
 			tweakSvc: func(s *api.Service) {
 				s.Spec.Ports[0].Name = "p"
-				s.Spec.Ports = append(s.Spec.Ports, api.ServicePort{Name: "p", Port: 12345, Protocol: "TCP", TargetPort: util.NewIntOrStringFromInt(12345)})
+				s.Spec.Ports = append(s.Spec.Ports, api.ServicePort{Name: "p", Port: 12345, Protocol: "TCP", TargetPort: intstr.FromInt(12345)})
 			},
 			numErrs: 1,
 		},
@@ -1904,7 +1915,7 @@ func TestValidateService(t *testing.T) {
 			name: "invalid load balancer protocol 2",
 			tweakSvc: func(s *api.Service) {
 				s.Spec.Type = api.ServiceTypeLoadBalancer
-				s.Spec.Ports = append(s.Spec.Ports, api.ServicePort{Name: "q", Port: 12345, Protocol: "UDP", TargetPort: util.NewIntOrStringFromInt(12345)})
+				s.Spec.Ports = append(s.Spec.Ports, api.ServicePort{Name: "q", Port: 12345, Protocol: "UDP", TargetPort: intstr.FromInt(12345)})
 			},
 			numErrs: 1,
 		},
@@ -1919,14 +1930,14 @@ func TestValidateService(t *testing.T) {
 			name: "valid 2",
 			tweakSvc: func(s *api.Service) {
 				s.Spec.Ports[0].Protocol = "UDP"
-				s.Spec.Ports[0].TargetPort = util.NewIntOrStringFromInt(12345)
+				s.Spec.Ports[0].TargetPort = intstr.FromInt(12345)
 			},
 			numErrs: 0,
 		},
 		{
 			name: "valid 3",
 			tweakSvc: func(s *api.Service) {
-				s.Spec.Ports[0].TargetPort = util.NewIntOrStringFromString("http")
+				s.Spec.Ports[0].TargetPort = intstr.FromString("http")
 			},
 			numErrs: 0,
 		},
@@ -1941,7 +1952,7 @@ func TestValidateService(t *testing.T) {
 			name: "valid cluster ip - empty",
 			tweakSvc: func(s *api.Service) {
 				s.Spec.ClusterIP = ""
-				s.Spec.Ports[0].TargetPort = util.NewIntOrStringFromString("http")
+				s.Spec.Ports[0].TargetPort = intstr.FromString("http")
 			},
 			numErrs: 0,
 		},
@@ -1963,7 +1974,7 @@ func TestValidateService(t *testing.T) {
 			name: "valid type loadbalancer 2 ports",
 			tweakSvc: func(s *api.Service) {
 				s.Spec.Type = api.ServiceTypeLoadBalancer
-				s.Spec.Ports = append(s.Spec.Ports, api.ServicePort{Name: "q", Port: 12345, Protocol: "TCP", TargetPort: util.NewIntOrStringFromInt(12345)})
+				s.Spec.Ports = append(s.Spec.Ports, api.ServicePort{Name: "q", Port: 12345, Protocol: "TCP", TargetPort: intstr.FromInt(12345)})
 			},
 			numErrs: 0,
 		},
@@ -1971,7 +1982,7 @@ func TestValidateService(t *testing.T) {
 			name: "valid external load balancer 2 ports",
 			tweakSvc: func(s *api.Service) {
 				s.Spec.Type = api.ServiceTypeLoadBalancer
-				s.Spec.Ports = append(s.Spec.Ports, api.ServicePort{Name: "q", Port: 12345, Protocol: "TCP", TargetPort: util.NewIntOrStringFromInt(12345)})
+				s.Spec.Ports = append(s.Spec.Ports, api.ServicePort{Name: "q", Port: 12345, Protocol: "TCP", TargetPort: intstr.FromInt(12345)})
 			},
 			numErrs: 0,
 		},
@@ -1979,8 +1990,8 @@ func TestValidateService(t *testing.T) {
 			name: "duplicate nodeports",
 			tweakSvc: func(s *api.Service) {
 				s.Spec.Type = api.ServiceTypeNodePort
-				s.Spec.Ports = append(s.Spec.Ports, api.ServicePort{Name: "q", Port: 1, Protocol: "TCP", NodePort: 1, TargetPort: util.NewIntOrStringFromInt(1)})
-				s.Spec.Ports = append(s.Spec.Ports, api.ServicePort{Name: "r", Port: 2, Protocol: "TCP", NodePort: 1, TargetPort: util.NewIntOrStringFromInt(2)})
+				s.Spec.Ports = append(s.Spec.Ports, api.ServicePort{Name: "q", Port: 1, Protocol: "TCP", NodePort: 1, TargetPort: intstr.FromInt(1)})
+				s.Spec.Ports = append(s.Spec.Ports, api.ServicePort{Name: "r", Port: 2, Protocol: "TCP", NodePort: 1, TargetPort: intstr.FromInt(2)})
 			},
 			numErrs: 1,
 		},
@@ -1988,8 +1999,8 @@ func TestValidateService(t *testing.T) {
 			name: "duplicate nodeports (different protocols)",
 			tweakSvc: func(s *api.Service) {
 				s.Spec.Type = api.ServiceTypeNodePort
-				s.Spec.Ports = append(s.Spec.Ports, api.ServicePort{Name: "q", Port: 1, Protocol: "TCP", NodePort: 1, TargetPort: util.NewIntOrStringFromInt(1)})
-				s.Spec.Ports = append(s.Spec.Ports, api.ServicePort{Name: "r", Port: 2, Protocol: "UDP", NodePort: 1, TargetPort: util.NewIntOrStringFromInt(2)})
+				s.Spec.Ports = append(s.Spec.Ports, api.ServicePort{Name: "q", Port: 1, Protocol: "TCP", NodePort: 1, TargetPort: intstr.FromInt(1)})
+				s.Spec.Ports = append(s.Spec.Ports, api.ServicePort{Name: "r", Port: 2, Protocol: "UDP", NodePort: 1, TargetPort: intstr.FromInt(2)})
 			},
 			numErrs: 0,
 		},
@@ -2018,7 +2029,7 @@ func TestValidateService(t *testing.T) {
 			name: "valid type loadbalancer 2 ports",
 			tweakSvc: func(s *api.Service) {
 				s.Spec.Type = api.ServiceTypeLoadBalancer
-				s.Spec.Ports = append(s.Spec.Ports, api.ServicePort{Name: "q", Port: 12345, Protocol: "TCP", TargetPort: util.NewIntOrStringFromInt(12345)})
+				s.Spec.Ports = append(s.Spec.Ports, api.ServicePort{Name: "q", Port: 12345, Protocol: "TCP", TargetPort: intstr.FromInt(12345)})
 			},
 			numErrs: 0,
 		},
@@ -2026,7 +2037,7 @@ func TestValidateService(t *testing.T) {
 			name: "valid type loadbalancer with NodePort",
 			tweakSvc: func(s *api.Service) {
 				s.Spec.Type = api.ServiceTypeLoadBalancer
-				s.Spec.Ports = append(s.Spec.Ports, api.ServicePort{Name: "q", Port: 12345, Protocol: "TCP", NodePort: 12345, TargetPort: util.NewIntOrStringFromInt(12345)})
+				s.Spec.Ports = append(s.Spec.Ports, api.ServicePort{Name: "q", Port: 12345, Protocol: "TCP", NodePort: 12345, TargetPort: intstr.FromInt(12345)})
 			},
 			numErrs: 0,
 		},
@@ -2034,7 +2045,7 @@ func TestValidateService(t *testing.T) {
 			name: "valid type=NodePort service with NodePort",
 			tweakSvc: func(s *api.Service) {
 				s.Spec.Type = api.ServiceTypeNodePort
-				s.Spec.Ports = append(s.Spec.Ports, api.ServicePort{Name: "q", Port: 12345, Protocol: "TCP", NodePort: 12345, TargetPort: util.NewIntOrStringFromInt(12345)})
+				s.Spec.Ports = append(s.Spec.Ports, api.ServicePort{Name: "q", Port: 12345, Protocol: "TCP", NodePort: 12345, TargetPort: intstr.FromInt(12345)})
 			},
 			numErrs: 0,
 		},
@@ -2042,7 +2053,7 @@ func TestValidateService(t *testing.T) {
 			name: "valid type=NodePort service without NodePort",
 			tweakSvc: func(s *api.Service) {
 				s.Spec.Type = api.ServiceTypeNodePort
-				s.Spec.Ports = append(s.Spec.Ports, api.ServicePort{Name: "q", Port: 12345, Protocol: "TCP", TargetPort: util.NewIntOrStringFromInt(12345)})
+				s.Spec.Ports = append(s.Spec.Ports, api.ServicePort{Name: "q", Port: 12345, Protocol: "TCP", TargetPort: intstr.FromInt(12345)})
 			},
 			numErrs: 0,
 		},
@@ -2050,7 +2061,7 @@ func TestValidateService(t *testing.T) {
 			name: "valid cluster service without NodePort",
 			tweakSvc: func(s *api.Service) {
 				s.Spec.Type = api.ServiceTypeClusterIP
-				s.Spec.Ports = append(s.Spec.Ports, api.ServicePort{Name: "q", Port: 12345, Protocol: "TCP", TargetPort: util.NewIntOrStringFromInt(12345)})
+				s.Spec.Ports = append(s.Spec.Ports, api.ServicePort{Name: "q", Port: 12345, Protocol: "TCP", TargetPort: intstr.FromInt(12345)})
 			},
 			numErrs: 0,
 		},
@@ -2058,7 +2069,7 @@ func TestValidateService(t *testing.T) {
 			name: "invalid cluster service with NodePort",
 			tweakSvc: func(s *api.Service) {
 				s.Spec.Type = api.ServiceTypeClusterIP
-				s.Spec.Ports = append(s.Spec.Ports, api.ServicePort{Name: "q", Port: 12345, Protocol: "TCP", NodePort: 12345, TargetPort: util.NewIntOrStringFromInt(12345)})
+				s.Spec.Ports = append(s.Spec.Ports, api.ServicePort{Name: "q", Port: 12345, Protocol: "TCP", NodePort: 12345, TargetPort: intstr.FromInt(12345)})
 			},
 			numErrs: 1,
 		},
@@ -2066,8 +2077,8 @@ func TestValidateService(t *testing.T) {
 			name: "invalid public service with duplicate NodePort",
 			tweakSvc: func(s *api.Service) {
 				s.Spec.Type = api.ServiceTypeNodePort
-				s.Spec.Ports = append(s.Spec.Ports, api.ServicePort{Name: "p1", Port: 1, Protocol: "TCP", NodePort: 1, TargetPort: util.NewIntOrStringFromInt(1)})
-				s.Spec.Ports = append(s.Spec.Ports, api.ServicePort{Name: "p2", Port: 2, Protocol: "TCP", NodePort: 1, TargetPort: util.NewIntOrStringFromInt(2)})
+				s.Spec.Ports = append(s.Spec.Ports, api.ServicePort{Name: "p1", Port: 1, Protocol: "TCP", NodePort: 1, TargetPort: intstr.FromInt(1)})
+				s.Spec.Ports = append(s.Spec.Ports, api.ServicePort{Name: "p2", Port: 2, Protocol: "TCP", NodePort: 1, TargetPort: intstr.FromInt(2)})
 			},
 			numErrs: 1,
 		},
@@ -2075,7 +2086,7 @@ func TestValidateService(t *testing.T) {
 			name: "valid type=LoadBalancer",
 			tweakSvc: func(s *api.Service) {
 				s.Spec.Type = api.ServiceTypeLoadBalancer
-				s.Spec.Ports = append(s.Spec.Ports, api.ServicePort{Name: "q", Port: 12345, Protocol: "TCP", TargetPort: util.NewIntOrStringFromInt(12345)})
+				s.Spec.Ports = append(s.Spec.Ports, api.ServicePort{Name: "q", Port: 12345, Protocol: "TCP", TargetPort: intstr.FromInt(12345)})
 			},
 			numErrs: 0,
 		},
@@ -2085,7 +2096,7 @@ func TestValidateService(t *testing.T) {
 			name: "invalid port type=LoadBalancer",
 			tweakSvc: func(s *api.Service) {
 				s.Spec.Type = api.ServiceTypeLoadBalancer
-				s.Spec.Ports = append(s.Spec.Ports, api.ServicePort{Name: "kubelet", Port: 10250, Protocol: "TCP", TargetPort: util.NewIntOrStringFromInt(12345)})
+				s.Spec.Ports = append(s.Spec.Ports, api.ServicePort{Name: "kubelet", Port: 10250, Protocol: "TCP", TargetPort: intstr.FromInt(12345)})
 			},
 			numErrs: 1,
 		},
@@ -2096,7 +2107,7 @@ func TestValidateService(t *testing.T) {
 		tc.tweakSvc(&svc)
 		errs := ValidateService(&svc)
 		if len(errs) != tc.numErrs {
-			t.Errorf("Unexpected error list for case %q: %v", tc.name, utilerrors.NewAggregate(errs))
+			t.Errorf("Unexpected error list for case %q: %v", tc.name, errs.ToAggregate())
 		}
 	}
 }
@@ -2147,7 +2158,7 @@ func TestValidateReplicationControllerStatusUpdate(t *testing.T) {
 	for _, successCase := range successCases {
 		successCase.old.ObjectMeta.ResourceVersion = "1"
 		successCase.update.ObjectMeta.ResourceVersion = "1"
-		if errs := ValidateReplicationControllerStatusUpdate(&successCase.old, &successCase.update); len(errs) != 0 {
+		if errs := ValidateReplicationControllerStatusUpdate(&successCase.update, &successCase.old); len(errs) != 0 {
 			t.Errorf("expected success: %v", errs)
 		}
 	}
@@ -2177,7 +2188,7 @@ func TestValidateReplicationControllerStatusUpdate(t *testing.T) {
 		},
 	}
 	for testName, errorCase := range errorCases {
-		if errs := ValidateReplicationControllerStatusUpdate(&errorCase.old, &errorCase.update); len(errs) == 0 {
+		if errs := ValidateReplicationControllerStatusUpdate(&errorCase.update, &errorCase.old); len(errs) == 0 {
 			t.Errorf("expected failure: %s", testName)
 		}
 	}
@@ -2266,7 +2277,7 @@ func TestValidateReplicationControllerUpdate(t *testing.T) {
 	for _, successCase := range successCases {
 		successCase.old.ObjectMeta.ResourceVersion = "1"
 		successCase.update.ObjectMeta.ResourceVersion = "1"
-		if errs := ValidateReplicationControllerUpdate(&successCase.old, &successCase.update); len(errs) != 0 {
+		if errs := ValidateReplicationControllerUpdate(&successCase.update, &successCase.old); len(errs) != 0 {
 			t.Errorf("expected success: %v", errs)
 		}
 	}
@@ -2341,7 +2352,7 @@ func TestValidateReplicationControllerUpdate(t *testing.T) {
 		},
 	}
 	for testName, errorCase := range errorCases {
-		if errs := ValidateReplicationControllerUpdate(&errorCase.old, &errorCase.update); len(errs) == 0 {
+		if errs := ValidateReplicationControllerUpdate(&errorCase.update, &errorCase.old); len(errs) == 0 {
 			t.Errorf("expected failure: %s", testName)
 		}
 	}
@@ -2548,7 +2559,7 @@ func TestValidateReplicationController(t *testing.T) {
 			t.Errorf("expected failure for %s", k)
 		}
 		for i := range errs {
-			field := errs[i].(*errors.ValidationError).Field
+			field := errs[i].Field
 			if !strings.HasPrefix(field, "spec.template.") &&
 				field != "metadata.name" &&
 				field != "metadata.namespace" &&
@@ -2664,7 +2675,7 @@ func TestValidateNode(t *testing.T) {
 			t.Errorf("expected failure for %s", k)
 		}
 		for i := range errs {
-			field := errs[i].(*errors.ValidationError).Field
+			field := errs[i].Field
 			expectedFields := map[string]bool{
 				"metadata.name":        true,
 				"metadata.labels":      true,
@@ -2851,7 +2862,7 @@ func TestValidateNodeUpdate(t *testing.T) {
 	for i, test := range tests {
 		test.oldNode.ObjectMeta.ResourceVersion = "1"
 		test.node.ObjectMeta.ResourceVersion = "1"
-		errs := ValidateNodeUpdate(&test.oldNode, &test.node)
+		errs := ValidateNodeUpdate(&test.node, &test.oldNode)
 		if test.valid && len(errs) > 0 {
 			t.Errorf("%d: Unexpected error: %v", i, errs)
 			t.Logf("%#v vs %#v", test.oldNode.ObjectMeta, test.node.ObjectMeta)
@@ -2960,9 +2971,9 @@ func TestValidateServiceUpdate(t *testing.T) {
 		oldSvc := makeValidService()
 		newSvc := makeValidService()
 		tc.tweakSvc(&oldSvc, &newSvc)
-		errs := ValidateServiceUpdate(&oldSvc, &newSvc)
+		errs := ValidateServiceUpdate(&newSvc, &oldSvc)
 		if len(errs) != tc.numErrs {
-			t.Errorf("Unexpected error list for case %q: %v", tc.name, utilerrors.NewAggregate(errs))
+			t.Errorf("Unexpected error list for case %q: %v", tc.name, errs.ToAggregate())
 		}
 	}
 }
@@ -2996,7 +3007,7 @@ func TestValidateResourceNames(t *testing.T) {
 		} else if len(err) == 0 && !item.success {
 			t.Errorf("expected failure for input %q", item.input)
 			for i := range err {
-				detail := err[i].(*errors.ValidationError).Detail
+				detail := err[i].Detail
 				if detail != "" && detail != qualifiedNameErrorMsg {
 					t.Errorf("%d: expected error detail either empty or %s, got %s", k, qualifiedNameErrorMsg, detail)
 				}
@@ -3212,7 +3223,7 @@ func TestValidateLimitRange(t *testing.T) {
 			t.Errorf("expected failure for %s", k)
 		}
 		for i := range errs {
-			detail := errs[i].(*errors.ValidationError).Detail
+			detail := errs[i].Detail
 			if detail != v.D {
 				t.Errorf("%s: expected error detail either empty or %s, got %s", k, v.D, detail)
 			}
@@ -3244,6 +3255,21 @@ func TestValidateResourceQuota(t *testing.T) {
 		},
 	}
 
+	fractionalComputeSpec := api.ResourceQuotaSpec{
+		Hard: api.ResourceList{
+			api.ResourceCPU: resource.MustParse("100m"),
+		},
+	}
+
+	fractionalPodSpec := api.ResourceQuotaSpec{
+		Hard: api.ResourceList{
+			api.ResourcePods:                   resource.MustParse(".1"),
+			api.ResourceServices:               resource.MustParse(".5"),
+			api.ResourceReplicationControllers: resource.MustParse("1.25"),
+			api.ResourceQuotas:                 resource.MustParse("2.5"),
+		},
+	}
+
 	successCases := []api.ResourceQuota{
 		{
 			ObjectMeta: api.ObjectMeta{
@@ -3251,6 +3277,13 @@ func TestValidateResourceQuota(t *testing.T) {
 				Namespace: "foo",
 			},
 			Spec: spec,
+		},
+		{
+			ObjectMeta: api.ObjectMeta{
+				Name:      "abc",
+				Namespace: "foo",
+			},
+			Spec: fractionalComputeSpec,
 		},
 	}
 
@@ -3284,6 +3317,10 @@ func TestValidateResourceQuota(t *testing.T) {
 			api.ResourceQuota{ObjectMeta: api.ObjectMeta{Name: "abc", Namespace: "foo"}, Spec: negativeSpec},
 			isNegativeErrorMsg,
 		},
+		"fractional-api-resource": {
+			api.ResourceQuota{ObjectMeta: api.ObjectMeta{Name: "abc", Namespace: "foo"}, Spec: fractionalPodSpec},
+			isNotIntegerErrorMsg,
+		},
 	}
 	for k, v := range errorCases {
 		errs := ValidateResourceQuota(&v.R)
@@ -3291,8 +3328,8 @@ func TestValidateResourceQuota(t *testing.T) {
 			t.Errorf("expected failure for %s", k)
 		}
 		for i := range errs {
-			field := errs[i].(*errors.ValidationError).Field
-			detail := errs[i].(*errors.ValidationError).Detail
+			field := errs[i].Field
+			detail := errs[i].Detail
 			if field != "metadata.name" && field != "metadata.namespace" && !api.IsStandardResourceName(field) {
 				t.Errorf("%s: missing prefix for: %v", k, field)
 			}
@@ -3726,7 +3763,7 @@ func TestValidateEndpoints(t *testing.T) {
 
 	errorCases := map[string]struct {
 		endpoints   api.Endpoints
-		errorType   fielderrors.ValidationErrorType
+		errorType   validation.ErrorType
 		errorDetail string
 	}{
 		"missing namespace": {
@@ -3805,7 +3842,7 @@ func TestValidateEndpoints(t *testing.T) {
 				},
 			},
 			errorType:   "FieldValueInvalid",
-			errorDetail: portRangeErrorMsg,
+			errorDetail: PortRangeErrorMsg,
 		},
 		"Invalid protocol": {
 			endpoints: api.Endpoints{
@@ -3843,7 +3880,7 @@ func TestValidateEndpoints(t *testing.T) {
 				},
 			},
 			errorType:   "FieldValueInvalid",
-			errorDetail: portRangeErrorMsg,
+			errorDetail: PortRangeErrorMsg,
 		},
 		"Port missing protocol": {
 			endpoints: api.Endpoints{
@@ -3899,7 +3936,7 @@ func TestValidateEndpoints(t *testing.T) {
 	}
 
 	for k, v := range errorCases {
-		if errs := ValidateEndpoints(&v.endpoints); len(errs) == 0 || errs[0].(*errors.ValidationError).Type != v.errorType || !strings.Contains(errs[0].(*errors.ValidationError).Detail, v.errorDetail) {
+		if errs := ValidateEndpoints(&v.endpoints); len(errs) == 0 || errs[0].Type != v.errorType || !strings.Contains(errs[0].Detail, v.errorDetail) {
 			t.Errorf("Expected error type %s with detail %s for %s, got %v", v.errorType, v.errorDetail, k, errs)
 		}
 	}
@@ -3964,7 +4001,7 @@ func TestValidateSecurityContext(t *testing.T) {
 
 	errorCases := map[string]struct {
 		sc          *api.SecurityContext
-		errorType   fielderrors.ValidationErrorType
+		errorType   validation.ErrorType
 		errorDetail string
 	}{
 		"request privileged when capabilities forbids": {
@@ -3979,7 +4016,7 @@ func TestValidateSecurityContext(t *testing.T) {
 		},
 	}
 	for k, v := range errorCases {
-		if errs := ValidateSecurityContext(v.sc); len(errs) == 0 || errs[0].(*errors.ValidationError).Type != v.errorType || errs[0].(*errors.ValidationError).Detail != v.errorDetail {
+		if errs := ValidateSecurityContext(v.sc); len(errs) == 0 || errs[0].Type != v.errorType || errs[0].Detail != v.errorDetail {
 			t.Errorf("Expected error type %s with detail %s for %s, got %v", v.errorType, v.errorDetail, k, errs)
 		}
 	}
