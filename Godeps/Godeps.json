@@ -113,8 +113,8 @@
 		},
 		{
 			"ImportPath": "github.com/mailgun/manners",
-			"Comment": "0.3.1-30-g37136f7",
-			"Rev": "37136f736785d7c6aa3b9a27b4b2dd1028ca6d79"
+			"Comment": "0.3.1-33-g2743913",
+			"Rev": "2743913af7745397ec0a92c5c23c2b23907379a6"
 		},
 		{
 			"ImportPath": "github.com/mailgun/metrics",
