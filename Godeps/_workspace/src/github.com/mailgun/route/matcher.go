@@ -106,7 +106,7 @@ func (a *andMatcher) match(req *http.Request) *match {
 
 // Regular expression matcher, takes a regular expression and requestMapper
 type regexpMatcher struct {
-	// Uses this mapper to extract a string from a request to match agains
+	// Uses this mapper to extract a string from a request to match against
 	mapper requestMapper
 	// Compiled regular expression
 	expr *regexp.Regexp
