@@ -129,6 +129,30 @@
 			"Rev": "565402cd71fbd9c12aa7e295324ea357e970a61e"
 		},
 		{
+			"ImportPath": "github.com/mailgun/oxy/cbreaker",
+			"Rev": "8d49f51577f79f0ffd7607ec9fab42b300002851"
+		},
+		{
+			"ImportPath": "github.com/mailgun/oxy/connlimit",
+			"Rev": "8d49f51577f79f0ffd7607ec9fab42b300002851"
+		},
+		{
+			"ImportPath": "github.com/mailgun/oxy/ratelimit",
+			"Rev": "8d49f51577f79f0ffd7607ec9fab42b300002851"
+		},
+		{
+			"ImportPath": "github.com/mailgun/oxy/trace",
+			"Rev": "8d49f51577f79f0ffd7607ec9fab42b300002851"
+		},
+		{
+			"ImportPath": "github.com/mailgun/oxy/utils",
+			"Rev": "8d49f51577f79f0ffd7607ec9fab42b300002851"
+		},
+		{
+			"ImportPath": "github.com/mailgun/route",
+			"Rev": "cb89d787ddbb1c5849a7ac9f79004c1fd12a4a32"
+		},
+		{
 			"ImportPath": "github.com/mailgun/scroll",
 			"Rev": "3c26b3361eb55e8046a409a43b70537da2e13365"
 		},
@@ -181,6 +205,16 @@
 		{
 			"ImportPath": "github.com/timelinelabs/pkg/store",
 			"Rev": "52baf257f1b90ed2f42d96ae9284c837730a9c7a"
+		},
+		{
+			"ImportPath": "github.com/timelinelabs/vulcand/plugin",
+			"Comment": "v0.8.0-beta.3-85-g02de04c",
+			"Rev": "02de04c8e28dd06ad0fad44d3f04d330b9297edc"
+		},
+		{
+			"ImportPath": "github.com/timelinelabs/vulcand/router",
+			"Comment": "v0.8.0-beta.3-85-g02de04c",
+			"Rev": "02de04c8e28dd06ad0fad44d3f04d330b9297edc"
 		},
 		{
 			"ImportPath": "github.com/ugorji/go/codec",
@@ -263,6 +297,11 @@
 			"ImportPath": "gopkg.in/alecthomas/kingpin.v2",
 			"Comment": "v2.1.0",
 			"Rev": "72bf19f454c6822cfb2cf128c77ef8d70667df35"
+		},
+		{
+			"ImportPath": "gopkg.in/mgo.v2/bson",
+			"Comment": "r2015.10.05-15-ge30de8a",
+			"Rev": "e30de8ac9ae3b30df7065f766c71f88bba7d4e49"
 		},
 		{
 			"ImportPath": "gopkg.in/yaml.v2",

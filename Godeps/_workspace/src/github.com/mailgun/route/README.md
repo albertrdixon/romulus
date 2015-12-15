@@ -17,4 +17,4 @@ Features:
 
 Documentation:
 
-http://godoc.org/github.com/mailgun/route
+http://godoc.org/github.com/vulcand/route

@@ -9,12 +9,12 @@ import (
 
 	"github.com/albertrdixon/gearbox/logger"
 	"github.com/albertrdixon/gearbox/url"
+	"github.com/timelinelabs/vulcand/api"
+	"github.com/timelinelabs/vulcand/engine"
+	"github.com/timelinelabs/vulcand/plugin"
+	"github.com/timelinelabs/vulcand/plugin/registry"
 	"github.com/vulcand/oxy/utils"
 	"github.com/vulcand/route"
-	"github.com/vulcand/vulcand/api"
-	"github.com/vulcand/vulcand/engine"
-	"github.com/vulcand/vulcand/plugin"
-	"github.com/vulcand/vulcand/plugin/registry"
 	"golang.org/x/net/context"
 )
 
