@@ -9,6 +9,7 @@ import (
 
 	"github.com/albertrdixon/gearbox/logger"
 	"github.com/albertrdixon/gearbox/url"
+	"github.com/vulcand/oxy/utils"
 	"github.com/vulcand/route"
 	"github.com/vulcand/vulcand/api"
 	"github.com/vulcand/vulcand/engine"
@@ -40,7 +41,16 @@ var (
         "Prefix": "@app"
       }
     }`,
+		"auth": `{
+    	"Priority": 1,
+    	"Type": "auth",
+    	"Middleware": {
+    		"User": "%s",
+    		"Pass": "%s"
+    	}
+    }`,
 	}
+	defaultBasicAuth = &utils.BasicAuth{Username: "admin", Password: "admin"}
 )
 
 func newVulcanLB(vulcanURL string, reg *plugin.Registry, ctx context.Context) (*vulcan, error) {
@@ -122,14 +132,23 @@ func (v *vulcan) NewServers(addr Addresses, meta *Metadata) ([]Server, error) {
 func (v *vulcan) NewMiddlewares(meta *Metadata) ([]Middleware, error) {
 	mids := make([]Middleware, 0, 1)
 	for key, def := range DefaultMiddleware {
-		if val, ok := meta.Annotations[AnnotationsKeyf(key)]; ok && val == Enabled {
-			if key == "trace" {
+		if val, ok := meta.Annotations[AnnotationsKeyf(key)]; ok && len(val) > 0 {
+			switch key {
+			case "trace":
 				h := meta.Annotations[AnnotationsKeyf("traceHeaders")]
 				if len(h) < 1 {
 					h = "[]"
 				}
 				def = fmt.Sprintf(def, h, h)
+			case "auth":
+				auth, er := utils.ParseAuthHeader(val)
+				if er != nil {
+					logger.Errorf("Basic auth invalid, using defaults (admin:admin): %v", er)
+					auth = defaultBasicAuth
+				}
+				def = fmt.Sprintf(def, auth.Username, auth.Password)
 			}
+
 			m, er := engine.MiddlewareFromJSON([]byte(def), v.Registry.GetSpec, key)
 			if er != nil {
 				logger.Warnf("Failed to parse Middleware %s: %v", key, er)
