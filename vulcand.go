@@ -21,7 +21,7 @@ import (
 var (
 	RouteMatchers     = []string{"host", "path", "method", "header"}
 	DefaultMiddleware = map[string]string{
-		"forceSSL": `{
+		"redirect_ssl": `{
       "Priority": 1,
       "Type": "rewrite",
       "Middleware": {
@@ -47,6 +47,23 @@ var (
     	"Middleware": {
     		"User": "%s",
     		"Pass": "%s"
+    	}
+    }`,
+		"maintenance": `{
+    	"Priority": 1,
+    	"Type": "cbreaker",
+    	"Middleware": {
+    		"Condition": "ResponseCodeRatio(500, 600, 0, 600) > 0.9",
+    		"Fallback": {
+    			"Type": "response",
+    			"Action": {
+    				"StatusCode": 503,
+    				"Body": %q
+    			}
+    		},
+    		"FallbackDuration": 1000000000,
+    		"RecoveryDuration": 1000000000,
+    		"CheckPeriod": 100000000
     	}
     }`,
 	}
@@ -135,11 +152,13 @@ func (v *vulcan) NewMiddlewares(meta *Metadata) ([]Middleware, error) {
 		if val, ok := meta.Annotations[AnnotationsKeyf(key)]; ok && len(val) > 0 {
 			switch key {
 			case "trace":
-				h := meta.Annotations[AnnotationsKeyf("traceHeaders")]
-				if len(h) < 1 {
-					h = "[]"
+				re := regexp.MustCompile(`\s+`)
+				list, er := json.Marshal(strings.Split(re.ReplaceAllString(val, ""), ","))
+				if er != nil {
+					logger.Warnf("Unable to json-ify trace headers: %v", er)
+					list = []byte("[]")
 				}
-				def = fmt.Sprintf(def, h, h)
+				def = fmt.Sprintf(def, string(list), string(list))
 			case "auth":
 				bits := strings.SplitN(val, ":", 2)
 				switch len(bits) {
@@ -151,6 +170,8 @@ func (v *vulcan) NewMiddlewares(meta *Metadata) ([]Middleware, error) {
 					logger.Errorf("Failed to parse provided basic auth, using default (admin:admin)")
 					def = fmt.Sprintf(def, defaultBasicAuth.Username, defaultBasicAuth.Password)
 				}
+			case "maintenance":
+				def = fmt.Sprintf(def, val)
 			}
 
 			m, er := engine.MiddlewareFromJSON([]byte(def), v.Registry.GetSpec, key)
