@@ -188,7 +188,7 @@ func (v *vulcan) UpsertFrontend(fr Frontend) error {
 		return er
 	}
 	for _, mid := range f.middlewares {
-		logger.Debugf("[%v] Upserting %v", f.Frontend, mid)
+		logger.Debugf("[%v] Upserting %v", fr, mid)
 		if er := v.UpsertMiddleware(f.GetKey(), mid.Middleware, 0); er != nil {
 			logger.Warnf("Failed to upsert Middleware %s for Frontend %s: %v", mid.GetID(), f.GetID(), er)
 		}
@@ -211,7 +211,7 @@ func (v *vulcan) UpsertBackend(ba Backend) error {
 		extra[ss[i].GetId()] = &vServer{ss[i]}
 	}
 	for _, srv := range b.servers {
-		logger.Debugf("[%v] Upserting %v", b.Backend, srv)
+		logger.Debugf("[%v] Upserting %v", ba, srv)
 		if er := v.UpsertServer(b, srv); er != nil {
 			return er
 		}
