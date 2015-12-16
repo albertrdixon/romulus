@@ -141,12 +141,16 @@ func (v *vulcan) NewMiddlewares(meta *Metadata) ([]Middleware, error) {
 				}
 				def = fmt.Sprintf(def, h, h)
 			case "auth":
-				auth, er := utils.ParseAuthHeader(val)
-				if er != nil {
-					logger.Errorf("Basic auth invalid, using defaults (admin:admin): %v", er)
-					auth = defaultBasicAuth
+				bits := strings.SplitN(val, ":", 2)
+				switch len(bits) {
+				case 1:
+					def = fmt.Sprintf(def, bits[0], "")
+				case 2:
+					def = fmt.Sprintf(def, bits[0], bits[1])
+				default:
+					logger.Errorf("Failed to parse provided basic auth, using default (admin:admin)")
+					def = fmt.Sprintf(def, defaultBasicAuth.Username, defaultBasicAuth.Password)
 				}
-				def = fmt.Sprintf(def, auth.Username, auth.Password)
 			}
 
 			m, er := engine.MiddlewareFromJSON([]byte(def), v.Registry.GetSpec, key)
