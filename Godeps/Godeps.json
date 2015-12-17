@@ -1,8 +1,8 @@
 {
 	"ImportPath": "github.com/timelinelabs/romulus",
-	"GoVersion": "go1.5.1",
+	"GoVersion": "go1.5",
 	"Packages": [
-		"."
+		"./..."
 	],
 	"Deps": [
 		{
@@ -39,8 +39,8 @@
 		},
 		{
 			"ImportPath": "github.com/codegangsta/cli",
-			"Comment": "1.2.0-161-gf445c89",
-			"Rev": "f445c894402839580d30de47551cedc152dad814"
+			"Comment": "1.2.0-183-gb5232bb",
+			"Rev": "b5232bb2934f606f9f27a1305f1eea224e8e8b88"
 		},
 		{
 			"ImportPath": "github.com/coreos/go-etcd/etcd",
@@ -49,7 +49,32 @@
 		},
 		{
 			"ImportPath": "github.com/davecgh/go-spew/spew",
-			"Rev": "2df174808ee097f90d259e432cc04442cf60be21"
+			"Rev": "5215b55f46b2b919f50a1df0eaa5886afe4e3b3d"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/mount",
+			"Comment": "v1.4.1-8608-g9681f0f",
+			"Rev": "9681f0f0d4457f0e8dfb0c0473557a97e0cfef2b"
+		},
+		{
+			"ImportPath": "github.com/docker/go-units",
+			"Comment": "v0.1.0-9-g954fed0",
+			"Rev": "954fed01cc617c55d838fa2230073f2cb17386c8"
+		},
+		{
+			"ImportPath": "github.com/docker/libcontainer/cgroups",
+			"Comment": "v2.2.1-24-g69f0977",
+			"Rev": "69f09770f9276429ffd1b489525a25ac37b82067"
+		},
+		{
+			"ImportPath": "github.com/docker/libcontainer/configs",
+			"Comment": "v2.2.1-24-g69f0977",
+			"Rev": "69f09770f9276429ffd1b489525a25ac37b82067"
+		},
+		{
+			"ImportPath": "github.com/docker/libcontainer/system",
+			"Comment": "v2.2.1-24-g69f0977",
+			"Rev": "69f09770f9276429ffd1b489525a25ac37b82067"
 		},
 		{
 			"ImportPath": "github.com/emicklei/go-restful",
@@ -75,11 +100,11 @@
 		},
 		{
 			"ImportPath": "github.com/golang/protobuf/proto",
-			"Rev": "deb4a5e3b15dea23f340a311eea995421845c356"
+			"Rev": "68415e7123da32b07eab49c96d2c4d6158360e9b"
 		},
 		{
 			"ImportPath": "github.com/google/cadvisor/info/v1",
-			"Comment": "0.18.0-30-g0d6015c",
+			"Comment": "0.19.0",
 			"Rev": "0d6015c74114de9503d68c3c91efceee4dc41bd2"
 		},
 		{
@@ -92,7 +117,7 @@
 		},
 		{
 			"ImportPath": "github.com/gorilla/mux",
-			"Rev": "ad4d7a5882b961e07e2626045eb995c022ac6664"
+			"Rev": "9c068cf16d982f8bd444b8c352acbeec34c4fe5b"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/logutils",
@@ -245,7 +270,7 @@
 		},
 		{
 			"ImportPath": "github.com/ugorji/go/codec",
-			"Rev": "357a44b2b13e2711a45e30016508134101477610"
+			"Rev": "3f41379a4bdd0906316978f4f99166fdbe960be4"
 		},
 		{
 			"ImportPath": "github.com/vulcand/oxy/memmetrics",
@@ -273,7 +298,7 @@
 		},
 		{
 			"ImportPath": "golang.org/x/net/context",
-			"Rev": "d8f3c68ddd4bb686ca3bd70e49bbc64b80c78144"
+			"Rev": "b4be494138138c074cf5ea7fa31856f329746ea7"
 		},
 		{
 			"ImportPath": "gopkg.in/alecthomas/kingpin.v2",
