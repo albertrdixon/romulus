@@ -66,6 +66,10 @@
 			"Rev": "73d445a93680fa1a78ae23a5839bad48f32ba1ee"
 		},
 		{
+			"ImportPath": "github.com/goji/httpauth",
+			"Rev": "c39b032b1fabde02a9be9eee9f42d9537a1b1919"
+		},
+		{
 			"ImportPath": "github.com/golang/glog",
 			"Rev": "fca8c8854093a154ff1eb580aae10276ad6b1b5f"
 		},
@@ -137,7 +141,15 @@
 			"Rev": "8d49f51577f79f0ffd7607ec9fab42b300002851"
 		},
 		{
+			"ImportPath": "github.com/mailgun/oxy/memmetrics",
+			"Rev": "8d49f51577f79f0ffd7607ec9fab42b300002851"
+		},
+		{
 			"ImportPath": "github.com/mailgun/oxy/ratelimit",
+			"Rev": "8d49f51577f79f0ffd7607ec9fab42b300002851"
+		},
+		{
+			"ImportPath": "github.com/mailgun/oxy/stream",
 			"Rev": "8d49f51577f79f0ffd7607ec9fab42b300002851"
 		},
 		{
@@ -207,41 +219,36 @@
 			"Rev": "52baf257f1b90ed2f42d96ae9284c837730a9c7a"
 		},
 		{
+			"ImportPath": "github.com/timelinelabs/vulcand/anomaly",
+			"Comment": "v0.8.0-beta.3-87-gac9ce7b",
+			"Rev": "ac9ce7bc1891da4f8c8717dd0eb9885d8508ef47"
+		},
+		{
+			"ImportPath": "github.com/timelinelabs/vulcand/api",
+			"Comment": "v0.8.0-beta.3-87-gac9ce7b",
+			"Rev": "ac9ce7bc1891da4f8c8717dd0eb9885d8508ef47"
+		},
+		{
+			"ImportPath": "github.com/timelinelabs/vulcand/engine",
+			"Comment": "v0.8.0-beta.3-87-gac9ce7b",
+			"Rev": "ac9ce7bc1891da4f8c8717dd0eb9885d8508ef47"
+		},
+		{
 			"ImportPath": "github.com/timelinelabs/vulcand/plugin",
-			"Comment": "v0.8.0-beta.3-85-g02de04c",
-			"Rev": "02de04c8e28dd06ad0fad44d3f04d330b9297edc"
+			"Comment": "v0.8.0-beta.3-87-gac9ce7b",
+			"Rev": "ac9ce7bc1891da4f8c8717dd0eb9885d8508ef47"
 		},
 		{
 			"ImportPath": "github.com/timelinelabs/vulcand/router",
-			"Comment": "v0.8.0-beta.3-85-g02de04c",
-			"Rev": "02de04c8e28dd06ad0fad44d3f04d330b9297edc"
+			"Comment": "v0.8.0-beta.3-87-gac9ce7b",
+			"Rev": "ac9ce7bc1891da4f8c8717dd0eb9885d8508ef47"
 		},
 		{
 			"ImportPath": "github.com/ugorji/go/codec",
 			"Rev": "357a44b2b13e2711a45e30016508134101477610"
 		},
 		{
-			"ImportPath": "github.com/vulcand/oxy/cbreaker",
-			"Rev": "8d49f51577f79f0ffd7607ec9fab42b300002851"
-		},
-		{
-			"ImportPath": "github.com/vulcand/oxy/connlimit",
-			"Rev": "8d49f51577f79f0ffd7607ec9fab42b300002851"
-		},
-		{
 			"ImportPath": "github.com/vulcand/oxy/memmetrics",
-			"Rev": "8d49f51577f79f0ffd7607ec9fab42b300002851"
-		},
-		{
-			"ImportPath": "github.com/vulcand/oxy/ratelimit",
-			"Rev": "8d49f51577f79f0ffd7607ec9fab42b300002851"
-		},
-		{
-			"ImportPath": "github.com/vulcand/oxy/stream",
-			"Rev": "8d49f51577f79f0ffd7607ec9fab42b300002851"
-		},
-		{
-			"ImportPath": "github.com/vulcand/oxy/trace",
 			"Rev": "8d49f51577f79f0ffd7607ec9fab42b300002851"
 		},
 		{
@@ -255,31 +262,6 @@
 		{
 			"ImportPath": "github.com/vulcand/route",
 			"Rev": "cb89d787ddbb1c5849a7ac9f79004c1fd12a4a32"
-		},
-		{
-			"ImportPath": "github.com/vulcand/vulcand/anomaly",
-			"Comment": "v0.8.0-beta.3-56-g8110c02",
-			"Rev": "8110c022c2a4e2b73746f0d7b84f3aff195972ee"
-		},
-		{
-			"ImportPath": "github.com/vulcand/vulcand/api",
-			"Comment": "v0.8.0-beta.3-56-g8110c02",
-			"Rev": "8110c022c2a4e2b73746f0d7b84f3aff195972ee"
-		},
-		{
-			"ImportPath": "github.com/vulcand/vulcand/engine",
-			"Comment": "v0.8.0-beta.3-56-g8110c02",
-			"Rev": "8110c022c2a4e2b73746f0d7b84f3aff195972ee"
-		},
-		{
-			"ImportPath": "github.com/vulcand/vulcand/plugin",
-			"Comment": "v0.8.0-beta.3-56-g8110c02",
-			"Rev": "8110c022c2a4e2b73746f0d7b84f3aff195972ee"
-		},
-		{
-			"ImportPath": "github.com/vulcand/vulcand/router",
-			"Comment": "v0.8.0-beta.3-56-g8110c02",
-			"Rev": "8110c022c2a4e2b73746f0d7b84f3aff195972ee"
 		},
 		{
 			"ImportPath": "golang.org/x/crypto/curve25519",
