@@ -9,7 +9,6 @@ import (
 
 	"github.com/albertrdixon/gearbox/logger"
 	"github.com/albertrdixon/gearbox/url"
-	"github.com/bradfitz/slice"
 	"github.com/timelinelabs/vulcand/api"
 	"github.com/timelinelabs/vulcand/engine"
 	"github.com/timelinelabs/vulcand/plugin"
@@ -99,7 +98,7 @@ func (v *Vulcan) NewMiddlewares(svc *kubernetes.Service) ([]loadbalancer.Middlew
 			case "trace":
 				re := regexp.MustCompile(`\s+`)
 				list, er := json.Marshal(strings.Split(re.ReplaceAllString(val, ""), ","))
-				if er != nil {
+				if er != nil || string(list) == "" {
 					logger.Warnf("Unable to json-ify trace headers: %v", er)
 					list = []byte("[]")
 				}
@@ -238,67 +237,28 @@ func (v *Vulcan) DeleteServer(ba loadbalancer.Backend, srv loadbalancer.Server) 
 	)
 }
 
-func newBackend(b *engine.Backend) *backend {
-	return &backend{
-		Backend: *b,
-		servers: make([]*server, 0, 1),
-	}
-}
-
 func (b *backend) GetID() string             { return b.GetId() }
 func (b *backend) GetKey() engine.BackendKey { return engine.BackendKey{Id: b.GetID()} }
 
 func (b *backend) AddServer(srv loadbalancer.Server) {
-	b.servers = append(b.servers, srv.(*server))
-}
-
-func newFrontend(f *engine.Frontend) *frontend {
-	return &frontend{
-		Frontend:    *f,
-		middlewares: make([]*middleware, 0, 1),
+	if b.servers == nil {
+		b.servers = make([]*server, 0, 1)
 	}
+	b.servers = append(b.servers, srv.(*server))
 }
 
 func (f *frontend) GetID() string { return f.GetId() }
 
 func (f *frontend) AddMiddleware(mid loadbalancer.Middleware) {
+	if f.middlewares == nil {
+		f.middlewares = make([]*middleware, 0, 1)
+	}
 	f.middlewares = append(f.middlewares, mid.(*middleware))
-}
-
-func newMiddleware(m *engine.Middleware) *middleware {
-	return &middleware{*m}
 }
 
 func (m *middleware) GetID() string { return m.Id }
 
-func newServer(s *engine.Server) *server {
-	return &server{*s}
-}
-
 func (s *server) GetID() string { return s.GetId() }
-
-type Vulcan struct {
-	api.Client
-	c context.Context
-}
-
-type frontend struct {
-	engine.Frontend
-	middlewares []*middleware
-}
-
-type backend struct {
-	engine.Backend
-	servers []*server
-}
-
-type server struct {
-	engine.Server
-}
-
-type middleware struct {
-	engine.Middleware
-}
 
 const (
 	DefaultRoute = "Path(`/`)"
@@ -313,42 +273,3 @@ const (
 	HTTP      = "http"
 	Enabled   = "enabled"
 )
-
-func buildRoute(rt *kubernetes.Route) string {
-	if rt.Empty() {
-		return DefaultRoute
-	}
-
-	bits := []string{}
-	for k, v := range rt.GetParts() {
-		bits = append(bits, fmt.Sprintf("%s(`%s`)", strings.Title(k), v))
-	}
-	for k, v := range rt.GetHeader() {
-		bits = append(bits, fmt.Sprintf("Header(`%s`, `%s`)", k, v))
-	}
-	slice.Sort(bits, func(i, j int) bool {
-		return bits[i] < bits[j]
-	})
-	expr := strings.Join(bits, " && ")
-	if len(expr) < 1 || !route.IsValid(expr) {
-		logger.Debugf("Provided route not valid: %s", expr)
-		return DefaultRoute
-	}
-	return expr
-}
-
-func isRegexp(r string) bool {
-	if !strings.HasPrefix(r, "/") || !strings.HasSuffix(r, "/") {
-		return false
-	}
-	if _, er := regexp.Compile(r); er != nil {
-		logger.Debugf("Regexp compile failure: %v", er)
-		return false
-	}
-	return true
-}
-
-func validVulcanURL(u *url.URL) bool {
-	return true
-	// return len(u.GetHost()) > 0 && len(u.Scheme) > 0 && len(u.Path) > 0
-}

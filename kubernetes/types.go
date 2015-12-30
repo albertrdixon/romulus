@@ -91,7 +91,7 @@ func (s KubeService) String() string {
 }
 
 func (s Service) String() string {
-	return fmt.Sprintf("Service(backends=%v, route=%v, meta=%v)", s.Backends, s.Route, s.Annotations)
+	return fmt.Sprintf("Service(backends=%v, route=%v, annotations=%v)", s.Backends, s.Route, s.Annotations)
 }
 
 func (r Route) String() string {

@@ -8,7 +8,7 @@ TEST_COMMAND = godep go test
 
 .PHONY: dep-save dep-restore test test-verbose build build-image install publish
 
-all: dep-restore test build install
+all: test build install
 container: build-image publish
 
 help:

@@ -31,6 +31,8 @@ var (
 	// FakeKubeClient = &testclient.Fake{}
 	Keyspace string
 
+	EverythingSelector = map[string]string{}
+
 	resources = map[string]runtime.Object{
 		"services":  &api.Service{},
 		"endpoints": &api.Endpoints{},
@@ -252,30 +254,31 @@ func (s *Service) AddBackend(id, scheme, ip string, port int) {
 	}
 
 	server := &Server{id, scheme, ip, port}
-	logger.Debugf("[%v] Adding %v", server)
+	logger.Debugf("[%v] Adding %v", s.ID, server)
 	s.Backends = append(s.Backends, server)
 }
 
 func (s *Service) GetAnnotation(key string) (val string, ok bool) {
 	if !strings.HasPrefix(key, Keyspace) {
-		key = strings.Join([]string{Keyspace, strings.TrimLeft(key, "/")}, "/")
+		n, k := strings.TrimRight(Keyspace, "/"), strings.TrimLeft(key, "/")
+		key = strings.Join([]string{n, k}, "/")
 	}
-	logger.Debugf("[%v] Looking up annotation key=%q", key)
+	logger.Debugf("[%v] Looking up annotation key=%q", s.ID, key)
 	val, ok = s.Annotations[key]
 	return
 }
 
 func AddBackendsFromService(port intstr.IntOrString, backend *api.Service, service *Service) error {
-	logger.Debugf(`[%v] Look up Port("%v") in %v`, service, port, KubeService(*backend))
+	logger.Debugf(`[%v] Look up Port("%v") in %v`, service.ID, port.String(), KubeService(*backend))
 	for _, sp := range backend.Spec.Ports {
-		logger.Debugf(`Checking Port(name="%s", port=%d)`, sp.Name, sp.Port)
+		logger.Debugf(`[%v] Checking Port(name="%s", port=%d)`, service.ID, sp.Name, sp.Port)
 		if sp.Name == port.String() || sp.Port == port.IntValue() {
 			id := ServerID(backend.Spec.ClusterIP, sp.Port, backend.ObjectMeta)
 			service.AddBackend(id, HTTP, backend.Spec.ClusterIP, sp.Port)
 			return nil
 		}
 	}
-	return fmt.Errorf("%v matches no ports in %v", port, KubeService(*backend))
+	return fmt.Errorf(`[%v] Port("%v") matches no ports in %v`, service.ID, port.String(), KubeService(*backend))
 }
 
 const (

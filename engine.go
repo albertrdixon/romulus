@@ -56,12 +56,12 @@ func (e *Engine) Start(selector kubernetes.Selector, resync time.Duration) error
 	defer e.Unlock()
 
 	logger.Debugf("Setting up Service cache")
-	if e.cache.Service, er = kubernetes.CreateStore(kubernetes.ServicesKind, e.client.Client, selector, resync, e.Context); er != nil {
+	if e.cache.Service, er = kubernetes.CreateStore(kubernetes.ServicesKind, e.client.Client, kubernetes.EverythingSelector, resync, e.Context); er != nil {
 		return fmt.Errorf("Unable to create Service cache: %v", er)
 	}
 
 	logger.Debugf("Setting up Service and Ingress callbacks")
-	_, service = kubernetes.CreateUpdateController(kubernetes.ServicesKind, e, e.client.Client, selector, resync)
+	_, service = kubernetes.CreateUpdateController(kubernetes.ServicesKind, e, e.client.Client, kubernetes.EverythingSelector, resync)
 	e.cache.Ingress, ingress = kubernetes.CreateFullController(kubernetes.IngressKind, e, e.client.ExtensionsClient, selector, resync)
 
 	go service.Run(e.Done())
@@ -161,10 +161,10 @@ func (e *Engine) updateBackends(prev, next *api.Service) error {
 
 	logger.Debugf("Parse prev version: %v", kubernetes.KubeService(*prev))
 	prevBackends, _ := gatherBackendsFromService(e, prev)
-	logger.Debugf("[%v] Previous Backends: %v", kubernetes.KubeService(*prev), prevBackends)
+	logger.Debugf("%v :: Previous Backends: %v", kubernetes.KubeService(*prev), prevBackends)
 	logger.Debugf("Parse new version: %v", kubernetes.KubeService(*next))
 	nextBackends, er := gatherBackendsFromService(e, next)
-	logger.Debugf("[%v] New Backends: %v", kubernetes.KubeService(*next), nextBackends)
+	logger.Debugf("%v :: New Backends: %v", kubernetes.KubeService(*next), nextBackends)
 	if er != nil {
 		return er
 	}
@@ -180,7 +180,7 @@ func (e *Engine) updateBackends(prev, next *api.Service) error {
 			if er := e.UpsertBackend(backend); er != nil {
 				return er
 			}
-			logger.Debugf("Removing %v from map (id=%q)", backend, backend.GetID())
+			logger.Debugf("Removing %v from map", backend)
 			delete(prevBackendsMap, backend.GetID())
 		}
 		logger.Debugf("Backend map: %v", prevBackendsMap)
@@ -222,9 +222,9 @@ func (e *Engine) addBackends(s *api.Service) error {
 func gatherBackendsFromService(e *Engine, s *api.Service) ([]loadbalancer.Backend, error) {
 	var backends = []loadbalancer.Backend{}
 
-	logger.Debugf("[%v] Gathering Backends", kubernetes.KubeService(*s))
+	logger.Debugf("Gathering Backends from %v", kubernetes.KubeService(*s))
 	for _, svcPort := range s.Spec.Ports {
-		logger.Debugf(`[%v] Working on Port(name="%s", port=%d)`, kubernetes.KubeService(*s), svcPort.Name, svcPort.Port)
+		logger.Debugf(`%v :: Port(name="%s", port=%d)`, kubernetes.KubeService(*s), svcPort.Name, svcPort.Port)
 		service, ok := e.FindService(svcPort, s.ObjectMeta)
 		if !ok {
 			continue
@@ -238,14 +238,14 @@ func gatherBackendsFromService(e *Engine, s *api.Service) ([]loadbalancer.Backen
 		if er != nil {
 			return backends, er
 		}
-		logger.Debugf("Created Backend: %v", backend)
+		logger.Debugf("[%v] Created Backend: %v", service.ID, backend)
 
 		srvs, er := e.NewServers(service)
 		if er != nil {
 			return backends, er
 		}
 		for i := range srvs {
-			logger.Debugf("Adding Server: %v", srvs[i])
+			logger.Debugf("[%v] Adding Server: %v", service.ID, srvs[i])
 			backend.AddServer(srvs[i])
 		}
 		backends = append(backends, backend)
@@ -282,15 +282,18 @@ func (e *Engine) updateFrontend(old, next *extensions.Ingress) error {
 
 	oldSVCmap := make(map[string]*kubernetes.Service, len(oldSVCs))
 	for i := range oldSVCs {
-		oldSVCmap[oldSVCs[i].UID] = oldSVCs[i]
+		oldSVCmap[oldSVCs[i].ID] = oldSVCs[i]
 	}
+	logger.Debugf("Old Services: %v", oldSVCmap)
 
 	del := []*kubernetes.Service{}
 	for _, s2 := range add {
-		if s1, ok := oldSVCmap[s2.UID]; ok && s1.ID != s2.ID {
+		if s1, ok := oldSVCmap[s2.ID]; !ok {
 			del = append(del, s1)
 		}
 	}
+	logger.Debugf("Services to add: %v", add)
+	logger.Debugf("Services to remove: %v", del)
 
 	if er := addServices(e, add); er != nil {
 		return er
@@ -347,7 +350,7 @@ func addServices(e *Engine, services []*kubernetes.Service) error {
 	backends := make([]loadbalancer.Backend, 0, len(services))
 	frontends := make([]loadbalancer.Frontend, 0, len(services))
 	for _, svc := range services {
-		logger.Debugf("Working on %v", svc)
+		logger.Debugf("[%v] Build Frontends and Backends", svc.ID)
 		backend, er := e.NewBackend(svc)
 		if er != nil {
 			return er
@@ -359,7 +362,7 @@ func addServices(e *Engine, services []*kubernetes.Service) error {
 		for i := range srvs {
 			backend.AddServer(srvs[i])
 		}
-		logger.Debugf("Created new object: %v", backend)
+		logger.Debugf("[%v] Created new object: %v", svc.ID, backend)
 		backends = append(backends, backend)
 
 		frontend, er := e.NewFrontend(svc)
@@ -374,7 +377,7 @@ func addServices(e *Engine, services []*kubernetes.Service) error {
 			frontend.AddMiddleware(mids[i])
 		}
 		frontends = append(frontends, frontend)
-		logger.Debugf("Created new object: %v", frontend)
+		logger.Debugf("[%v] Created new object: %v", svc.ID, frontend)
 	}
 
 	return e.commit(func() error {
