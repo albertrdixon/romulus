@@ -19,22 +19,13 @@ var (
 
 	// file to check to determine Operating System
 	etcOsRelease = "/etc/os-release"
-
-	// used by stateless systems like Clear Linux
-	altOsRelease = "/usr/lib/os-release"
 )
 
 // GetOperatingSystem gets the name of the current operating system.
 func GetOperatingSystem() (string, error) {
 	osReleaseFile, err := os.Open(etcOsRelease)
 	if err != nil {
-		if !os.IsNotExist(err) {
-			return "", fmt.Errorf("Error opening %s: %v", etcOsRelease, err)
-		}
-		osReleaseFile, err = os.Open(altOsRelease)
-		if err != nil {
-			return "", fmt.Errorf("Error opening %s: %v", altOsRelease, err)
-		}
+		return "", err
 	}
 	defer osReleaseFile.Close()
 
@@ -69,7 +60,7 @@ func IsContainerized() (bool, error) {
 		return false, err
 	}
 	for _, line := range bytes.Split(b, []byte{'\n'}) {
-		if len(line) > 0 && !bytes.HasSuffix(line, []byte{'/'}) && !bytes.HasSuffix(line, []byte("init.scope")) {
+		if len(line) > 0 && !bytes.HasSuffix(line, []byte{'/'}) {
 			return true, nil
 		}
 	}

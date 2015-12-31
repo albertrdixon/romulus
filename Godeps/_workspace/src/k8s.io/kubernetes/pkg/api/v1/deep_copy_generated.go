@@ -587,6 +587,15 @@ func deepCopy_v1_ExecAction(in ExecAction, out *ExecAction, c *conversion.Cloner
 	return nil
 }
 
+func deepCopy_v1_ExportOptions(in ExportOptions, out *ExportOptions, c *conversion.Cloner) error {
+	if err := deepCopy_unversioned_TypeMeta(in.TypeMeta, &out.TypeMeta, c); err != nil {
+		return err
+	}
+	out.Export = in.Export
+	out.Exact = in.Exact
+	return nil
+}
+
 func deepCopy_v1_FCVolumeSource(in FCVolumeSource, out *FCVolumeSource, c *conversion.Cloner) error {
 	if in.TargetWWNs != nil {
 		out.TargetWWNs = make([]string, len(in.TargetWWNs))
@@ -607,6 +616,29 @@ func deepCopy_v1_FCVolumeSource(in FCVolumeSource, out *FCVolumeSource, c *conve
 	return nil
 }
 
+func deepCopy_v1_FlexVolumeSource(in FlexVolumeSource, out *FlexVolumeSource, c *conversion.Cloner) error {
+	out.Driver = in.Driver
+	out.FSType = in.FSType
+	if in.SecretRef != nil {
+		out.SecretRef = new(LocalObjectReference)
+		if err := deepCopy_v1_LocalObjectReference(*in.SecretRef, out.SecretRef, c); err != nil {
+			return err
+		}
+	} else {
+		out.SecretRef = nil
+	}
+	out.ReadOnly = in.ReadOnly
+	if in.Options != nil {
+		out.Options = make(map[string]string)
+		for key, val := range in.Options {
+			out.Options[key] = val
+		}
+	} else {
+		out.Options = nil
+	}
+	return nil
+}
+
 func deepCopy_v1_FlockerVolumeSource(in FlockerVolumeSource, out *FlockerVolumeSource, c *conversion.Cloner) error {
 	out.DatasetName = in.DatasetName
 	return nil
@@ -623,6 +655,7 @@ func deepCopy_v1_GCEPersistentDiskVolumeSource(in GCEPersistentDiskVolumeSource,
 func deepCopy_v1_GitRepoVolumeSource(in GitRepoVolumeSource, out *GitRepoVolumeSource, c *conversion.Cloner) error {
 	out.Repository = in.Repository
 	out.Revision = in.Revision
+	out.Directory = in.Directory
 	return nil
 }
 
@@ -680,6 +713,7 @@ func deepCopy_v1_ISCSIVolumeSource(in ISCSIVolumeSource, out *ISCSIVolumeSource,
 	out.TargetPortal = in.TargetPortal
 	out.IQN = in.IQN
 	out.Lun = in.Lun
+	out.ISCSIInterface = in.ISCSIInterface
 	out.FSType = in.FSType
 	out.ReadOnly = in.ReadOnly
 	return nil
@@ -1023,6 +1057,18 @@ func deepCopy_v1_NodeStatus(in NodeStatus, out *NodeStatus, c *conversion.Cloner
 	} else {
 		out.Capacity = nil
 	}
+	if in.Allocatable != nil {
+		out.Allocatable = make(ResourceList)
+		for key, val := range in.Allocatable {
+			newVal := new(resource.Quantity)
+			if err := deepCopy_resource_Quantity(val, newVal, c); err != nil {
+				return err
+			}
+			out.Allocatable[key] = *newVal
+		}
+	} else {
+		out.Allocatable = nil
+	}
 	out.Phase = in.Phase
 	if in.Conditions != nil {
 		out.Conditions = make([]NodeCondition, len(in.Conditions))
@@ -1058,7 +1104,7 @@ func deepCopy_v1_NodeSystemInfo(in NodeSystemInfo, out *NodeSystemInfo, c *conve
 	out.SystemUUID = in.SystemUUID
 	out.BootID = in.BootID
 	out.KernelVersion = in.KernelVersion
-	out.OsImage = in.OsImage
+	out.OSImage = in.OSImage
 	out.ContainerRuntimeVersion = in.ContainerRuntimeVersion
 	out.KubeletVersion = in.KubeletVersion
 	out.KubeProxyVersion = in.KubeProxyVersion
@@ -1333,6 +1379,14 @@ func deepCopy_v1_PersistentVolumeSource(in PersistentVolumeSource, out *Persiste
 		}
 	} else {
 		out.Flocker = nil
+	}
+	if in.FlexVolume != nil {
+		out.FlexVolume = new(FlexVolumeSource)
+		if err := deepCopy_v1_FlexVolumeSource(*in.FlexVolume, out.FlexVolume, c); err != nil {
+			return err
+		}
+	} else {
+		out.FlexVolume = nil
 	}
 	return nil
 }
@@ -2302,6 +2356,14 @@ func deepCopy_v1_VolumeSource(in VolumeSource, out *VolumeSource, c *conversion.
 	} else {
 		out.RBD = nil
 	}
+	if in.FlexVolume != nil {
+		out.FlexVolume = new(FlexVolumeSource)
+		if err := deepCopy_v1_FlexVolumeSource(*in.FlexVolume, out.FlexVolume, c); err != nil {
+			return err
+		}
+	} else {
+		out.FlexVolume = nil
+	}
 	if in.Cinder != nil {
 		out.Cinder = new(CinderVolumeSource)
 		if err := deepCopy_v1_CinderVolumeSource(*in.Cinder, out.Cinder, c); err != nil {
@@ -2401,7 +2463,9 @@ func init() {
 		deepCopy_v1_EventList,
 		deepCopy_v1_EventSource,
 		deepCopy_v1_ExecAction,
+		deepCopy_v1_ExportOptions,
 		deepCopy_v1_FCVolumeSource,
+		deepCopy_v1_FlexVolumeSource,
 		deepCopy_v1_FlockerVolumeSource,
 		deepCopy_v1_GCEPersistentDiskVolumeSource,
 		deepCopy_v1_GitRepoVolumeSource,

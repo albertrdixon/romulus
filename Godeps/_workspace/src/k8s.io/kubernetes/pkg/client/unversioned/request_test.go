@@ -34,6 +34,7 @@ import (
 	apierrors "k8s.io/kubernetes/pkg/api/errors"
 	"k8s.io/kubernetes/pkg/api/testapi"
 	"k8s.io/kubernetes/pkg/api/unversioned"
+	"k8s.io/kubernetes/pkg/api/v1"
 	"k8s.io/kubernetes/pkg/labels"
 	"k8s.io/kubernetes/pkg/runtime"
 	"k8s.io/kubernetes/pkg/util"
@@ -45,8 +46,8 @@ import (
 
 func TestRequestWithErrorWontChange(t *testing.T) {
 	original := Request{
-		err:        errors.New("test"),
-		apiVersion: testapi.Default.Version(),
+		err:          errors.New("test"),
+		groupVersion: *testapi.Default.GroupVersion(),
 	}
 	r := original
 	changed := r.Param("foo", "bar").
@@ -176,18 +177,8 @@ func TestRequestParam(t *testing.T) {
 	}
 }
 
-func TestTimeoutSeconds(t *testing.T) {
-	r := &Request{}
-	r.TimeoutSeconds(time.Duration(5 * time.Second))
-	if !reflect.DeepEqual(r.params, url.Values{
-		"timeoutSeconds": []string{"5"},
-	}) {
-		t.Errorf("invalid timeoutSeconds parameter: %#v", r)
-	}
-}
-
 func TestRequestVersionedParams(t *testing.T) {
-	r := (&Request{apiVersion: "v1"}).Param("foo", "a")
+	r := (&Request{groupVersion: v1.SchemeGroupVersion}).Param("foo", "a")
 	if !reflect.DeepEqual(r.params, url.Values{"foo": []string{"a"}}) {
 		t.Errorf("should have set a param: %#v", r)
 	}
@@ -203,8 +194,8 @@ func TestRequestVersionedParams(t *testing.T) {
 }
 
 func TestRequestVersionedParamsFromListOptions(t *testing.T) {
-	r := &Request{apiVersion: "v1"}
-	r.VersionedParams(&unversioned.ListOptions{ResourceVersion: "1"}, api.Scheme)
+	r := &Request{groupVersion: v1.SchemeGroupVersion}
+	r.VersionedParams(&api.ListOptions{ResourceVersion: "1"}, api.Scheme)
 	if !reflect.DeepEqual(r.params, url.Values{
 		"resourceVersion": []string{"1"},
 	}) {
@@ -212,7 +203,7 @@ func TestRequestVersionedParamsFromListOptions(t *testing.T) {
 	}
 
 	var timeout int64 = 10
-	r.VersionedParams(&unversioned.ListOptions{ResourceVersion: "2", TimeoutSeconds: &timeout}, api.Scheme)
+	r.VersionedParams(&api.ListOptions{ResourceVersion: "2", TimeoutSeconds: &timeout}, api.Scheme)
 	if !reflect.DeepEqual(r.params, url.Values{
 		"resourceVersion": []string{"1", "2"},
 		"timeoutSeconds":  []string{"10"},
@@ -235,7 +226,8 @@ func TestRequestURI(t *testing.T) {
 
 type NotAnAPIObject struct{}
 
-func (NotAnAPIObject) IsAnAPIObject() {}
+func (obj NotAnAPIObject) GroupVersionKind() *unversioned.GroupVersionKind       { return nil }
+func (obj NotAnAPIObject) SetGroupVersionKind(gvk *unversioned.GroupVersionKind) {}
 
 func TestRequestBody(t *testing.T) {
 	// test unknown type
@@ -271,7 +263,7 @@ func TestResultIntoWithErrReturnsErr(t *testing.T) {
 
 func TestURLTemplate(t *testing.T) {
 	uri, _ := url.Parse("http://localhost")
-	r := NewRequest(nil, "POST", uri, "test", nil)
+	r := NewRequest(nil, "POST", uri, unversioned.GroupVersion{Group: "test"}, nil, nil)
 	r.Prefix("pre1").Resource("r1").Namespace("ns").Name("nm").Param("p0", "v0")
 	full := r.URL()
 	if full.String() != "http://localhost/pre1/namespaces/ns/r1/nm?p0=v0" {
@@ -332,7 +324,7 @@ func TestTransformResponse(t *testing.T) {
 		{Response: &http.Response{StatusCode: 200, Body: ioutil.NopCloser(bytes.NewReader(invalid))}, Data: invalid},
 	}
 	for i, test := range testCases {
-		r := NewRequest(nil, "", uri, testapi.Default.Version(), testapi.Default.Codec())
+		r := NewRequest(nil, "", uri, *testapi.Default.GroupVersion(), testapi.Default.Codec(), nil)
 		if test.Response.Body == nil {
 			test.Response.Body = ioutil.NopCloser(bytes.NewReader([]byte{}))
 		}
@@ -342,7 +334,7 @@ func TestTransformResponse(t *testing.T) {
 		if hasErr != test.Error {
 			t.Errorf("%d: unexpected error: %t %v", i, test.Error, err)
 		} else if hasErr && test.Response.StatusCode > 399 {
-			status, ok := err.(APIStatus)
+			status, ok := err.(apierrors.APIStatus)
 			if !ok {
 				t.Errorf("%d: response should have been transformable into APIStatus: %v", i, err)
 				continue
@@ -551,6 +543,8 @@ func TestRequestWatch(t *testing.T) {
 		},
 	}
 	for i, testCase := range testCases {
+		t.Logf("testcase %v", testCase.Request)
+		testCase.Request.backoffMgr = &NoBackoff{}
 		watch, err := testCase.Request.Watch()
 		hasErr := err != nil
 		if hasErr != testCase.Err {
@@ -613,6 +607,7 @@ func TestRequestStream(t *testing.T) {
 		},
 	}
 	for i, testCase := range testCases {
+		testCase.Request.backoffMgr = &NoBackoff{}
 		body, err := testCase.Request.Stream()
 		hasErr := err != nil
 		if hasErr != testCase.Err {
@@ -682,6 +677,7 @@ func TestRequestDo(t *testing.T) {
 		},
 	}
 	for i, testCase := range testCases {
+		testCase.Request.backoffMgr = &NoBackoff{}
 		body, err := testCase.Request.Do().Raw()
 		hasErr := err != nil
 		if hasErr != testCase.Err {
@@ -727,6 +723,42 @@ func TestDoRequestNewWay(t *testing.T) {
 	requestURL := testapi.Default.ResourcePathWithPrefix("foo/bar", "", "", "baz")
 	requestURL += "?timeout=1s"
 	fakeHandler.ValidateRequest(t, requestURL, "POST", &reqBody)
+}
+
+// This test assumes that the client implementation backs off exponentially, for an individual request.
+func TestBackoffLifecycle(t *testing.T) {
+	count := 0
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		count++
+		t.Logf("Attempt %d", count)
+		if count == 5 || count == 9 {
+			w.WriteHeader(http.StatusOK)
+			return
+		} else {
+			w.WriteHeader(http.StatusGatewayTimeout)
+			return
+		}
+	}))
+	defer testServer.Close()
+	c := testRESTClient(t, testServer)
+
+	// Test backoff recovery and increase.  This correlates to the constants
+	// which are used in the server implementation returning StatusOK above.
+	seconds := []int{0, 1, 2, 4, 8, 0, 1, 2, 4, 0}
+	request := c.Verb("POST").Prefix("backofftest").Suffix("abc")
+	request.backoffMgr = &URLBackoff{
+		Backoff: util.NewBackOff(
+			time.Duration(1)*time.Second,
+			time.Duration(200)*time.Second)}
+	for _, sec := range seconds {
+		start := time.Now()
+		request.DoRaw()
+		finish := time.Since(start)
+		t.Logf("%v finished in %v", sec, finish)
+		if finish < time.Duration(sec)*time.Second || finish >= time.Duration(sec+5)*time.Second {
+			t.Fatalf("%v not in range %v", finish, sec)
+		}
+	}
 }
 
 func TestCheckRetryClosesBody(t *testing.T) {
@@ -856,7 +888,7 @@ func TestDoRequestNewWayReader(t *testing.T) {
 	}
 	tmpStr := string(reqBodyExpected)
 	requestURL := testapi.Default.ResourcePathWithPrefix("foo", "bar", "", "baz")
-	requestURL += "?" + unversioned.LabelSelectorQueryParam(testapi.Default.Version()) + "=name%3Dfoo&timeout=1s"
+	requestURL += "?" + unversioned.LabelSelectorQueryParam(testapi.Default.GroupVersion().String()) + "=name%3Dfoo&timeout=1s"
 	fakeHandler.ValidateRequest(t, requestURL, "POST", &tmpStr)
 }
 
@@ -896,7 +928,7 @@ func TestDoRequestNewWayObj(t *testing.T) {
 	}
 	tmpStr := string(reqBodyExpected)
 	requestURL := testapi.Default.ResourcePath("foo", "", "bar/baz")
-	requestURL += "?" + unversioned.LabelSelectorQueryParam(testapi.Default.Version()) + "=name%3Dfoo&timeout=1s"
+	requestURL += "?" + unversioned.LabelSelectorQueryParam(testapi.Default.GroupVersion().String()) + "=name%3Dfoo&timeout=1s"
 	fakeHandler.ValidateRequest(t, requestURL, "POST", &tmpStr)
 }
 
@@ -1039,7 +1071,7 @@ func TestUintParam(t *testing.T) {
 
 	for _, item := range table {
 		u, _ := url.Parse("http://localhost")
-		r := NewRequest(nil, "GET", u, "test", nil).AbsPath("").UintParam(item.name, item.testVal)
+		r := NewRequest(nil, "GET", u, unversioned.GroupVersion{Group: "test"}, nil, nil).AbsPath("").UintParam(item.name, item.testVal)
 		if e, a := item.expectStr, r.URL().String(); e != a {
 			t.Errorf("expected %v, got %v", e, a)
 		}
@@ -1210,5 +1242,5 @@ func testRESTClient(t testing.TB, srv *httptest.Server) *RESTClient {
 		}
 	}
 	baseURL.Path = testapi.Default.ResourcePath("", "", "")
-	return NewRESTClient(baseURL, testapi.Default.GroupVersion().String(), testapi.Default.Codec(), 0, 0)
+	return NewRESTClient(baseURL, *testapi.Default.GroupVersion(), testapi.Default.Codec(), 0, 0)
 }

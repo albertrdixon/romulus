@@ -1,11 +1,10 @@
 package manners
 
 import (
+	helpers "github.com/mailgun/manners/test_helpers"
 	"net/http"
 	"strings"
 	"testing"
-
-	"github.com/mailgun/manners/test_helpers"
 )
 
 func TestStateTransitions(t *testing.T) {
@@ -33,11 +32,11 @@ type transitionTest struct {
 
 func testStateTransition(t *testing.T, test transitionTest) {
 	server := newServer()
-	wg := test_helpers.NewWaitGroup()
+	wg := helpers.NewWaitGroup()
 	server.wg = wg
 	startServer(t, server, nil)
 
-	conn := &gracefulConn{Conn: &test_helpers.Conn{}}
+	conn := &gracefulConn{Conn: &helpers.Conn{}}
 	for _, newState := range test.states {
 		server.ConnState(conn, newState)
 	}

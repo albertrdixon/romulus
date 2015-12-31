@@ -6,13 +6,23 @@ import (
 	"sync"
 	"time"
 
-	"github.com/coreos/go-etcd/etcd"
+	"golang.org/x/net/context"
+
+	"github.com/coreos/etcd/client"
 )
 
+// EnableEtcdDebug turns on cURL debug logging for the etcd client
+func EnableEtcdDebug() {
+	client.EnablecURLDebug()
+}
+
 // NewEtcdStore constructs an EtcdStore using the given machine list
-func NewEtcdStore(machines []string) *EtcdStore {
-	client := etcd.NewClient(machines)
-	return &EtcdStore{client, &sync.Mutex{}}
+func NewEtcdStore(machines []string, timeout time.Duration) (*EtcdStore, error) {
+	etcd, er := client.New(client.Config{Endpoints: machines})
+	if er != nil {
+		return nil, er
+	}
+	return &EtcdStore{new(sync.Mutex), client.NewKeysAPI(etcd), timeout}, nil
 }
 
 var _ Store = (*EtcdStore)(nil)
@@ -20,10 +30,12 @@ var _ Store = (*EtcdStore)(nil)
 // EtcdStore implements the Store interface and can use directory like
 // paths as keys.
 type EtcdStore struct {
-	// client is the Etcd client connection
-	client *etcd.Client
 	// mutex is used to synchronize client access
-	mutex *sync.Mutex
+	*sync.Mutex
+	// client is the Etcd client connection
+	client.KeysAPI
+	// timeout is the etcd client request timeout
+	Timeout time.Duration
 }
 
 // Get returns an io.Reader for a single existing Etcd key.
@@ -58,14 +70,28 @@ func (e *EtcdStore) GetMultiMap(prefix string) (map[string]io.Reader, error) {
 // Set will set a single Etcd key to value with a ttl.  If the ttl is zero then
 // no ttl will be set.  Ttls in etcd are in seconds and must be at least 1
 func (e *EtcdStore) Set(key string, value []byte, ttl time.Duration) error {
-	var etcdTTL = uint64(ttl.Seconds())
-	e.mutex.Lock()
-	defer e.mutex.Unlock()
-	if _, err := e.client.Set(key, string(value[:]), etcdTTL); err != nil {
+	e.Lock()
+	defer e.Unlock()
+	c, q := context.WithTimeout(context.Background(), e.Timeout)
+	defer q()
+
+	o := &client.SetOptions{TTL: ttl}
+	if _, err := e.KeysAPI.Set(c, key, string(value[:]), o); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+// Delete removes the specified key. Set recurse to true to delete recursively
+func (e *EtcdStore) Delete(key string, recurse bool) error {
+	e.Lock()
+	defer e.Unlock()
+	c, q := context.WithTimeout(context.Background(), e.Timeout)
+	defer q()
+
+	_, er := e.KeysAPI.Delete(c, key, &client.DeleteOptions{Recursive: recurse})
+	return er
 }
 
 // Keys returns all keys prefixed with string as a slice of strings.
@@ -90,7 +116,7 @@ type etcdStoreReader struct {
 	err         error
 	reader      io.Reader
 	recurse     bool
-	extractFunc func(*etcd.Node) io.Reader
+	extractFunc func(*client.Node) io.Reader
 }
 
 func (r *etcdStoreReader) Read(p []byte) (int, error) {
@@ -98,7 +124,7 @@ func (r *etcdStoreReader) Read(p []byte) (int, error) {
 		return 0, r.err
 	}
 	if r.reader == nil {
-		var res *etcd.Response
+		var res *client.Response
 		if res, r.err = get(r.store, r.key, r.recurse); r.err != nil {
 			return 0, r.err
 		}
@@ -107,14 +133,17 @@ func (r *etcdStoreReader) Read(p []byte) (int, error) {
 	return r.reader.Read(p)
 }
 
-func get(store *EtcdStore, key string, recurse bool) (res *etcd.Response, err error) {
-	store.mutex.Lock()
-	defer store.mutex.Unlock()
-	res, err = store.client.Get(key, false, recurse)
+func get(store *EtcdStore, key string, recurse bool) (res *client.Response, err error) {
+	store.Lock()
+	defer store.Unlock()
+	c, q := context.WithTimeout(context.Background(), store.Timeout)
+	defer q()
+	res, err = store.KeysAPI.Get(c, key,
+		&client.GetOptions{Recursive: recurse, Quorum: true})
 	return
 }
 
-func extractKeyValues(node *etcd.Node, kv map[string]io.Reader) {
+func extractKeyValues(node *client.Node, kv map[string]io.Reader) {
 	if node.Dir {
 		for _, childNode := range node.Nodes {
 			extractKeyValues(childNode, kv)
@@ -124,14 +153,14 @@ func extractKeyValues(node *etcd.Node, kv map[string]io.Reader) {
 	}
 }
 
-func extractValue(node *etcd.Node) io.Reader {
+func extractValue(node *client.Node) io.Reader {
 	if node.Dir {
 		return strings.NewReader("")
 	}
 	return strings.NewReader(node.Value)
 }
 
-func extractValues(node *etcd.Node) io.Reader {
+func extractValues(node *client.Node) io.Reader {
 	readers := []io.Reader{}
 	extractAllValues(node, &readers)
 	if len(readers) > 0 {
@@ -140,7 +169,7 @@ func extractValues(node *etcd.Node) io.Reader {
 	return strings.NewReader("")
 }
 
-func extractAllValues(node *etcd.Node, readers *[]io.Reader) {
+func extractAllValues(node *client.Node, readers *[]io.Reader) {
 	if node.Dir {
 		for _, childNode := range node.Nodes {
 			extractAllValues(childNode, readers)

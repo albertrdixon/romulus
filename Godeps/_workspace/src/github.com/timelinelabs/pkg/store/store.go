@@ -18,6 +18,8 @@ import (
 type Store interface {
 	// Get returns an io.Reader for key
 	Get(key string) io.Reader
+	// Delete removes the specified key. Set recurse to true to delete recursively
+	Delete(key string, recurse bool) error
 	// GetMulti retrieves all keys with prefix.  The io.Reader returns all values
 	// concatenated back to back.  See the Example in the tests to show how to
 	// use this with JSON data.  Lazy loaded and if any errors occur they are

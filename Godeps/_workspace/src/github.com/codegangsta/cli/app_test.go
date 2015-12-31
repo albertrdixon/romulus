@@ -5,12 +5,13 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
 )
 
-func ExampleApp() {
+func ExampleApp_Run() {
 	// set args for examples sake
 	os.Args = []string{"greet", "--name", "Jeremy"}
 
@@ -30,7 +31,7 @@ func ExampleApp() {
 	// Hello Jeremy
 }
 
-func ExampleAppSubcommand() {
+func ExampleApp_Run_subcommand() {
 	// set args for examples sake
 	os.Args = []string{"say", "hi", "english", "--name", "Jeremy"}
 	app := NewApp()
@@ -67,7 +68,7 @@ func ExampleAppSubcommand() {
 	// Hello, Jeremy
 }
 
-func ExampleAppHelp() {
+func ExampleApp_Run_help() {
 	// set args for examples sake
 	os.Args = []string{"greet", "h", "describeit"}
 
@@ -99,7 +100,7 @@ func ExampleAppHelp() {
 	//    This is how we describe describeit the function
 }
 
-func ExampleAppBashComplete() {
+func ExampleApp_Run_bashComplete() {
 	// set args for examples sake
 	os.Args = []string{"greet", "--generate-bash-completion"}
 
@@ -556,6 +557,7 @@ func TestAppNoHelpFlag(t *testing.T) {
 	HelpFlag = BoolFlag{}
 
 	app := NewApp()
+	app.Writer = ioutil.Discard
 	err := app.Run([]string{"test", "-h"})
 
 	if err != flag.ErrHelp {

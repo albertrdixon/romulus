@@ -25,11 +25,11 @@ help:
 
 dep-save:
 	@echo "==> Saving dependencies to ./Godeps"
-	godep save -v ./...
+	@godep save -t -v ./...
 
 dep-restore:
 	@echo "==> Restoring dependencies from ./Godeps"
-	@godep restore
+	@godep restore -v
 
 test:
 	@echo "==> Running all tests"
@@ -38,7 +38,7 @@ test:
 
 test-verbose:
 	@echo "==> Running all tests (verbose output)"
-	@ echo ""
+	@echo ""
 	@$(TEST_COMMAND) -test.v ./...
 
 build:

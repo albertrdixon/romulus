@@ -14,7 +14,6 @@ import (
 	"github.com/albertrdixon/gearbox/logger"
 	"github.com/albertrdixon/gearbox/util"
 	"k8s.io/kubernetes/pkg/api"
-	uapi "k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/apis/extensions"
 	"k8s.io/kubernetes/pkg/client/cache"
 	"k8s.io/kubernetes/pkg/client/unversioned"
@@ -24,6 +23,7 @@ import (
 	"k8s.io/kubernetes/pkg/labels"
 	"k8s.io/kubernetes/pkg/runtime"
 	"k8s.io/kubernetes/pkg/util/intstr"
+	"k8s.io/kubernetes/pkg/util/sets"
 	"k8s.io/kubernetes/pkg/watch"
 )
 
@@ -144,7 +144,7 @@ func CreateFullController(kind string, w watcher, c cache.Getter, sel Selector, 
 
 func getListWatch(kind string, get cache.Getter, selector labels.Selector) *cache.ListWatch {
 	return &cache.ListWatch{
-		ListFunc: func() (runtime.Object, error) {
+		ListFunc: func(options api.ListOptions) (runtime.Object, error) {
 			logger.Debugf("Running ListFunc for %q", kind)
 			req := get.Get().Namespace(api.NamespaceAll).Resource(kind).
 				LabelsSelectorParam(selector).FieldsSelectorParam(fields.Everything())
@@ -155,7 +155,7 @@ func getListWatch(kind string, get cache.Getter, selector labels.Selector) *cach
 			}
 			return obj, er
 		},
-		WatchFunc: func(options uapi.ListOptions) (watch.Interface, error) {
+		WatchFunc: func(options api.ListOptions) (watch.Interface, error) {
 			logger.Debugf("Running WatchFunc for %q", kind)
 			req := get.Get().Prefix("watch").Namespace(api.NamespaceAll).Resource(kind).
 				LabelsSelectorParam(selector).FieldsSelectorParam(fields.Everything()).
@@ -179,7 +179,9 @@ func selectorFromMap(m Selector) labels.Selector {
 		if !strings.HasPrefix(k, Keyspace) {
 			key = strings.Join([]string{Keyspace, k}, "")
 		}
-		s = s.Add(key, labels.DoubleEqualsOperator, []string{val})
+		if req, er := labels.NewRequirement(key, labels.DoubleEqualsOperator, sets.NewString(val)); er != nil {
+			s = s.Add(*req)
+		}
 	}
 	return s
 }
