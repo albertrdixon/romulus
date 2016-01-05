@@ -2,7 +2,7 @@
 
 [![GoDoc](https://godoc.org/github.com/timelinelabs/romulus?status.svg)](https://godoc.org/github.com/timelinelabs/romulus)
 
-Automagically register your kubernetes services in vulcan proxy!
+Automagically register your kubernetes services in vulcan proxy (other backends soon to be supported)!
 
 ## Usage
 
@@ -10,37 +10,29 @@ Automagically register your kubernetes services in vulcan proxy!
 $ romulusd --help
 usage: romulusd [<flags>]
 
-A utility for automatically registering Kubernetes services in Vulcand
+A utility for automatically registering Kubernetes services in a proxy
 
 Flags:
-  --help           Show help (also see --help-long and --help-man).
-  --vulcan-key="vulcand"
-                   default vulcand etcd key
-  -e, --etcd=http://127.0.0.1:2379
-                   etcd peers
-  -t, --etcd-timeout=5s
-                   etcd request timeout
-  -k, --kube=http://127.0.0.1:8080
-                   kubernetes endpoint
-  -U, --kube-user=KUBE-USER
-                   kubernetes username
-  -P, --kube-pass=KUBE-PASS
-                   kubernetes password
-  --kube-api="v1"  kubernetes api version
-  -C, --kubecfg=/path/to/.kubecfg
-                   path to kubernetes cfg file
+  --help               Show context-sensitive help (also try --help-long and --help-man).
+  -k, --kube-api=http://127.0.0.1:8080
+                       URL for kubernetes api
+  --kube-api-ver="v1"  kubernetes api version
+  --kube-insecure      Run kubernetes client in insecure mode
   -s, --svc-selector=key=value[,key=value]
-                   service selectors. Leave blank for Everything(). Form: key=value
-  -d, --debug      Enable debug logging. e.g. --log-level debug
+                       service selectors. Leave blank for Everything(). Form: key=value
+  -p, --provider=vulcand
+                       LoadBalancer provider
+  --sync-interval=30m  Resync period with kube api
+  --lb-timeout=10s     Timeout for communicating with loadbalancer provider
+  --vulcan-api=http://127.0.0.1:8182
+                       URL for vulcand api
   -l, --log-level=info
-                   log level. One of: fatal, error, warn, info, debug
-  --debug-etcd     Enable cURL debug logging for etcd
+                       log level. One of: fatal, error, warn, info, debug
 ```
 
 Set up your kubernetes service with a label and some options annotations:
 
 *NOTE*: all labels and annotations are under the prefix `romulus/`
-*NOTE 2*: set the etcd vulcand prefix with the label `romulus/vulcanKey`. If not set, then the default key is used (see flag `--vulcan-key`)
 
 ```yaml
 apiVersion: v1
@@ -54,7 +46,6 @@ metadata:
     romulus/backendSettings: '{"KeepAlive": {"MaxIdleConnsPerHost": 128, "Period": "4s"}}'
   labels:
     name: example
-    romulus/vulcanKey: 'vulcand-test'
     romulus/type: external # <-- Will ensure SVC-SELECTORs specified (e.g. 'type=external') are present in Labels.
 spec: 
 ...
