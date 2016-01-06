@@ -66,10 +66,14 @@ func Status(client unversioned.Interface) error {
 	return er
 }
 
-func AddressesFromSubsets(subs []api.EndpointSubset) Addresses {
+func AddressesFromSubsets(id string, en *Endpoints, subs []api.EndpointSubset) Addresses {
 	var addrs = Addresses(make(map[int][]*url.URL))
 	subs = endpoints.RepackSubsets(subs)
+
+	logger.Debugf("[%s] Gathering addresses from %v. size=%d", id, en, len(subs))
 	for i := range subs {
+		logger.Debugf("[%s] Subset(%d): ports=%d, addrs=%d, not_ready=%d",
+			id, i, len(subs[i].Ports), len(subs[i].Addresses), len(subs[i].NotReadyAddresses))
 		for _, port := range subs[i].Ports {
 			for k := range subs[i].Addresses {
 				ur, er := url.Parse(fmt.Sprintf("http://%s:%d", subs[i].Addresses[k].IP, port.Port))
@@ -77,11 +81,7 @@ func AddressesFromSubsets(subs []api.EndpointSubset) Addresses {
 					logger.Warnf("Failed to parse Endpoint Address: %v", er)
 					continue
 				}
-				// if _, ok := addrs[port.Port]; ok {
-				//  addrs[port.Port] = append(addrs[port.Port], ur)
-				// } else {
-				//  addrs[port.Port] = []*url.URL{ur}
-				// }
+				logger.Debugf("[%s] Appending %v", id, ur)
 				addrs[port.Port] = append(addrs[port.Port], ur)
 			}
 		}
