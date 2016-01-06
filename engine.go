@@ -152,11 +152,14 @@ func (e *Engine) add(svc *Service, en *Endpoints) error {
 		return er
 	}
 	addr := AddressesFromSubsets(en.Subsets)
+	logger.Debugf("[%v] Addresses found in %v: %v", backend.GetID(), Endpoints{*en}, addr)
 	srvs, er := e.lb.NewServers(addr, m)
+	logger.Debugf("[%v] Servers created: %v", backend.GetID(), srvs)
 	if er != nil {
 		return er
 	}
 	for i := range srvs {
+		logger.Debugf("[%v] Adding %v", backend.GetID(), srvs[i])
 		backend.AddServer(srvs[i])
 	}
 
@@ -169,15 +172,16 @@ func (e *Engine) add(svc *Service, en *Endpoints) error {
 		return er
 	}
 	for i := range mids {
+		logger.Debugf("[%v] Adding %v", frontend.GetID(), mids[i])
 		frontend.AddMiddleware(mids[i])
 	}
 
 	e.commit(func() error {
-		logger.Infof("Upserting %v", backend)
+		logger.Infof("[%v] Upserting %v", backend.GetID(), backend)
 		if er := e.lb.UpsertBackend(backend); er != nil {
 			return er
 		}
-		logger.Infof("Upserting %v", frontend)
+		logger.Infof("[%v] Upserting %v", frontend.GetID(), frontend)
 		return e.lb.UpsertFrontend(frontend)
 	})
 	return nil
@@ -216,7 +220,7 @@ func (e *Engine) deleteBackend(en *api.Endpoints) error {
 		return er
 	}
 	e.commit(func() error {
-		logger.Infof("Removing %v", backend)
+		logger.Infof("[%v] Removing %v", backend.GetID(), backend)
 		return e.lb.DeleteBackend(backend)
 	})
 	return nil
