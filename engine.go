@@ -152,7 +152,7 @@ func (e *Engine) add(svc *Service, en *Endpoints) error {
 		return er
 	}
 	addr := AddressesFromSubsets(en.Subsets)
-	logger.Debugf("[%v] Addresses found in %v: %v", backend.GetID(), Endpoints{*en}, addr)
+	logger.Debugf("[%v] Addresses found in %v: %v", backend.GetID(), en, addr)
 	srvs, er := e.lb.NewServers(addr, m)
 	logger.Debugf("[%v] Servers created: %v", backend.GetID(), srvs)
 	if er != nil {
