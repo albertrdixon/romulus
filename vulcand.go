@@ -231,7 +231,7 @@ func (v *vulcan) UpsertBackend(ba Backend) error {
 	for i := range ss {
 		extra[ss[i].GetId()] = &vServer{ss[i]}
 	}
-	logger.Debugf("[%v] Current Servers: %v", extra)
+	logger.Debugf("[%v] Current Servers: %v", ba.GetID(), extra)
 	for _, srv := range b.servers {
 		logger.Debugf("[%v] Upserting %v", ba.GetID(), srv)
 		if er := v.UpsertServer(b, srv); er != nil {
