@@ -387,7 +387,7 @@ func buildVulcanRoute(meta *Metadata) string {
 		regexMatcher := matcher + "Regexp"
 		key = LabelKeyf(regexMatcher)
 		if val, ok := meta.Annotations[key]; ok {
-			bit := fmt.Sprintf("%s(`%s`)", strings.Title(matcher), val)
+			bit := fmt.Sprintf("%s(`%s`)", strings.Title(regexMatcher), val)
 			bits = append(bits, bit)
 		}
 	}
