@@ -52,6 +52,21 @@
 			"Rev": "b5232bb2934f606f9f27a1305f1eea224e8e8b88"
 		},
 		{
+			"ImportPath": "github.com/coreos/etcd/client",
+			"Comment": "v2.3.0-alpha.0-327-g4444d92",
+			"Rev": "4444d920323f124f7df863dbf2bbeeda9f5e3ee2"
+		},
+		{
+			"ImportPath": "github.com/coreos/etcd/pkg/pathutil",
+			"Comment": "v2.3.0-alpha.0-327-g4444d92",
+			"Rev": "4444d920323f124f7df863dbf2bbeeda9f5e3ee2"
+		},
+		{
+			"ImportPath": "github.com/coreos/etcd/pkg/types",
+			"Comment": "v2.3.0-alpha.0-327-g4444d92",
+			"Rev": "4444d920323f124f7df863dbf2bbeeda9f5e3ee2"
+		},
+		{
 			"ImportPath": "github.com/coreos/go-etcd/etcd",
 			"Comment": "v2.0.0-38-g003851b",
 			"Rev": "003851be7bb0694fe3cc457a49529a19388ee7cf"

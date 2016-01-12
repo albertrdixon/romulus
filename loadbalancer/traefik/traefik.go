@@ -22,7 +22,7 @@ var (
 )
 
 const (
-	defaultPrefix = "/traefik"
+	DefaultPrefix = "/traefik"
 
 	passHostHeader      = "pass_host_header"
 	loadbalancingMethod = "loadbalancing_method"
