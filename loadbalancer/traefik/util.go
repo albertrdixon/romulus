@@ -28,11 +28,11 @@ func getBackend(s Store, prefix, id string) (*backend, error) {
 	logger.Debugf("[%v] Lookup Backend %q", id, kp)
 
 	b := new(types.Backend)
-	lb, er := s.GetString(path.Join(kp, "loadbalancer", "method"))
+	lb, er := s.Get(path.Join(kp, "loadbalancer", "method"))
 	if er != nil {
 		return nil, er
 	}
-	cb, er := s.GetString(path.Join(kp, "circuitbreaker", "expression"))
+	cb, er := s.Get(path.Join(kp, "circuitbreaker", "expression"))
 	if er != nil {
 		return nil, er
 	}
@@ -55,12 +55,12 @@ func getBackend(s Store, prefix, id string) (*backend, error) {
 		if srvID == "." || srvID == "/" {
 			continue
 		}
-		u, er := s.GetString(path.Join(server, "url"))
+		u, er := s.Get(path.Join(server, "url"))
 		if er != nil {
 			logger.Debugf("[%v] Key read error: %v", id, er)
 			continue
 		}
-		w, er := s.GetString(path.Join(server, "weight"))
+		w, er := s.Get(path.Join(server, "weight"))
 		if er != nil {
 			logger.Debugf("[%v] Key read error: %v", id, er)
 			continue
@@ -76,11 +76,11 @@ func getFrontend(s Store, prefix, id string) (*frontend, error) {
 	logger.Debugf("[%v] Lookup Frontend %q", id, kp)
 
 	f := new(types.Frontend)
-	bnd, er := s.GetString(path.Join(kp, "backend"))
+	bnd, er := s.Get(path.Join(kp, "backend"))
 	if er != nil {
 		return nil, fmt.Errorf("Key read error: %v", er)
 	}
-	pas, er := s.GetString(path.Join(kp, "passHostHeader"))
+	pas, er := s.Get(path.Join(kp, "passHostHeader"))
 	if er != nil {
 		return nil, fmt.Errorf("Key read error: %v", er)
 	}
@@ -100,12 +100,12 @@ func getFrontend(s Store, prefix, id string) (*frontend, error) {
 		if id == "." || id == "/" {
 			continue
 		}
-		r, er := s.GetString(path.Join(route, "rule"))
+		r, er := s.Get(path.Join(route, "rule"))
 		if er != nil {
 			logger.Debugf("[%v] Key read error: %v", id, er)
 			continue
 		}
-		v, er := s.GetString(path.Join(route, "value"))
+		v, er := s.Get(path.Join(route, "value"))
 		if er != nil {
 			logger.Debugf("[%v] Key read error: %v", id, er)
 			continue
@@ -129,12 +129,12 @@ func getServers(s Store, prefix, id string) (list []loadbalancer.Server) {
 		if srvID == "." || srvID == "/" {
 			continue
 		}
-		u, er := s.GetString(path.Join(srv, "url"))
+		u, er := s.Get(path.Join(srv, "url"))
 		if er != nil {
 			logger.Debugf("[%v] Key read error: %v", id, er)
 			continue
 		}
-		w, er := s.GetString(path.Join(srv, "weight"))
+		w, er := s.Get(path.Join(srv, "weight"))
 		if er != nil {
 			logger.Debugf("[%v] Key read error: %v", id, er)
 			continue

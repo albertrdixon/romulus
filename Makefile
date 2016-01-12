@@ -61,10 +61,6 @@ publish:
 	@docker rmi $(REMOTE_REPO):$(REV) >/dev/null 2>&1 || true
 	@docker tag $(IMAGE) $(REMOTE_REPO):$(REV)
 	@docker push $(REMOTE_REPO):$(REV)
-	@echo "==> Tagging with 'latest' and pushing"
-	@docker rmi $(REMOTE_REPO):latest >/dev/null 2>&1 || true
-	@docker tag $(IMAGE) $(REMOTE_REPO):latest
-	@docker push $(REMOTE_REPO):latest
 
 install:
 	@echo "==> Installing $(EXECUTABLE) with ldflags '$(LDFLAGS)'"
