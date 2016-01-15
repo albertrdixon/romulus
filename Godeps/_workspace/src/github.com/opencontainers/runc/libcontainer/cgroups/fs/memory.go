@@ -32,6 +32,7 @@ func (s *MemoryGroup) Apply(d *cgroupData) (err error) {
 				return err
 			}
 		}
+
 		if err := s.Set(path, d.config); err != nil {
 			return err
 		}
@@ -54,40 +55,40 @@ func (s *MemoryGroup) Apply(d *cgroupData) (err error) {
 }
 
 func (s *MemoryGroup) Set(path string, cgroup *configs.Cgroup) error {
-	if cgroup.Resources.Memory != 0 {
-		if err := writeFile(path, "memory.limit_in_bytes", strconv.FormatInt(cgroup.Resources.Memory, 10)); err != nil {
+	if cgroup.Memory != 0 {
+		if err := writeFile(path, "memory.limit_in_bytes", strconv.FormatInt(cgroup.Memory, 10)); err != nil {
 			return err
 		}
 	}
-	if cgroup.Resources.MemoryReservation != 0 {
-		if err := writeFile(path, "memory.soft_limit_in_bytes", strconv.FormatInt(cgroup.Resources.MemoryReservation, 10)); err != nil {
+	if cgroup.MemoryReservation != 0 {
+		if err := writeFile(path, "memory.soft_limit_in_bytes", strconv.FormatInt(cgroup.MemoryReservation, 10)); err != nil {
 			return err
 		}
 	}
-	if cgroup.Resources.MemorySwap > 0 {
-		if err := writeFile(path, "memory.memsw.limit_in_bytes", strconv.FormatInt(cgroup.Resources.MemorySwap, 10)); err != nil {
+	if cgroup.MemorySwap > 0 {
+		if err := writeFile(path, "memory.memsw.limit_in_bytes", strconv.FormatInt(cgroup.MemorySwap, 10)); err != nil {
 			return err
 		}
 	}
-	if cgroup.Resources.KernelMemory > 0 {
-		if err := writeFile(path, "memory.kmem.limit_in_bytes", strconv.FormatInt(cgroup.Resources.KernelMemory, 10)); err != nil {
+	if cgroup.KernelMemory > 0 {
+		if err := writeFile(path, "memory.kmem.limit_in_bytes", strconv.FormatInt(cgroup.KernelMemory, 10)); err != nil {
 			return err
 		}
 	}
 
-	if cgroup.Resources.OomKillDisable {
+	if cgroup.OomKillDisable {
 		if err := writeFile(path, "memory.oom_control", "1"); err != nil {
 			return err
 		}
 	}
-	if cgroup.Resources.MemorySwappiness >= 0 && cgroup.Resources.MemorySwappiness <= 100 {
-		if err := writeFile(path, "memory.swappiness", strconv.FormatInt(cgroup.Resources.MemorySwappiness, 10)); err != nil {
+	if cgroup.MemorySwappiness >= 0 && cgroup.MemorySwappiness <= 100 {
+		if err := writeFile(path, "memory.swappiness", strconv.FormatInt(cgroup.MemorySwappiness, 10)); err != nil {
 			return err
 		}
-	} else if cgroup.Resources.MemorySwappiness == -1 {
+	} else if cgroup.MemorySwappiness == -1 {
 		return nil
 	} else {
-		return fmt.Errorf("invalid value:%d. valid memory swappiness range is 0-100", cgroup.Resources.MemorySwappiness)
+		return fmt.Errorf("invalid value:%d. valid memory swappiness range is 0-100", cgroup.MemorySwappiness)
 	}
 
 	return nil
@@ -138,12 +139,12 @@ func (s *MemoryGroup) GetStats(path string, stats *cgroups.Stats) error {
 }
 
 func memoryAssigned(cgroup *configs.Cgroup) bool {
-	return cgroup.Resources.Memory != 0 ||
-		cgroup.Resources.MemoryReservation != 0 ||
-		cgroup.Resources.MemorySwap > 0 ||
-		cgroup.Resources.KernelMemory > 0 ||
-		cgroup.Resources.OomKillDisable ||
-		cgroup.Resources.MemorySwappiness != -1
+	return cgroup.Memory != 0 ||
+		cgroup.MemoryReservation != 0 ||
+		cgroup.MemorySwap > 0 ||
+		cgroup.KernelMemory > 0 ||
+		cgroup.OomKillDisable ||
+		cgroup.MemorySwappiness != -1
 }
 
 func getMemoryData(path, name string) (cgroups.MemoryData, error) {

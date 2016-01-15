@@ -1,7 +1,7 @@
 package vulcand
 
 var DefaultMiddleware = map[string]string{
-	"redirect_ssl": `{
+	RedirectSSLID: `{
       "Priority": 1,
       "Type": "rewrite",
       "Middleware": {
@@ -11,7 +11,7 @@ var DefaultMiddleware = map[string]string{
         "Redirect": true
       }
     }`,
-	"trace": `{
+	TraceID: `{
       "Priority": 1,
       "Type": "trace",
       "Middleware": {
@@ -21,7 +21,7 @@ var DefaultMiddleware = map[string]string{
         "Prefix": "@app"
       }
     }`,
-	"auth": `{
+	AuthID: `{
       "Priority": 1,
       "Type": "auth",
       "Middleware": {
@@ -29,7 +29,7 @@ var DefaultMiddleware = map[string]string{
         "Pass": "%s"
       }
     }`,
-	"maintenance": `{
+	MaintenanceID: `{
       "Priority": 1,
       "Type": "cbreaker",
       "Middleware": {

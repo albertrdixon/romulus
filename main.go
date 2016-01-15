@@ -5,10 +5,12 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/albertrdixon/gearbox/logger"
+	"github.com/timelinelabs/romulus/kubernetes"
 	"github.com/timelinelabs/romulus/loadbalancer"
 	"github.com/timelinelabs/romulus/loadbalancer/traefik"
 	"github.com/timelinelabs/romulus/loadbalancer/vulcand"
@@ -27,6 +29,7 @@ var (
 	kubePass    = ro.Flag("kube-pass", "kubernetes password").String()
 	kubeSec     = ro.Flag("kube-insecure", "Run kubernetes client in insecure mode").OverrideDefaultFromEnvar("KUBE_INSECURE").Bool()
 	selector    = ro.Flag("svc-selector", "service selectors. Leave blank for Everything(). Form: key=value").Short('s').PlaceHolder("key=value[,key=value]").OverrideDefaultFromEnvar("SVC_SELECTOR").StringMap()
+	annoKey     = ro.Flag("annotations-prefix", "annotations key prefix").Short('a').Default("romulus/").String()
 	provider    = ro.Flag("provider", "LoadBalancer provider").Short('p').Default("vulcand").Enum(lbs...)
 	resync      = ro.Flag("sync-interval", "Resync period with kube api").Default("30m").Duration()
 	timeout     = ro.Flag("lb-timeout", "Timeout for communicating with loadbalancer provider").Default("10s").Duration()
@@ -47,7 +50,9 @@ func main() {
 	if er != nil {
 		logger.Fatalf(er.Error())
 	}
-	ng, er := newEngine((*kubeAPI).String(), *kubeUser, *kubePass, *kubeSec, lb, *timeout, ctx)
+
+	kubernetes.Keyspace = normalizeAnnotationsKey(*annoKey)
+	ng, er := NewEngine((*kubeAPI).String(), *kubeUser, *kubePass, *kubeSec, lb, *timeout, ctx)
 	if er != nil {
 		logger.Fatalf(er.Error())
 	}
@@ -80,4 +85,11 @@ func getLBProvider(kind string, c context.Context) (loadbalancer.LoadBalancer, e
 		}
 		return traefik.New(traefik.DefaultPrefix, peers, *timeout, c)
 	}
+}
+
+func normalizeAnnotationsKey(key string) string {
+	if !strings.HasSuffix(key, "/") {
+		return key + "/"
+	}
+	return key
 }

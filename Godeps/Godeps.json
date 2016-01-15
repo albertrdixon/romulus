@@ -86,9 +86,9 @@
 			"Rev": "38303597452719fe4942c45a03783a9299235e1b"
 		},
 		{
-			"ImportPath": "github.com/docker/go-units",
-			"Comment": "v0.1.0-9-g954fed0",
-			"Rev": "954fed01cc617c55d838fa2230073f2cb17386c8"
+			"ImportPath": "github.com/docker/docker/pkg/units",
+			"Comment": "v1.4.1-7755-g3830359",
+			"Rev": "38303597452719fe4942c45a03783a9299235e1b"
 		},
 		{
 			"ImportPath": "github.com/emicklei/go-restful",
@@ -221,18 +221,18 @@
 		},
 		{
 			"ImportPath": "github.com/opencontainers/runc/libcontainer/cgroups",
-			"Comment": "v0.0.6-45-g4c767d7",
-			"Rev": "4c767d7046a79a7cf29b810742e5f7f2564f2d0c"
+			"Comment": "v0.0.5-13-g7695a0d",
+			"Rev": "7695a0ddb0c173de975dd90cf407bc76aeac64f7"
 		},
 		{
 			"ImportPath": "github.com/opencontainers/runc/libcontainer/configs",
-			"Comment": "v0.0.6-45-g4c767d7",
-			"Rev": "4c767d7046a79a7cf29b810742e5f7f2564f2d0c"
+			"Comment": "v0.0.5-13-g7695a0d",
+			"Rev": "7695a0ddb0c173de975dd90cf407bc76aeac64f7"
 		},
 		{
 			"ImportPath": "github.com/opencontainers/runc/libcontainer/system",
-			"Comment": "v0.0.6-45-g4c767d7",
-			"Rev": "4c767d7046a79a7cf29b810742e5f7f2564f2d0c"
+			"Comment": "v0.0.5-13-g7695a0d",
+			"Rev": "7695a0ddb0c173de975dd90cf407bc76aeac64f7"
 		},
 		{
 			"ImportPath": "github.com/pborman/uuid",

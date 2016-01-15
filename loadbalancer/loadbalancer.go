@@ -12,19 +12,19 @@ var (
 )
 
 type LoadBalancer interface {
-	NewFrontend(*kubernetes.Service) (Frontend, error)
+	NewFrontend(*kubernetes.Resource) (Frontend, error)
 	GetFrontend(string) (Frontend, error)
 	UpsertFrontend(Frontend) error
 	DeleteFrontend(Frontend) error
-	NewBackend(*kubernetes.Service) (Backend, error)
+	NewBackend(*kubernetes.Resource) (Backend, error)
 	GetBackend(string) (Backend, error)
 	UpsertBackend(Backend) error
 	DeleteBackend(Backend) error
-	NewServers(*kubernetes.Service) ([]Server, error)
+	NewServers(*kubernetes.Resource) ([]Server, error)
 	GetServers(string) ([]Server, error)
 	UpsertServer(Backend, Server) error
 	DeleteServer(Backend, Server) error
-	NewMiddlewares(*kubernetes.Service) ([]Middleware, error)
+	NewMiddlewares(*kubernetes.Resource) ([]Middleware, error)
 
 	Kind() string
 	Status() error

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/albertrdixon/gearbox/logger"
@@ -43,45 +44,43 @@ func (v *Vulcan) Status() error {
 	return v.GetStatus()
 }
 
-func (v *Vulcan) NewFrontend(svc *kubernetes.Service) (loadbalancer.Frontend, error) {
+func (v *Vulcan) NewFrontend(rsc *kubernetes.Resource) (loadbalancer.Frontend, error) {
 	s := engine.HTTPFrontendSettings{}
-	if val, ok := svc.GetAnnotation(frontendSettingsKey); ok {
+	if val, ok := rsc.GetAnnotation(frontendSettingsKey); ok {
 		if er := json.Unmarshal([]byte(val), &s); er != nil {
-			logger.Warnf("Failed to parse settings for frontend %q: %v", svc.ID, er)
+			logger.Warnf("Failed to parse settings for frontend %q: %v", rsc.ID, er)
 		}
 	}
 
-	f, er := engine.NewHTTPFrontend(route.NewMux(), svc.ID, svc.ID, buildRoute(svc.Route), s)
+	f, er := engine.NewHTTPFrontend(route.NewMux(), rsc.ID(), rsc.ID(), buildRoute(rsc), s)
 	if er != nil {
 		return nil, er
 	}
 	return newFrontend(f), nil
 }
 
-func (v *Vulcan) NewBackend(svc *kubernetes.Service) (loadbalancer.Backend, error) {
+func (v *Vulcan) NewBackend(rsc *kubernetes.Resource) (loadbalancer.Backend, error) {
 	s := engine.HTTPBackendSettings{}
-	if val, ok := svc.GetAnnotation(backendSettingsKey); ok {
+	if val, ok := rsc.GetAnnotation(backendSettingsKey); ok {
 		if er := json.Unmarshal([]byte(val), &s); er != nil {
-			logger.Warnf("Failed to parse settings for frontend %q: %v", svc.ID, er)
+			logger.Warnf("Failed to parse settings for frontend %q: %v", rsc.ID, er)
 		}
 	}
 
-	b, er := engine.NewHTTPBackend(svc.ID, s)
+	b, er := engine.NewHTTPBackend(rsc.ID(), s)
 	if er != nil {
 		return nil, er
 	}
-	if kind, ok := svc.GetAnnotation(backendTypeKey); ok {
-		if kind == websocket || kind == ws {
-			b.Type = ws
-		}
+	if rsc.IsWebsocket() {
+		b.Type = ws
 	}
 	return newBackend(b), nil
 }
 
-func (v *Vulcan) NewServers(svc *kubernetes.Service) ([]loadbalancer.Server, error) {
+func (v *Vulcan) NewServers(rsc *kubernetes.Resource) ([]loadbalancer.Server, error) {
 	list := make([]loadbalancer.Server, 0, 1)
-	for _, server := range svc.Backends {
-		s, er := engine.NewServer(server.ID, server.URL().String())
+	for _, server := range rsc.Servers() {
+		s, er := engine.NewServer(server.ID(), server.URL().String())
 		if er != nil {
 			return list, er
 		}
@@ -90,12 +89,16 @@ func (v *Vulcan) NewServers(svc *kubernetes.Service) ([]loadbalancer.Server, err
 	return list, nil
 }
 
-func (v *Vulcan) NewMiddlewares(svc *kubernetes.Service) ([]loadbalancer.Middleware, error) {
+func (v *Vulcan) NewMiddlewares(rsc *kubernetes.Resource) ([]loadbalancer.Middleware, error) {
 	mids := make([]loadbalancer.Middleware, 0, 1)
 	for key, def := range DefaultMiddleware {
-		if val, ok := svc.GetAnnotation(key); ok && len(val) > 0 {
+		if val, ok := rsc.GetAnnotation(key); ok && len(val) > 0 {
 			switch key {
-			case "trace":
+			case RedirectSSLID:
+				if b, er := strconv.ParseBool(val); er != nil || !b {
+					continue
+				}
+			case TraceID:
 				re := regexp.MustCompile(`\s+`)
 				list, er := json.Marshal(strings.Split(re.ReplaceAllString(val, ""), ","))
 				if er != nil || string(list) == "" {
@@ -103,7 +106,7 @@ func (v *Vulcan) NewMiddlewares(svc *kubernetes.Service) ([]loadbalancer.Middlew
 					list = []byte("[]")
 				}
 				def = fmt.Sprintf(def, string(list), string(list))
-			case "auth":
+			case AuthID:
 				bits := strings.SplitN(val, ":", 2)
 				switch len(bits) {
 				case 1:
@@ -114,7 +117,7 @@ func (v *Vulcan) NewMiddlewares(svc *kubernetes.Service) ([]loadbalancer.Middlew
 					logger.Errorf("Failed to parse provided basic auth, using default (admin:admin)")
 					def = fmt.Sprintf(def, "admin", "admin")
 				}
-			case "maintenance":
+			case MaintenanceID:
 				def = fmt.Sprintf(def, val)
 			}
 
@@ -129,7 +132,8 @@ func (v *Vulcan) NewMiddlewares(svc *kubernetes.Service) ([]loadbalancer.Middlew
 	}
 
 	rg := regexp.MustCompile(CustomMiddlewareKeyPattern)
-	for key, val := range svc.Annotations {
+	matches, _ := rsc.GetAnnotations(CustomMiddlewareKeyPattern)
+	for key, val := range matches {
 		if match := rg.FindStringSubmatch(key); match != nil {
 			id := match[1]
 			m, er := engine.MiddlewareFromJSON([]byte(val), v.Registry.GetSpec, id)
@@ -272,4 +276,9 @@ const (
 	ws        = "ws"
 	HTTP      = "http"
 	Enabled   = "enabled"
+
+	RedirectSSLID = "redirect_ssl"
+	TraceID       = "trace"
+	AuthID        = "auth"
+	MaintenanceID = "maintenance"
 )

@@ -8,6 +8,7 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/albertrdixon/gearbox/ezd"
 	"github.com/albertrdixon/gearbox/logger"
 	"github.com/emilevauge/traefik/types"
 	"github.com/timelinelabs/romulus/kubernetes"
@@ -35,7 +36,7 @@ const (
 )
 
 func New(prefix string, peers []string, timeout time.Duration, ctx context.Context) (*traefik, error) {
-	st, er := NewEtcdStore(peers, timeout)
+	st, er := ezd.New(peers, timeout)
 	if er != nil {
 		return nil, er
 	}
@@ -57,16 +58,16 @@ func (t *traefik) Status() error {
 	return t.Exists("/")
 }
 
-func (t *traefik) NewFrontend(svc *kubernetes.Service) (loadbalancer.Frontend, error) {
-	f := types.Frontend{Backend: svc.ID, PassHostHeader: false}
-	f.Routes = buildRoute(svc.Route)
-	if phh, ok := svc.GetAnnotation(passHostHeader); ok {
+func (t *traefik) NewFrontend(rsc *kubernetes.Resource) (loadbalancer.Frontend, error) {
+	f := types.Frontend{Backend: rsc.ID(), PassHostHeader: false}
+	f.Routes = buildRoute(rsc.Route)
+	if phh, ok := rsc.GetAnnotation(passHostHeader); ok {
 		if val, er := strconv.ParseBool(phh); er == nil {
 			f.PassHostHeader = val
 		}
 	}
 
-	return &frontend{Frontend: f, id: svc.ID, middlewares: make([]*middleware, 0, 1)}, nil
+	return &frontend{Frontend: f, id: rsc.ID(), middlewares: make([]*middleware, 0, 1)}, nil
 }
 
 func (t *traefik) GetFrontend(id string) (loadbalancer.Frontend, error) {
@@ -109,17 +110,17 @@ func (t *traefik) DeleteFrontend(fr loadbalancer.Frontend) error {
 	return t.Delete(key)
 }
 
-func (t *traefik) NewBackend(svc *kubernetes.Service) (loadbalancer.Backend, error) {
+func (t *traefik) NewBackend(rsc *kubernetes.Resource) (loadbalancer.Backend, error) {
 	b := new(types.Backend)
 	b.Servers = make(map[string]types.Server)
-	if lbm, ok := svc.GetAnnotation(loadbalancingMethod); ok {
+	if lbm, ok := rsc.GetAnnotation(loadbalancingMethod); ok {
 		b.LoadBalancer = &types.LoadBalancer{Method: lbm}
 	}
-	if exp, ok := svc.GetAnnotation(failover); ok {
+	if exp, ok := rsc.GetAnnotation(failover); ok {
 		b.CircuitBreaker = &types.CircuitBreaker{Expression: exp}
 	}
 
-	return &backend{Backend: *b, id: svc.ID}, nil
+	return &backend{Backend: *b, id: rsc.ID()}, nil
 }
 
 func (t *traefik) GetBackend(id string) (loadbalancer.Backend, error) {
@@ -165,11 +166,11 @@ func (t *traefik) DeleteBackend(ba loadbalancer.Backend) error {
 	return t.Delete(key)
 }
 
-func (t *traefik) NewServers(svc *kubernetes.Service) ([]loadbalancer.Server, error) {
+func (t *traefik) NewServers(rsc *kubernetes.Resource) ([]loadbalancer.Server, error) {
 	list := make([]loadbalancer.Server, 0, 1)
-	for _, srv := range svc.Backends {
+	for _, srv := range rsc.Servers() {
 		s := types.Server{URL: srv.URL().String(), Weight: 1}
-		list = append(list, &server{Server: s, id: srv.ID})
+		list = append(list, &server{Server: s, id: srv.ID()})
 	}
 	return list, nil
 }
@@ -205,6 +206,6 @@ func (t *traefik) DeleteServer(ba loadbalancer.Backend, srv loadbalancer.Server)
 	return t.Delete(key)
 }
 
-func (t *traefik) NewMiddlewares(svc *kubernetes.Service) ([]loadbalancer.Middleware, error) {
+func (t *traefik) NewMiddlewares(rsc *kubernetes.Resource) ([]loadbalancer.Middleware, error) {
 	return []loadbalancer.Middleware{}, nil
 }

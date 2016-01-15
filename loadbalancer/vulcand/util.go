@@ -12,24 +12,37 @@ import (
 	"github.com/timelinelabs/romulus/kubernetes"
 )
 
-func buildRoute(rt *kubernetes.Route) string {
+func buildRoute(r *kubernetes.Resource) string {
+	rt := r.Route
 	if rt.Empty() {
 		return DefaultRoute
 	}
 
-	bits := []string{}
+	bits, seen := []string{}, map[string]bool{}
 	for k, v := range rt.GetParts() {
-		bits = append(bits, fmt.Sprintf("%s(`%s`)", strings.Title(k), v))
+		part := fmt.Sprintf("%s(`%s`)", strings.Title(k), v)
+		logger.Debugf("[%v] Adding %s to route", r.ID(), part)
+		bits = append(bits, part)
+		seen[k] = true
+	}
+	for k, v := range rt.GetRegex() {
+		if _, ok := seen[k]; !ok {
+			part := fmt.Sprintf("%sRegexp(`%s`)", strings.Title(k), v)
+			logger.Debugf("[%v] Adding %s to route", r.ID(), part)
+			bits = append(bits, part)
+		}
 	}
 	for k, v := range rt.GetHeader() {
-		bits = append(bits, fmt.Sprintf("Header(`%s`, `%s`)", k, v))
+		part := fmt.Sprintf("Header(`%s`, `%s`)", k, v)
+		logger.Debugf("[%v] Adding %s to route", r.ID(), part)
+		bits = append(bits, part)
 	}
 	slice.Sort(bits, func(i, j int) bool {
 		return bits[i] < bits[j]
 	})
 	expr := strings.Join(bits, " && ")
 	if len(expr) < 1 || !route.IsValid(expr) {
-		logger.Debugf("Provided route not valid: %s", expr)
+		logger.Debugf("[%v] Provided route not valid: %s", r.ID(), expr)
 		return DefaultRoute
 	}
 	return expr

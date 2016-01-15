@@ -2,15 +2,53 @@ package kubernetes
 
 import (
 	"fmt"
+	"path"
+	"regexp"
+	"strconv"
 	"strings"
+	"time"
 
-	"github.com/albertrdixon/gearbox/url"
 	"github.com/bradfitz/slice"
 
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/apis/extensions"
 	"k8s.io/kubernetes/pkg/client/cache"
 	"k8s.io/kubernetes/pkg/client/unversioned"
+	"k8s.io/kubernetes/pkg/runtime"
+)
+
+var (
+	// FakeKubeClient = &testclient.Fake{}
+	Keyspace string
+
+	EverythingSelector = map[string]string{}
+
+	resources = map[string]runtime.Object{
+		"services":  &api.Service{},
+		"endpoints": &api.Endpoints{},
+		"ingresses": &extensions.Ingress{},
+	}
+
+	extensionsObj = map[string]struct{}{
+		"ingresses": struct{}{},
+	}
+
+	validScheme = regexp.MustCompile(`(?:wss?|https?)`)
+)
+
+const (
+	hashLen  = 8
+	cacheTTL = 48 * time.Hour
+
+	ServiceKind   = "service"
+	ServicesKind  = "services"
+	IngressKind   = "ingress"
+	IngressesKind = "ingresses"
+	EndpointsKind = "endpoints"
+
+	HTTP  = "http"
+	HTTPS = "https"
+	TCP   = "tcp"
 )
 
 type watcher interface {
@@ -19,87 +57,96 @@ type watcher interface {
 	Update(old, next interface{})
 }
 
-type Service struct {
+type Resource struct {
 	*Route
-	ID          string
-	Annotations map[string]string
-	Backends    []*Server
-	UID         string
+	port        api.ServicePort
+	id, uid     string
+	annotations map[string]string
+	servers     ServerList
+	websocket   bool
 }
 
-func NewService(id string, meta api.ObjectMeta) *Service {
-	return &Service{
-		ID:          id,
-		Route:       newRoute(),
-		Annotations: meta.Annotations,
-		UID:         string(meta.UID),
-		Backends:    make([]*Server, 0, 1),
-	}
-}
+type ResourceList []*Resource
 
 type Server struct {
-	ID, Scheme, IP string
-	Port           int
+	id, scheme, ip string
+	port           int
+	websocket      bool
 }
 
-func (s *Server) URL() *url.URL {
-	ur, _ := url.Parse(fmt.Sprintf("%s://%s:%d", s.Scheme, s.IP, s.Port))
-	return ur
-}
+type ServerList []*Server
 
 type Route struct {
-	Header map[string]string
-	Parts  map[string]string
+	header map[string]string
+	parts  map[string]string
+	regex  map[string]*regexp.Regexp
 }
 
-func newRoute() *Route {
-	return &Route{Parts: make(map[string]string), Header: make(map[string]string)}
-}
-
-func (r *Route) AddHost(host string)            { r.Parts["host"] = host }
-func (r *Route) AddPath(path string)            { r.Parts["path"] = path }
-func (r *Route) AddMethod(method string)        { r.Parts["method"] = strings.ToUpper(method) }
-func (r *Route) AddHeader(header, value string) { r.Header[header] = value }
-func (r *Route) GetParts() map[string]string    { return r.Parts }
-func (r *Route) GetHeader() map[string]string   { return r.Header }
-
-type serviceSorter struct {
-	services []*Service
-	sorter   func(s1, s2 *Service) bool
+type Sorter struct {
+	resources ResourceList
+	sorter    func(a, b *Resource) bool
 }
 
 type Client struct {
 	*unversioned.Client
-	*unversioned.ExtensionsClient
 }
 
 type Selector map[string]string
 
-type KubeCache struct {
-	Ingress, Service cache.Store
-}
+type Cache map[string]cache.Store
 
-type KubeIngress extensions.Ingress
-type KubeService api.Service
+type Ingress extensions.Ingress
+type Service api.Service
+type Endpoints api.Endpoints
 
-func (i KubeIngress) String() string {
+func (i Ingress) String() string {
 	return fmt.Sprintf("Ingress(Name=%q, Namespace=%q)", i.ObjectMeta.Name, i.ObjectMeta.Namespace)
 }
 
-func (s KubeService) String() string {
+func (s Service) String() string {
 	return fmt.Sprintf(`Service(Name=%q, Namespace=%q)`, s.ObjectMeta.Name, s.ObjectMeta.Namespace)
 }
 
-func (s Service) String() string {
-	return fmt.Sprintf("Service(backends=%v, route=%v, annotations=%v)", s.Backends, s.Route, s.Annotations)
+func (e Endpoints) String() string {
+	return fmt.Sprintf(`Endpoints(Name=%q, Namespace=%q, Subsets=%d)`, e.ObjectMeta.Name, e.ObjectMeta.Namespace, len(e.Subsets))
+}
+
+func (s Service) IsFrontend() bool {
+	key := path.Join(Keyspace, "frontend")
+	val := s.ObjectMeta.Annotations[key]
+	ok, _ := strconv.ParseBool(val)
+	return ok
+}
+
+func (r Resource) String() string {
+	return fmt.Sprintf("Resource(ID=%q, Route=%v, Servers=%v, Annotations=%v)", r.id, r.Route, r.servers, r.annotations)
+}
+
+func (r ResourceList) String() string {
+	list := make([]string, 0, 1)
+	for i := range r {
+		list = append(list, r[i].String())
+	}
+	return fmt.Sprintf("Resources[ %s ]", strings.Join(list, ",  "))
+}
+
+func (s ServerList) String() string {
+	list := make([]string, 0, len(s))
+	for i := range s {
+		list = append(list, s[i].String())
+	}
+	return fmt.Sprintf("[%s]", strings.Join(list, ", "))
 }
 
 func (r Route) String() string {
 	rt := []string{}
-	for k, v := range r.Parts {
+	for k, v := range r.parts {
 		rt = append(rt, fmt.Sprintf("%s(`%s`)", strings.Title(k), v))
 	}
-	for k, v := range r.Header {
+	for k, v := range r.regex {
+		rt = append(rt, fmt.Sprintf("%sRegex(`%v`)", strings.Title(k), v))
+	}
+	for k, v := range r.header {
 		rt = append(rt, fmt.Sprintf("Header(`%s`, `%s`)", k, v))
 	}
 	slice.Sort(rt, func(i, j int) bool {

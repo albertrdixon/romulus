@@ -1,13 +1,14 @@
 package traefik
 
 import (
+	"github.com/albertrdixon/gearbox/ezd"
 	"github.com/emilevauge/traefik/types"
 	"github.com/timelinelabs/romulus/loadbalancer"
 	"golang.org/x/net/context"
 )
 
 type traefik struct {
-	Store
+	ezd.Client
 	context.Context
 	prefix string
 }

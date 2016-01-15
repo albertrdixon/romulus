@@ -47,9 +47,12 @@ func (s *etcd) Exists(key string) (e error) {
 }
 
 func (e *etcd) Keys(prefix string) ([]string, error) {
-	c, q := context.WithTimeout(context.Background(), e.timeout)
-	o := &client.GetOptions{Sort: true, Quorum: true}
-	node, er := e.get(c, q, o, prefix)
+	var (
+		c, q = context.WithTimeout(context.Background(), e.timeout)
+		opts = &client.GetOptions{Sort: true, Quorum: true}
+	)
+
+	node, er := e.get(c, q, opts, prefix)
 	if er != nil {
 		return nil, er
 	}
@@ -58,9 +61,13 @@ func (e *etcd) Keys(prefix string) ([]string, error) {
 }
 
 func (e *etcd) Get(key string) (string, error) {
-	c, q := context.WithTimeout(context.Background(), e.timeout)
-	o := &client.GetOptions{Quorum: true}
-	node, er := e.get(c, q, o, key)
+	var (
+		c, q = context.WithTimeout(context.Background(), e.timeout)
+		opts = &client.GetOptions{Quorum: true}
+	)
+
+	logger.Debugf("[etcd] GET %q", key)
+	node, er := e.get(c, q, opts, key)
 	if er != nil {
 		return "", er
 	}
@@ -69,20 +76,32 @@ func (e *etcd) Get(key string) (string, error) {
 }
 
 func (e *etcd) Set(key, value string) error {
-	c, q := context.WithTimeout(context.Background(), e.timeout)
-	o := &client.SetOptions{PrevExist: client.PrevIgnore, TTL: 0}
+	var (
+		c, q = context.WithTimeout(context.Background(), e.timeout)
+		o    = &client.SetOptions{PrevExist: client.PrevIgnore, TTL: 0}
+	)
+
+	logger.Debugf("[etcd] SET %q %q", key, value)
 	return e.set(c, q, o, key, value)
 }
 
 func (e *etcd) Mkdir(path string) error {
-	c, q := context.WithTimeout(context.Background(), e.timeout)
-	o := &client.SetOptions{PrevExist: client.PrevNoExist, Dir: true}
+	var (
+		c, q = context.WithTimeout(context.Background(), e.timeout)
+		o    = &client.SetOptions{PrevExist: client.PrevNoExist, Dir: true}
+	)
+
+	logger.Debugf("[etcd] MKDIR %q", path)
 	return e.set(c, q, o, path, "")
 }
 
 func (e *etcd) Delete(key string) error {
-	c, q := context.WithTimeout(context.Background(), e.timeout)
-	o := &client.DeleteOptions{Recursive: true}
+	var (
+		c, q = context.WithTimeout(context.Background(), e.timeout)
+		o    = &client.DeleteOptions{Recursive: true}
+	)
+
+	logger.Debugf("[etcd] DELETE %q", key)
 	return e.del(c, q, o, key)
 }
 
@@ -91,8 +110,11 @@ func (e *etcd) get(c context.Context, fn context.CancelFunc, o *client.GetOption
 	defer e.Unlock()
 	defer fn()
 
-	resp, er := e.KeysAPI.Get(c, k, o)
-	return resp.Node, er
+	if resp, er := e.KeysAPI.Get(c, k, o); er == nil {
+		return resp.Node, nil
+	} else {
+		return nil, er
+	}
 }
 
 func (e *etcd) set(c context.Context, fn context.CancelFunc, o *client.SetOptions, k, v string) (er error) {

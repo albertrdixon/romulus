@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/mount"
-	"github.com/docker/go-units"
+	"github.com/docker/docker/pkg/units"
 )
 
 const cgroupNamePrefix = "name="
@@ -323,14 +323,9 @@ func GetHugePageSize() ([]string, error) {
 	return pageSizes, nil
 }
 
-// GetPids returns all pids, that were added to cgroup at path.
-func GetPids(path string) ([]int, error) {
-	return readProcsFile(path)
-}
-
-// GetAllPids returns all pids, that were added to cgroup at path and to all its
+// GetPids returns all pids, that were added to cgroup at path and to all its
 // subcgroups.
-func GetAllPids(path string) ([]int, error) {
+func GetPids(path string) ([]int, error) {
 	var pids []int
 	// collect pids from all sub-cgroups
 	err := filepath.Walk(path, func(p string, info os.FileInfo, iErr error) error {
