@@ -115,6 +115,15 @@ func (ComponentStatusList) SwaggerDoc() map[string]string {
 	return map_ComponentStatusList
 }
 
+var map_ConfigMapKeySelector = map[string]string{
+	"":    "Selects a key from a ConfigMap.",
+	"key": "The key to select.",
+}
+
+func (ConfigMapKeySelector) SwaggerDoc() map[string]string {
+	return map_ConfigMapKeySelector
+}
+
 var map_Container = map[string]string{
 	"":                       "A single application container that you want to run within a pod.",
 	"name":                   "Name of the container specified as a DNS_LABEL. Each container in a pod must have a unique name (DNS_LABEL). Cannot be updated.",
@@ -139,6 +148,16 @@ var map_Container = map[string]string{
 
 func (Container) SwaggerDoc() map[string]string {
 	return map_Container
+}
+
+var map_ContainerImage = map[string]string{
+	"":         "Describe a container image",
+	"repoTags": "Names by which this image is known. e.g. [\"gcr.io/google_containers/hyperkube:v1.0.7\", \"dockerhub.io/google_containers/hyperkube:v1.0.7\"]",
+	"size":     "The size of the image in bytes.",
+}
+
+func (ContainerImage) SwaggerDoc() map[string]string {
+	return map_ContainerImage
 }
 
 var map_ContainerPort = map[string]string{
@@ -325,8 +344,10 @@ func (EnvVar) SwaggerDoc() map[string]string {
 }
 
 var map_EnvVarSource = map[string]string{
-	"":         "EnvVarSource represents a source for the value of an EnvVar.",
-	"fieldRef": "Selects a field of the pod. Only name and namespace are supported.",
+	"":                "EnvVarSource represents a source for the value of an EnvVar.",
+	"fieldRef":        "Selects a field of the pod; only name and namespace are supported.",
+	"configMapKeyRef": "Selects a key of a ConfigMap.",
+	"secretKeyRef":    "Selects a key of a secret in the pod's namespace",
 }
 
 func (EnvVarSource) SwaggerDoc() map[string]string {
@@ -732,6 +753,7 @@ var map_NodeStatus = map[string]string{
 	"addresses":       "List of addresses reachable to the node. Queried from cloud provider, if available. More info: http://releases.k8s.io/HEAD/docs/admin/node.md#node-addresses",
 	"daemonEndpoints": "Endpoints of daemons running on the Node.",
 	"nodeInfo":        "Set of ids/uuids to uniquely identify the node. More info: http://releases.k8s.io/HEAD/docs/admin/node.md#node-info",
+	"images":          "List of container images on this node",
 }
 
 func (NodeStatus) SwaggerDoc() map[string]string {
@@ -1250,6 +1272,15 @@ func (Secret) SwaggerDoc() map[string]string {
 	return map_Secret
 }
 
+var map_SecretKeySelector = map[string]string{
+	"":    "SecretKeySelector selects a key of a Secret.",
+	"key": "The key of the secret to select from.  Must be a valid secret key.",
+}
+
+func (SecretKeySelector) SwaggerDoc() map[string]string {
+	return map_SecretKeySelector
+}
+
 var map_SecretList = map[string]string{
 	"":         "SecretList is a list of Secret.",
 	"metadata": "Standard list metadata. More info: http://releases.k8s.io/HEAD/docs/devel/api-conventions.md#types-kinds",
@@ -1262,7 +1293,7 @@ func (SecretList) SwaggerDoc() map[string]string {
 
 var map_SecretVolumeSource = map[string]string{
 	"":           "Adapts a Secret into a volume.\n\nThe contents of the target Secret's Data field will be presented in a volume as files using the keys in the Data field as the file names. Secret volumes support ownership management and SELinux relabeling.",
-	"secretName": "SecretName is the name of a secret in the pod's namespace. More info: http://releases.k8s.io/HEAD/docs/user-guide/volumes.md#secrets",
+	"secretName": "Name of the secret in the pod's namespace to use. More info: http://releases.k8s.io/HEAD/docs/user-guide/volumes.md#secrets",
 }
 
 func (SecretVolumeSource) SwaggerDoc() map[string]string {

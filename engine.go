@@ -10,9 +10,6 @@ import (
 	"github.com/cenkalti/backoff"
 
 	"golang.org/x/net/context"
-	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/apis/extensions"
-	"k8s.io/kubernetes/pkg/runtime"
 
 	"github.com/timelinelabs/romulus/kubernetes"
 	"github.com/timelinelabs/romulus/loadbalancer"
@@ -127,48 +124,6 @@ func (e *Engine) Commit(fn UpsertFunc) error {
 	}
 }
 
-func (e *Engine) ResourceExists(side, id string) bool {
-	switch side {
-	default:
-		return false
-	case "frontend":
-		_, er := e.GetFrontend(id)
-		return er == nil
-	case "backend":
-		_, er := e.GetBackend(id)
-		return er == nil
-	}
-}
-
-func (e *Engine) do(obj runtime.Object, fn ResourceFunc) error {
-	var resources kubernetes.ResourceList
-
-	e.Lock()
-	defer e.Unlock()
-
-	switch t := obj.(type) {
-	default:
-		return fmt.Errorf("Object unsupported: %v", obj.GetObjectKind().GroupVersionKind())
-	case *extensions.Ingress:
-		resources = kubernetes.ResourcesFromIngress(e.Cache, t)
-		if len(resources) < 1 {
-			return fmt.Errorf("No resources from %v", kubernetes.Ingress(*t))
-		}
-	case *api.Service:
-		resources = kubernetes.ResourcesFromService(e.Cache, t)
-		if len(resources) < 1 {
-			return fmt.Errorf("No resources from %v", kubernetes.Service(*t))
-		}
-	case *api.Endpoints:
-		resources = kubernetes.ResourcesFromEndpoints(e.Cache, t)
-		if len(resources) < 1 {
-			return fmt.Errorf("No resources from %v", kubernetes.Endpoints(*t))
-		}
-	}
-
-	return fn(e, resources)
-}
-
 func updateResources(e *Engine, resources, previous kubernetes.ResourceList) error {
 	removals := kubernetes.ResourceList{}
 	m := resources.Map()
@@ -269,21 +224,21 @@ func createObjectCache(e *Engine, selector kubernetes.Selector, resync time.Dura
 	logger.Infof("Creating kubernetes object cache")
 
 	service, er := kubernetes.CreateStore(kubernetes.ServicesKind, uc, selector, resync, e.Context)
-	if er != nil || e.AddStore(kubernetes.ServiceKind, service) {
+	if er != nil {
 		logger.Warnf("Failed to create Service cache")
 	}
 	endpoints, er := kubernetes.CreateStore(kubernetes.EndpointsKind, uc, selector, resync, e.Context)
-	if er != nil || e.AddStore(kubernetes.EndpointsKind, endpoints) {
+	if er != nil {
 		logger.Warnf("Failed to create Endpoints cache")
 	}
 	ingress, er := kubernetes.CreateStore(kubernetes.IngressesKind, ec, selector, resync, e.Context)
-	if er != nil || e.AddStore(kubernetes.IngressKind, ingress) {
+	if er != nil {
 		logger.Warnf("Failed to create Ingress cache")
 	}
 
-	e.AddStore(kubernetes.ServiceKind, service)
-	e.AddStore(kubernetes.EndpointsKind, endpoints)
-	e.AddStore(kubernetes.IngressKind, ingress)
+	e.SetIngressStore(ingress)
+	e.SetServiceStore(service)
+	e.SetEndpointsStore(endpoints)
 }
 
 func createKubernetesCallbacks(e *Engine, selector kubernetes.Selector, resync time.Duration) error {
@@ -309,7 +264,7 @@ type Engine struct {
 	backoff.BackOff
 	context.Context
 	loadbalancer.LoadBalancer
-	kubernetes.Cache
+	*kubernetes.Cache
 	*kubernetes.Client
 }
 

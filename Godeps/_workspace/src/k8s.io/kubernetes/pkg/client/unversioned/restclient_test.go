@@ -29,18 +29,20 @@ import (
 	"k8s.io/kubernetes/pkg/api/testapi"
 	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/util"
+	utiltesting "k8s.io/kubernetes/pkg/util/testing"
 )
 
 func TestDoRequestSuccess(t *testing.T) {
 	status := &unversioned.Status{Status: unversioned.StatusSuccess}
 	expectedBody, _ := testapi.Default.Codec().Encode(status)
-	fakeHandler := util.FakeHandler{
+	fakeHandler := utiltesting.FakeHandler{
 		StatusCode:   200,
 		ResponseBody: string(expectedBody),
 		T:            t,
 	}
 	testServer := httptest.NewServer(&fakeHandler)
-	defer testServer.Close()
+	// TODO: Uncomment when fix #19254
+	// defer testServer.Close()
 	c, err := RESTClientFor(&Config{
 		Host:         testServer.URL,
 		GroupVersion: testapi.Default.GroupVersion(),
@@ -77,13 +79,14 @@ func TestDoRequestFailed(t *testing.T) {
 		Details: &unversioned.StatusDetails{},
 	}
 	expectedBody, _ := testapi.Default.Codec().Encode(status)
-	fakeHandler := util.FakeHandler{
+	fakeHandler := utiltesting.FakeHandler{
 		StatusCode:   404,
 		ResponseBody: string(expectedBody),
 		T:            t,
 	}
 	testServer := httptest.NewServer(&fakeHandler)
-	defer testServer.Close()
+	// TODO: Uncomment when fix #19254
+	// defer testServer.Close()
 	c, err := RESTClientFor(&Config{
 		Host:         testServer.URL,
 		GroupVersion: testapi.Default.GroupVersion(),
@@ -109,13 +112,14 @@ func TestDoRequestFailed(t *testing.T) {
 func TestDoRequestCreated(t *testing.T) {
 	status := &unversioned.Status{Status: unversioned.StatusSuccess}
 	expectedBody, _ := testapi.Default.Codec().Encode(status)
-	fakeHandler := util.FakeHandler{
+	fakeHandler := utiltesting.FakeHandler{
 		StatusCode:   201,
 		ResponseBody: string(expectedBody),
 		T:            t,
 	}
 	testServer := httptest.NewServer(&fakeHandler)
-	defer testServer.Close()
+	// TODO: Uncomment when fix #19254
+	// defer testServer.Close()
 	c, err := RESTClientFor(&Config{
 		Host:         testServer.URL,
 		GroupVersion: testapi.Default.GroupVersion(),

@@ -46,6 +46,18 @@ const (
 	IngressesKind = "ingresses"
 	EndpointsKind = "endpoints"
 
+	HostPart   = "host"
+	PathPart   = "path"
+	PrefixPart = "prefix"
+	MethodPart = "method"
+	HeaderPart = "header"
+
+	HostKey    = "host"
+	PathKey    = "path"
+	PrefixKey  = "prefix"
+	MethodsKey = "methods"
+	HeadersKey = "headers"
+
 	HTTP  = "http"
 	HTTPS = "https"
 	TCP   = "tcp"
@@ -77,9 +89,12 @@ type Server struct {
 type ServerList []*Server
 
 type Route struct {
-	header map[string]string
-	parts  map[string]string
-	regex  map[string]*regexp.Regexp
+	parts []*routePart
+}
+
+type routePart struct {
+	kind, header, value string
+	regex               bool
 }
 
 type Sorter struct {
@@ -91,9 +106,13 @@ type Client struct {
 	*unversioned.Client
 }
 
+type Cache struct {
+	ingress, service, endpoints cache.Store
+}
+
 type Selector map[string]string
 
-type Cache map[string]cache.Store
+// type Cache map[string]cache.Store
 
 type Ingress extensions.Ingress
 type Service api.Service
@@ -140,19 +159,33 @@ func (s ServerList) String() string {
 
 func (r Route) String() string {
 	rt := []string{}
-	for k, v := range r.parts {
-		rt = append(rt, fmt.Sprintf("%s(`%s`)", strings.Title(k), v))
-	}
-	for k, v := range r.regex {
-		rt = append(rt, fmt.Sprintf("%sRegex(`%v`)", strings.Title(k), v))
-	}
-	for k, v := range r.header {
-		rt = append(rt, fmt.Sprintf("Header(`%s`, `%s`)", k, v))
+	for _, part := range r.parts {
+		rt = append(rt, part.String())
 	}
 	slice.Sort(rt, func(i, j int) bool {
 		return rt[i] < rt[j]
 	})
 	return fmt.Sprintf("Route(%s)", strings.Join(rt, " && "))
+}
+
+func (r routePart) String() string {
+	var (
+		kind, val string
+	)
+
+	if r.regex {
+		kind = fmt.Sprintf("%sRegexp", r.kind)
+	} else {
+		kind = r.kind
+	}
+
+	if r.header != "" {
+		val = fmt.Sprintf("`%s`, `%s`", r.header, r.value)
+	} else {
+		val = fmt.Sprintf("`%s`", r.value)
+	}
+
+	return fmt.Sprintf("%s(%s)", kind, val)
 }
 
 func (s Server) String() string {

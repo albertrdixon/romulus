@@ -59,7 +59,8 @@ func cacheLookupKey(namespace, name string) cache.ExplicitKey {
 }
 
 func selectorFromMap(m Selector) labels.Selector {
-	s := labels.NewSelector()
+	var s = labels.NewSelector()
+
 	for k, val := range m {
 		key := k
 		if !strings.HasPrefix(k, Keyspace) {
@@ -87,4 +88,8 @@ func intstrFromPort(name string, port int) intstr.IntOrString {
 		IntVal: int32(port),
 		Type:   kind,
 	}
+}
+
+func isRegexp(expr string) bool {
+	return strings.HasPrefix(expr, "|") && strings.HasSuffix(expr, "|")
 }

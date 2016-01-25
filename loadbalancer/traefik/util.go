@@ -5,25 +5,13 @@ import (
 	"path"
 	"strconv"
 
+	"github.com/albertrdixon/gearbox/ezd"
 	"github.com/albertrdixon/gearbox/logger"
 	"github.com/emilevauge/traefik/types"
-	"github.com/timelinelabs/romulus/kubernetes"
 	"github.com/timelinelabs/romulus/loadbalancer"
 )
 
-func buildRoute(rt *kubernetes.Route) map[string]types.Route {
-	if rt.Empty() {
-		return defaultTraefikRoute
-	}
-
-	routes := map[string]types.Route{}
-	for rule, val := range rt.GetParts() {
-		routes[rule] = types.Route{Rule: rule, Value: val}
-	}
-	return routes
-}
-
-func getBackend(s Store, prefix, id string) (*backend, error) {
+func getBackend(s ezd.Client, prefix, id string) (*backend, error) {
 	kp := path.Join(prefix, "backends", id)
 	logger.Debugf("[%v] Lookup Backend %q", id, kp)
 
@@ -71,7 +59,7 @@ func getBackend(s Store, prefix, id string) (*backend, error) {
 	return &backend{Backend: *b, id: id}, nil
 }
 
-func getFrontend(s Store, prefix, id string) (*frontend, error) {
+func getFrontend(s ezd.Client, prefix, id string) (*frontend, error) {
 	kp := path.Join(prefix, "frontends", id)
 	logger.Debugf("[%v] Lookup Frontend %q", id, kp)
 
@@ -115,7 +103,7 @@ func getFrontend(s Store, prefix, id string) (*frontend, error) {
 	return &frontend{Frontend: *f, id: id}, nil
 }
 
-func getServers(s Store, prefix, id string) (list []loadbalancer.Server) {
+func getServers(s ezd.Client, prefix, id string) (list []loadbalancer.Server) {
 	kp := path.Join(prefix, "backends", id)
 	logger.Debugf("[%v] Lookup Servers for Backend %q", id, kp)
 
@@ -147,4 +135,8 @@ func getServers(s Store, prefix, id string) (list []loadbalancer.Server) {
 		list = append(list, sr)
 	}
 	return list
+}
+
+func validLBM(method string) bool {
+	return method == drr || method == wrr
 }

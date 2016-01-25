@@ -39,7 +39,9 @@ func init() {
 		deepCopy_api_ComponentCondition,
 		deepCopy_api_ComponentStatus,
 		deepCopy_api_ComponentStatusList,
+		deepCopy_api_ConfigMapKeySelector,
 		deepCopy_api_Container,
+		deepCopy_api_ContainerImage,
 		deepCopy_api_ContainerPort,
 		deepCopy_api_ContainerState,
 		deepCopy_api_ContainerStateRunning,
@@ -139,6 +141,7 @@ func init() {
 		deepCopy_api_ResourceRequirements,
 		deepCopy_api_SELinuxOptions,
 		deepCopy_api_Secret,
+		deepCopy_api_SecretKeySelector,
 		deepCopy_api_SecretList,
 		deepCopy_api_SecretVolumeSource,
 		deepCopy_api_SecurityContext,
@@ -294,6 +297,14 @@ func deepCopy_api_ComponentStatusList(in ComponentStatusList, out *ComponentStat
 	return nil
 }
 
+func deepCopy_api_ConfigMapKeySelector(in ConfigMapKeySelector, out *ConfigMapKeySelector, c *conversion.Cloner) error {
+	if err := deepCopy_api_LocalObjectReference(in.LocalObjectReference, &out.LocalObjectReference, c); err != nil {
+		return err
+	}
+	out.Key = in.Key
+	return nil
+}
+
 func deepCopy_api_Container(in Container, out *Container, c *conversion.Cloner) error {
 	out.Name = in.Name
 	out.Image = in.Image
@@ -389,6 +400,18 @@ func deepCopy_api_Container(in Container, out *Container, c *conversion.Cloner) 
 	out.Stdin = in.Stdin
 	out.StdinOnce = in.StdinOnce
 	out.TTY = in.TTY
+	return nil
+}
+
+func deepCopy_api_ContainerImage(in ContainerImage, out *ContainerImage, c *conversion.Cloner) error {
+	if in.RepoTags != nil {
+		in, out := in.RepoTags, &out.RepoTags
+		*out = make([]string, len(in))
+		copy(*out, in)
+	} else {
+		out.RepoTags = nil
+	}
+	out.Size = in.Size
 	return nil
 }
 
@@ -668,6 +691,24 @@ func deepCopy_api_EnvVarSource(in EnvVarSource, out *EnvVarSource, c *conversion
 		}
 	} else {
 		out.FieldRef = nil
+	}
+	if in.ConfigMapKeyRef != nil {
+		in, out := in.ConfigMapKeyRef, &out.ConfigMapKeyRef
+		*out = new(ConfigMapKeySelector)
+		if err := deepCopy_api_ConfigMapKeySelector(*in, *out, c); err != nil {
+			return err
+		}
+	} else {
+		out.ConfigMapKeyRef = nil
+	}
+	if in.SecretKeyRef != nil {
+		in, out := in.SecretKeyRef, &out.SecretKeyRef
+		*out = new(SecretKeySelector)
+		if err := deepCopy_api_SecretKeySelector(*in, *out, c); err != nil {
+			return err
+		}
+	} else {
+		out.SecretKeyRef = nil
 	}
 	return nil
 }
@@ -1303,6 +1344,17 @@ func deepCopy_api_NodeStatus(in NodeStatus, out *NodeStatus, c *conversion.Clone
 	}
 	if err := deepCopy_api_NodeSystemInfo(in.NodeInfo, &out.NodeInfo, c); err != nil {
 		return err
+	}
+	if in.Images != nil {
+		in, out := in.Images, &out.Images
+		*out = make([]ContainerImage, len(in))
+		for i := range in {
+			if err := deepCopy_api_ContainerImage(in[i], &(*out)[i], c); err != nil {
+				return err
+			}
+		}
+	} else {
+		out.Images = nil
 	}
 	return nil
 }
@@ -2288,6 +2340,14 @@ func deepCopy_api_Secret(in Secret, out *Secret, c *conversion.Cloner) error {
 		out.Data = nil
 	}
 	out.Type = in.Type
+	return nil
+}
+
+func deepCopy_api_SecretKeySelector(in SecretKeySelector, out *SecretKeySelector, c *conversion.Cloner) error {
+	if err := deepCopy_api_LocalObjectReference(in.LocalObjectReference, &out.LocalObjectReference, c); err != nil {
+		return err
+	}
+	out.Key = in.Key
 	return nil
 }
 

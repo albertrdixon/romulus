@@ -261,7 +261,7 @@ type PersistentVolumeClaimVolumeSource struct {
 	ReadOnly bool `json:"readOnly,omitempty"`
 }
 
-// +genclient=true
+// +genclient=true,nonNamespaced=true
 
 type PersistentVolume struct {
 	unversioned.TypeMeta `json:",inline"`
@@ -560,8 +560,8 @@ type GitRepoVolumeSource struct {
 // as files using the keys in the Data field as the file names.
 // Secret volumes support ownership management and SELinux relabeling.
 type SecretVolumeSource struct {
-	// Name of the secret in the pod's namespace to use
-	SecretName string `json:"secretName"`
+	// Name of the secret in the pod's namespace to use.
+	SecretName string `json:"secretName,omitempty"`
 }
 
 // Represents an NFS mount that lasts the lifetime of a pod.
@@ -624,9 +624,8 @@ type RBDVolumeSource struct {
 type CinderVolumeSource struct {
 	// Unique id of the volume used to identify the cinder volume
 	VolumeID string `json:"volumeID"`
-	// Required: Filesystem type to mount.
+	// Filesystem type to mount.
 	// Must be a filesystem type supported by the host operating system.
-	// Only ext3 and ext4 are allowed
 	FSType string `json:"fsType,omitempty"`
 	// Optional: Defaults to false (read/write). ReadOnly here will force
 	// the ReadOnly setting in VolumeMounts.
@@ -715,9 +714,14 @@ type EnvVar struct {
 }
 
 // EnvVarSource represents a source for the value of an EnvVar.
+// Only one of its fields may be set.
 type EnvVarSource struct {
-	// Required: Selects a field of the pod; only name and namespace are supported.
-	FieldRef *ObjectFieldSelector `json:"fieldRef"`
+	// Selects a field of the pod; only name and namespace are supported.
+	FieldRef *ObjectFieldSelector `json:"fieldRef,omitempty"`
+	// Selects a key of a ConfigMap.
+	ConfigMapKeyRef *ConfigMapKeySelector `json:"configMapKeyRef,omitempty"`
+	// Selects a key of a secret in the pod's namespace.
+	SecretKeyRef *SecretKeySelector `json:"secretKeyRef,omitempty"`
 }
 
 // ObjectFieldSelector selects an APIVersioned field of an object.
@@ -728,6 +732,22 @@ type ObjectFieldSelector struct {
 	APIVersion string `json:"apiVersion"`
 	// Required: Path of the field to select in the specified API version
 	FieldPath string `json:"fieldPath"`
+}
+
+// Selects a key from a ConfigMap.
+type ConfigMapKeySelector struct {
+	// The ConfigMap to select from.
+	LocalObjectReference `json:",inline"`
+	// The key to select.
+	Key string `json:"key"`
+}
+
+// SecretKeySelector selects a key of a Secret.
+type SecretKeySelector struct {
+	// The name of the secret in the pod's namespace to select from.
+	LocalObjectReference `json:",inline"`
+	// The key of the secret to select from.  Must be a valid secret key.
+	Key string `json:"key"`
 }
 
 // HTTPGetAction describes an action based on HTTP Get requests.
@@ -1544,6 +1564,16 @@ type NodeStatus struct {
 	DaemonEndpoints NodeDaemonEndpoints `json:"daemonEndpoints,omitempty"`
 	// Set of ids/uuids to uniquely identify the node.
 	NodeInfo NodeSystemInfo `json:"nodeInfo,omitempty"`
+	// List of container images on this node
+	Images []ContainerImage `json:"images",omitempty`
+}
+
+// Describe a container image
+type ContainerImage struct {
+	// Names by which this image is known.
+	RepoTags []string `json:"repoTags"`
+	// The size of the image in bytes.
+	Size int64 `json:"size,omitempty"`
 }
 
 type NodePhase string
@@ -1619,7 +1649,7 @@ const (
 // ResourceList is a set of (resource name, quantity) pairs.
 type ResourceList map[ResourceName]resource.Quantity
 
-// +genclient=true
+// +genclient=true,nonNamespaced=true
 
 // Node is a worker node in Kubernetes
 // The name of the node according to etcd is in ObjectMeta.Name.
@@ -1671,7 +1701,7 @@ const (
 	NamespaceTerminating NamespacePhase = "Terminating"
 )
 
-// +genclient=true
+// +genclient=true,nonNamespaced=true
 
 // A namespace provides a scope for Names.
 // Use of multiple namespaces is optional
@@ -2164,7 +2194,7 @@ type ComponentCondition struct {
 	Error   string                 `json:"error,omitempty"`
 }
 
-// +genclient=true
+// +genclient=true,nonNamespaced=true
 
 // ComponentStatus (and ComponentStatusList) holds the cluster validation info.
 type ComponentStatus struct {

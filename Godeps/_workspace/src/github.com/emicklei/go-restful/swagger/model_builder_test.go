@@ -1,6 +1,7 @@
 package swagger
 
 import (
+	"net"
 	"testing"
 	"time"
 )
@@ -802,10 +803,10 @@ type Region struct {
 // clear && go test -v -test.run TestRegion_Issue113 ...swagger
 func TestRegion_Issue113(t *testing.T) {
 	testJsonFromStruct(t, []Region{}, `{
-  "integer": {
-   "id": "integer",
+  "||swagger.Region": {
+   "id": "||swagger.Region",
    "properties": {}
-  },
+  },		
   "swagger.Region": {
    "id": "swagger.Region",
    "required": [
@@ -817,7 +818,7 @@ func TestRegion_Issue113(t *testing.T) {
     "id": {
      "type": "array",
      "items": {
-      "$ref": "integer"
+      "type": "integer"
      }
     },
     "name": {
@@ -827,10 +828,6 @@ func TestRegion_Issue113(t *testing.T) {
      "type": "string"
     }
    }
-  },
-  "||swagger.Region": {
-   "id": "||swagger.Region",
-   "properties": {}
   }
  }`)
 }
@@ -1108,4 +1105,34 @@ func TestNestedStructDescription(t *testing.T) {
  }
 `
 	testJsonFromStruct(t, A{}, expected)
+}
+
+// This tests a primitive with type overrides in the struct tags
+type FakeInt int
+type E struct {
+	Id FakeInt `type:"integer"`
+	IP net.IP  `type:"string"`
+}
+
+func TestOverridenTypeTagE1(t *testing.T) {
+	expected := `
+{
+  "swagger.E": {
+   "id": "swagger.E",
+   "required": [
+    "Id",
+    "IP"
+   ],
+   "properties": {
+    "Id": {
+     "type": "integer"
+    },
+    "IP": {
+     "type": "string"
+    }
+   }
+  }
+ }
+`
+	testJsonFromStruct(t, E{}, expected)
 }

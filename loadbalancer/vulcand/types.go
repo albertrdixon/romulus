@@ -6,7 +6,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-type Vulcan struct {
+type vulcan struct {
 	api.Client
 	c context.Context
 }
@@ -49,4 +49,14 @@ type middleware struct {
 
 func newMiddleware(m *engine.Middleware) *middleware {
 	return &middleware{*m}
+}
+
+type route struct {
+	host, path     *routePart
+	header, method []*routePart
+}
+
+type routePart struct {
+	part, val, header string
+	regex             bool
 }

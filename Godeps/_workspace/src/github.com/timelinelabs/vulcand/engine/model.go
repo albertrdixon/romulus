@@ -211,8 +211,10 @@ type Frontend struct {
 
 // Limits contains various limits one can supply for a location.
 type HTTPFrontendLimits struct {
-	MaxMemBodyBytes int64 // Maximum size to keep in memory before buffering to disk
-	MaxBodyBytes    int64 // Maximum size of a request body in bytes
+	MaxMemBodyBytes     int64 // Maximum size of a request to keep in memory before buffering to disk
+	MaxBodyBytes        int64 // Maximum size of a request body in bytes
+	MaxRespMemBodyBytes int64 // Maximum size of a response to keep in memory before buffering to disk
+	MaxRespBodyBytes    int64 // Maximum size of a response body in bytes
 }
 
 // Additional options to control this location, such as timeouts

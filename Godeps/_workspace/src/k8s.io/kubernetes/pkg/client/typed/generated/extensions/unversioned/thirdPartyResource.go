@@ -22,8 +22,9 @@ import (
 	watch "k8s.io/kubernetes/pkg/watch"
 )
 
-// ThirdPartyResourceNamespacer has methods to work with ThirdPartyResource resources in a namespace
-type ThirdPartyResourceNamespacer interface {
+// ThirdPartyResourcesGetter has a method to return a ThirdPartyResourceInterface.
+// A group's client should implement this interface.
+type ThirdPartyResourcesGetter interface {
 	ThirdPartyResources(namespace string) ThirdPartyResourceInterface
 }
 
@@ -36,6 +37,7 @@ type ThirdPartyResourceInterface interface {
 	Get(name string) (*extensions.ThirdPartyResource, error)
 	List(opts api.ListOptions) (*extensions.ThirdPartyResourceList, error)
 	Watch(opts api.ListOptions) (watch.Interface, error)
+	ThirdPartyResourceExpansion
 }
 
 // thirdPartyResources implements ThirdPartyResourceInterface
@@ -91,7 +93,7 @@ func (c *thirdPartyResources) Delete(name string, options *api.DeleteOptions) er
 // DeleteCollection deletes a collection of objects.
 func (c *thirdPartyResources) DeleteCollection(options *api.DeleteOptions, listOptions api.ListOptions) error {
 	return c.client.Delete().
-		NamespaceIfScoped(c.ns, len(c.ns) > 0).
+		Namespace(c.ns).
 		Resource("thirdPartyResources").
 		VersionedParams(&listOptions, api.Scheme).
 		Body(options).

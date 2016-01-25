@@ -14,15 +14,40 @@ import (
 	"github.com/timelinelabs/vulcand/engine"
 	"github.com/timelinelabs/vulcand/plugin"
 	"github.com/timelinelabs/vulcand/plugin/registry"
-	"github.com/vulcand/route"
+	vroute "github.com/vulcand/route"
 	"golang.org/x/net/context"
 
 	"github.com/timelinelabs/romulus/kubernetes"
 	"github.com/timelinelabs/romulus/loadbalancer"
 )
 
-func New(vulcanURL string, reg *plugin.Registry, ctx context.Context) (*Vulcan, error) {
-	if ur, er := url.Parse(vulcanURL); er != nil || !validVulcanURL(ur) {
+const (
+	DefaultRoute = "Path(`/`)"
+
+	FrontendSettingsKey        = "frontend_settings"
+	BackendSettingsKey         = "backend_settings"
+	BackendTypeKey             = "backend_type"
+	PassHostHeaderKey          = "pass_host_header"
+	TrustForwardHeadersKey     = "trust_forward_headers"
+	FailoverExpressionKey      = "failover_expression"
+	DailTimeoutKey             = "dial_timeout"
+	ReadTimeoutKey             = "read_timeout"
+	MaxIdleConnsKey            = "max_idle_conns_per_host"
+	CustomMiddlewareKeyPattern = `^middleware\.([^\.]+)`
+
+	websocket = "websocket"
+	ws        = "ws"
+	HTTP      = "http"
+	Enabled   = "enabled"
+
+	RedirectSSLID = "redirect_ssl"
+	TraceID       = "trace"
+	AuthID        = "auth"
+	MaintenanceID = "maintenance"
+)
+
+func New(vulcanURL string, reg *plugin.Registry, ctx context.Context) (*vulcan, error) {
+	if _, er := url.Parse(vulcanURL); er != nil {
 		return nil, er
 	}
 
@@ -31,37 +56,62 @@ func New(vulcanURL string, reg *plugin.Registry, ctx context.Context) (*Vulcan, 
 	}
 	client := api.NewClient(vulcanURL, reg)
 	if client == nil {
-		return nil, errors.New("Failed to create Vulcand client")
+		return nil, errors.New("Failed to create vulcand client")
 	}
-	return &Vulcan{Client: *client, c: ctx}, nil
+	return &vulcan{Client: *client, c: ctx}, nil
 }
 
-func (v *Vulcan) Kind() string {
+func (v *vulcan) Kind() string {
 	return "vulcand"
 }
 
-func (v *Vulcan) Status() error {
+func (v *vulcan) Status() error {
 	return v.GetStatus()
 }
 
-func (v *Vulcan) NewFrontend(rsc *kubernetes.Resource) (loadbalancer.Frontend, error) {
+func (v *vulcan) NewFrontend(rsc *kubernetes.Resource) (loadbalancer.Frontend, error) {
 	s := engine.HTTPFrontendSettings{}
-	if val, ok := rsc.GetAnnotation(frontendSettingsKey); ok {
+	if val, ok := rsc.GetAnnotation(PassHostHeaderKey); ok {
+		b, _ := strconv.ParseBool(val)
+		s.PassHostHeader = b
+	}
+	if val, ok := rsc.GetAnnotation(TrustForwardHeadersKey); ok {
+		b, _ := strconv.ParseBool(val)
+		s.TrustForwardHeader = b
+	}
+	if val, ok := rsc.GetAnnotation(FailoverExpressionKey); ok {
+		s.FailoverPredicate = val
+	}
+	if val, ok := rsc.GetAnnotation(FrontendSettingsKey); ok {
 		if er := json.Unmarshal([]byte(val), &s); er != nil {
 			logger.Warnf("Failed to parse settings for frontend %q: %v", rsc.ID, er)
 		}
 	}
 
-	f, er := engine.NewHTTPFrontend(route.NewMux(), rsc.ID(), rsc.ID(), buildRoute(rsc), s)
+	f, er := engine.NewHTTPFrontend(vroute.NewMux(), rsc.ID(), rsc.ID(), NewRoute(rsc.Route).String(), s)
 	if er != nil {
 		return nil, er
 	}
 	return newFrontend(f), nil
 }
 
-func (v *Vulcan) NewBackend(rsc *kubernetes.Resource) (loadbalancer.Backend, error) {
-	s := engine.HTTPBackendSettings{}
-	if val, ok := rsc.GetAnnotation(backendSettingsKey); ok {
+func (v *vulcan) NewBackend(rsc *kubernetes.Resource) (loadbalancer.Backend, error) {
+	s := engine.HTTPBackendSettings{
+		Timeouts:  engine.HTTPBackendTimeouts{},
+		KeepAlive: engine.HTTPBackendKeepAlive{},
+	}
+	if val, ok := rsc.GetAnnotation(DailTimeoutKey); ok {
+		s.Timeouts.Dial = val
+	}
+	if val, ok := rsc.GetAnnotation(ReadTimeoutKey); ok {
+		s.Timeouts.Read = val
+	}
+	if val, ok := rsc.GetAnnotation(MaxIdleConnsKey); ok {
+		if i, er := strconv.Atoi(val); er == nil {
+			s.KeepAlive.MaxIdleConnsPerHost = i
+		}
+	}
+	if val, ok := rsc.GetAnnotation(BackendSettingsKey); ok {
 		if er := json.Unmarshal([]byte(val), &s); er != nil {
 			logger.Warnf("Failed to parse settings for frontend %q: %v", rsc.ID, er)
 		}
@@ -77,7 +127,7 @@ func (v *Vulcan) NewBackend(rsc *kubernetes.Resource) (loadbalancer.Backend, err
 	return newBackend(b), nil
 }
 
-func (v *Vulcan) NewServers(rsc *kubernetes.Resource) ([]loadbalancer.Server, error) {
+func (v *vulcan) NewServers(rsc *kubernetes.Resource) ([]loadbalancer.Server, error) {
 	list := make([]loadbalancer.Server, 0, 1)
 	for _, server := range rsc.Servers() {
 		s, er := engine.NewServer(server.ID(), server.URL().String())
@@ -89,7 +139,7 @@ func (v *Vulcan) NewServers(rsc *kubernetes.Resource) ([]loadbalancer.Server, er
 	return list, nil
 }
 
-func (v *Vulcan) NewMiddlewares(rsc *kubernetes.Resource) ([]loadbalancer.Middleware, error) {
+func (v *vulcan) NewMiddlewares(rsc *kubernetes.Resource) ([]loadbalancer.Middleware, error) {
 	mids := make([]loadbalancer.Middleware, 0, 1)
 	for key, def := range DefaultMiddleware {
 		if val, ok := rsc.GetAnnotation(key); ok && len(val) > 0 {
@@ -148,7 +198,7 @@ func (v *Vulcan) NewMiddlewares(rsc *kubernetes.Resource) ([]loadbalancer.Middle
 	return mids, nil
 }
 
-func (v *Vulcan) UpsertFrontend(fr loadbalancer.Frontend) error {
+func (v *vulcan) UpsertFrontend(fr loadbalancer.Frontend) error {
 	f, ok := fr.(*frontend)
 	if !ok {
 		return loadbalancer.ErrUnexpectedFrontendType
@@ -164,7 +214,7 @@ func (v *Vulcan) UpsertFrontend(fr loadbalancer.Frontend) error {
 	return nil
 }
 
-func (v *Vulcan) UpsertBackend(ba loadbalancer.Backend) error {
+func (v *vulcan) UpsertBackend(ba loadbalancer.Backend) error {
 	b, ok := ba.(*backend)
 	if !ok {
 		return loadbalancer.ErrUnexpectedBackendType
@@ -192,11 +242,11 @@ func (v *Vulcan) UpsertBackend(ba loadbalancer.Backend) error {
 	return nil
 }
 
-func (v *Vulcan) UpsertServer(backend loadbalancer.Backend, srv loadbalancer.Server) error {
+func (v *vulcan) UpsertServer(backend loadbalancer.Backend, srv loadbalancer.Server) error {
 	return v.Client.UpsertServer(engine.BackendKey{Id: backend.GetID()}, srv.(*server).Server, 0)
 }
 
-func (v *Vulcan) GetFrontend(frontendID string) (loadbalancer.Frontend, error) {
+func (v *vulcan) GetFrontend(frontendID string) (loadbalancer.Frontend, error) {
 	f, er := v.Client.GetFrontend(engine.FrontendKey{Id: frontendID})
 	if er != nil {
 		return nil, er
@@ -204,7 +254,7 @@ func (v *Vulcan) GetFrontend(frontendID string) (loadbalancer.Frontend, error) {
 	return newFrontend(f), nil
 }
 
-func (v *Vulcan) GetBackend(backendID string) (loadbalancer.Backend, error) {
+func (v *vulcan) GetBackend(backendID string) (loadbalancer.Backend, error) {
 	logger.Debugf("Lookup Backend: %q", backendID)
 	b, er := v.Client.GetBackend(engine.BackendKey{Id: backendID})
 	if er != nil {
@@ -214,7 +264,7 @@ func (v *Vulcan) GetBackend(backendID string) (loadbalancer.Backend, error) {
 	return newBackend(b), nil
 }
 
-func (v *Vulcan) GetServers(backendID string) ([]loadbalancer.Server, error) {
+func (v *vulcan) GetServers(backendID string) ([]loadbalancer.Server, error) {
 	srvs, er := v.Client.GetServers(engine.BackendKey{Id: backendID})
 	if er != nil {
 		return []loadbalancer.Server{}, er
@@ -227,15 +277,15 @@ func (v *Vulcan) GetServers(backendID string) ([]loadbalancer.Server, error) {
 	return servers, nil
 }
 
-func (v *Vulcan) DeleteFrontend(fr loadbalancer.Frontend) error {
+func (v *vulcan) DeleteFrontend(fr loadbalancer.Frontend) error {
 	return v.Client.DeleteFrontend(engine.FrontendKey{Id: fr.GetID()})
 }
 
-func (v *Vulcan) DeleteBackend(ba loadbalancer.Backend) error {
+func (v *vulcan) DeleteBackend(ba loadbalancer.Backend) error {
 	return v.Client.DeleteBackend(engine.BackendKey{Id: ba.GetID()})
 }
 
-func (v *Vulcan) DeleteServer(ba loadbalancer.Backend, srv loadbalancer.Server) error {
+func (v *vulcan) DeleteServer(ba loadbalancer.Backend, srv loadbalancer.Server) error {
 	return v.Client.DeleteServer(
 		engine.ServerKey{BackendKey: engine.BackendKey{Id: ba.GetID()}, Id: srv.GetID()},
 	)
@@ -263,22 +313,3 @@ func (f *frontend) AddMiddleware(mid loadbalancer.Middleware) {
 func (m *middleware) GetID() string { return m.Id }
 
 func (s *server) GetID() string { return s.GetId() }
-
-const (
-	DefaultRoute = "Path(`/`)"
-
-	frontendSettingsKey        = "frontend_settings"
-	backendSettingsKey         = "backend_settings"
-	backendTypeKey             = "backend_type"
-	CustomMiddlewareKeyPattern = `^romulus/middleware\.([^\.]+)`
-
-	websocket = "websocket"
-	ws        = "ws"
-	HTTP      = "http"
-	Enabled   = "enabled"
-
-	RedirectSSLID = "redirect_ssl"
-	TraceID       = "trace"
-	AuthID        = "auth"
-	MaintenanceID = "maintenance"
-)

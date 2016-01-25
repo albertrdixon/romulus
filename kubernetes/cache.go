@@ -8,23 +8,41 @@ import (
 	"k8s.io/kubernetes/pkg/client/cache"
 )
 
-func NewCache() Cache {
-	return make(map[string]cache.Store, 3)
-}
-
-func (k Cache) AddStore(key string, store cache.Store) bool {
-	_, ok := k[key]
-	if !ok {
-		k[key] = store
+func NewCache() *Cache {
+	return &Cache{
+		ingress:   cache.NewStore(cache.MetaNamespaceKeyFunc),
+		service:   cache.NewStore(cache.MetaNamespaceKeyFunc),
+		endpoints: cache.NewStore(cache.MetaNamespaceKeyFunc),
 	}
-	return ok
 }
 
-func (k Cache) GetEndpoints(namespace, name string) (*api.Endpoints, error) {
-	obj, er := getFromCache(k[EndpointsKind], EndpointsKind, namespace, name)
+func (k *Cache) SetIngressStore(store cache.Store) {
+	// _, ok := k[key]
+	// if !ok {
+	// 	k[key] = store
+	// }
+	// return ok
+	k.ingress = store
+}
+
+func (k *Cache) SetServiceStore(store cache.Store) {
+	k.service = store
+}
+
+func (k *Cache) SetEndpointsStore(store cache.Store) {
+	k.endpoints = store
+}
+
+func (k *Cache) GetEndpoints(namespace, name string) (*api.Endpoints, error) {
+	key := cacheLookupKey(namespace, name)
+	obj, ok, er := k.endpoints.Get(key)
 	if er != nil {
 		return nil, er
 	}
+	if !ok {
+		return nil, fmt.Errorf("Could not find Endpoints %q", key)
+	}
+
 	s, ok := obj.(*api.Endpoints)
 	if !ok {
 		return nil, errors.New("Endpoints cache returned non-Endpoints object")
@@ -32,11 +50,16 @@ func (k Cache) GetEndpoints(namespace, name string) (*api.Endpoints, error) {
 	return s, nil
 }
 
-func (k Cache) GetService(namespace, name string) (*api.Service, error) {
-	obj, er := getFromCache(k[ServiceKind], ServiceKind, namespace, name)
+func (k *Cache) GetService(namespace, name string) (*api.Service, error) {
+	key := cacheLookupKey(namespace, name)
+	obj, ok, er := k.service.Get(key)
 	if er != nil {
 		return nil, er
 	}
+	if !ok {
+		return nil, fmt.Errorf("Could not find Service %q", key)
+	}
+
 	s, ok := obj.(*api.Service)
 	if !ok {
 		return nil, errors.New("Service cache returned non-Service object")

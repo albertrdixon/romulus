@@ -6,7 +6,7 @@ REMOTE_REPO = quay.io/timeline_labs/romulusd
 LDFLAGS = "-s -X main.SHA=$(REV)"
 TEST_COMMAND = godep go test
 
-.PHONY: dep-save dep-restore test test-verbose build build-image install publish
+.PHONY: all container dep-save dep-restore test test-verbose build build-image install publish
 
 all: test build install
 container: build-image publish
@@ -14,54 +14,59 @@ container: build-image publish
 help:
 	@echo "Available targets:"
 	@echo ""
-	@echo "  dep-save       : Save dependencies (godep save)"
-	@echo "  dep-restore    : Restore dependencies (godep restore)"
-	@echo "  test           : Run package tests"
-	@echo "  test-verbose   : Run package tests with verbose output"
+	@echo "  all            : Run targets test, build, install (default)"
+	@echo "  container      : Run targets build-image publish"
+	@echo ""
 	@echo "  build          : Build binary (go build)"
 	@echo "  build-image    : Build binary and container image"
+	@echo "  dep-restore    : Restore dependencies (godep restore)"
+	@echo "  dep-save       : Save dependencies (godep save)"
 	@echo "  install        : Install binary (go install)"
 	@echo "  publish        : Publish container image to remote repo"
+	@echo "  test           : Run package tests"
+	@echo "  test-verbose   : Run package tests with verbose output"
 
 dep-save:
-	@echo "==> Saving dependencies to ./Godeps"
+	@echo "--> Saving dependencies to ./Godeps"
 	@godep save -t -v ./...
 
 dep-restore:
-	@echo "==> Restoring dependencies from ./Godeps"
+	@echo "--> Restoring dependencies from ./Godeps"
 	@godep restore -v
 
 test:
-	@echo "==> Running all tests"
+	@echo "--> Running all tests"
 	@echo ""
 	@$(TEST_COMMAND) ./...
 
 test-verbose:
-	@echo "==> Running all tests (verbose output)"
+	@echo "--> Running all tests (verbose output)"
 	@echo ""
 	@$(TEST_COMMAND) -test.v ./...
 
 build:
-	@echo "==> Building $(EXECUTABLE) with ldflags '$(LDFLAGS)'"
+	@echo "--> Building $(EXECUTABLE) with ldflags '$(LDFLAGS)'"
 	@godep go build -ldflags $(LDFLAGS) -o bin/$(EXECUTABLE) *.go
 
 build-image:
-	@echo "==> Building linux binary"
+	@echo "--> Building $(EXECUTABLE)-linux with ldflags '$(LDFLAGS)'"
 	@GOOS=linux CGO_ENABLED=0 godep go build -a -installsuffix cgo -ldflags $(LDFLAGS) -o bin/$(EXECUTABLE)-linux *.go
-	@echo "==> Building docker image '$(IMAGE)'"
+	@echo "--> Building docker image '$(IMAGE)'"
 	@docker build -t $(IMAGE) .
 
 publish:
-	@echo "==> Publishing $(EXECUTABLE) to $(REMOTE_REPO)"
-	@echo "==> Tagging with '$(BRANCH)' and pushing"
+	@echo "--> Publishing $(EXECUTABLE) to $(REMOTE_REPO)"
+	@echo "--> Tagging with '$(BRANCH)' and pushing"
 	@docker rmi $(REMOTE_REPO):$(BRANCH) >/dev/null 2>&1 || true
 	@docker tag $(IMAGE) $(REMOTE_REPO):$(BRANCH)
 	@docker push $(REMOTE_REPO):$(BRANCH)
-	@echo "==> Tagging with '$(REV)' and pushing"
+	@docker rmi $(REMOTE_REPO):$(BRANCH)
+	@echo "--> Tagging with '$(REV)' and pushing"
 	@docker rmi $(REMOTE_REPO):$(REV) >/dev/null 2>&1 || true
 	@docker tag $(IMAGE) $(REMOTE_REPO):$(REV)
 	@docker push $(REMOTE_REPO):$(REV)
+	@docker rmi $(REMOTE_REPO):$(REV)
 
 install:
-	@echo "==> Installing $(EXECUTABLE) with ldflags '$(LDFLAGS)'"
+	@echo "--> Installing $(EXECUTABLE) with ldflags '$(LDFLAGS)'"
 	@godep go install -ldflags $(LDFLAGS) $(BINARY)

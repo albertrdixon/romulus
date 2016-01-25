@@ -57,13 +57,20 @@ func Errorf(f string, m ...interface{}) { writeLog("error", f, m...) }
 func Warnf(f string, m ...interface{})  { writeLog("warn", f, m...) }
 func Infof(f string, m ...interface{})  { writeLog("info", f, m...) }
 func Debugf(f string, m ...interface{}) {
-	if Level() == DEBUG {
+	if IsDebug() {
 		writeLog("debug", f, m...)
 	}
 }
 func Fatalf(f string, m ...interface{}) {
 	writeLog("fatal", f, m...)
 	os.Exit(1)
+}
+
+func IsDebug() bool {
+	if filter == nil {
+		return false
+	}
+	return filter.MinLevel == DEBUG
 }
 
 func writeLog(p, f string, m ...interface{}) {

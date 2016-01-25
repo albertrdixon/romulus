@@ -116,9 +116,11 @@ func (DaemonSetList) SwaggerDoc() map[string]string {
 }
 
 var map_DaemonSetSpec = map[string]string{
-	"":         "DaemonSetSpec is the specification of a daemon set.",
-	"selector": "Selector is a label query over pods that are managed by the daemon set. Must match in order to be controlled. If empty, defaulted to labels on Pod template. More info: http://releases.k8s.io/HEAD/docs/user-guide/labels.md#label-selectors",
-	"template": "Template is the object that describes the pod that will be created. The DaemonSet will create exactly one copy of this pod on every node that matches the template's node selector (or on every node if no node selector is specified). More info: http://releases.k8s.io/HEAD/docs/user-guide/replication-controller.md#pod-template",
+	"":               "DaemonSetSpec is the specification of a daemon set.",
+	"selector":       "Selector is a label query over pods that are managed by the daemon set. Must match in order to be controlled. If empty, defaulted to labels on Pod template. More info: http://releases.k8s.io/HEAD/docs/user-guide/labels.md#label-selectors",
+	"template":       "Template is the object that describes the pod that will be created. The DaemonSet will create exactly one copy of this pod on every node that matches the template's node selector (or on every node if no node selector is specified). More info: http://releases.k8s.io/HEAD/docs/user-guide/replication-controller.md#pod-template",
+	"updateStrategy": "Update strategy to replace existing DaemonSet pods with new pods.",
+	"uniqueLabelKey": "Label key that is added to DaemonSet pods to distinguish between old and new pod templates during DaemonSet update. Users can set this to an empty string to indicate that the system should not add any label. If unspecified, system uses DefaultDaemonSetUniqueLabelKey(\"daemonset.kubernetes.io/podTemplateHash\"). Value of this key is hash of DaemonSetSpec.PodTemplateSpec. No label is added if this is set to empty string.",
 }
 
 func (DaemonSetSpec) SwaggerDoc() map[string]string {
@@ -134,6 +136,15 @@ var map_DaemonSetStatus = map[string]string{
 
 func (DaemonSetStatus) SwaggerDoc() map[string]string {
 	return map_DaemonSetStatus
+}
+
+var map_DaemonSetUpdateStrategy = map[string]string{
+	"type":          "Type of daemon set update. Only \"RollingUpdate\" is supported at this time. Default is RollingUpdate.",
+	"rollingUpdate": "Rolling update config params. Present only if DaemonSetUpdateStrategy = RollingUpdate.",
+}
+
+func (DaemonSetUpdateStrategy) SwaggerDoc() map[string]string {
+	return map_DaemonSetUpdateStrategy
 }
 
 var map_Deployment = map[string]string{
@@ -345,7 +356,7 @@ func (Job) SwaggerDoc() map[string]string {
 
 var map_JobCondition = map[string]string{
 	"":                   "JobCondition describes current state of a job.",
-	"type":               "Type of job condition, currently only Complete.",
+	"type":               "Type of job condition, Complete or Failed.",
 	"status":             "Status of the condition, one of True, False, Unknown.",
 	"lastProbeTime":      "Last time the condition was checked.",
 	"lastTransitionTime": "Last time the condition transit from one status to another.",
@@ -437,12 +448,64 @@ func (NodeUtilization) SwaggerDoc() map[string]string {
 	return map_NodeUtilization
 }
 
+var map_ReplicaSet = map[string]string{
+	"":         "ReplicaSet represents the configuration of a ReplicaSet.",
+	"metadata": "If the Labels of a ReplicaSet are empty, they are defaulted to be the same as the Pod(s) that the ReplicaSet manages. Standard object's metadata. More info: http://releases.k8s.io/HEAD/docs/devel/api-conventions.md#metadata",
+	"spec":     "Spec defines the specification of the desired behavior of the ReplicaSet. More info: http://releases.k8s.io/HEAD/docs/devel/api-conventions.md#spec-and-status",
+	"status":   "Status is the most recently observed status of the ReplicaSet. This data may be out of date by some window of time. Populated by the system. Read-only. More info: http://releases.k8s.io/HEAD/docs/devel/api-conventions.md#spec-and-status",
+}
+
+func (ReplicaSet) SwaggerDoc() map[string]string {
+	return map_ReplicaSet
+}
+
+var map_ReplicaSetList = map[string]string{
+	"":         "ReplicaSetList is a collection of ReplicaSets.",
+	"metadata": "Standard list metadata. More info: http://releases.k8s.io/HEAD/docs/devel/api-conventions.md#types-kinds",
+	"items":    "List of ReplicaSets. More info: http://releases.k8s.io/HEAD/docs/user-guide/replication-controller.md",
+}
+
+func (ReplicaSetList) SwaggerDoc() map[string]string {
+	return map_ReplicaSetList
+}
+
+var map_ReplicaSetSpec = map[string]string{
+	"":         "ReplicaSetSpec is the specification of a ReplicaSet.",
+	"replicas": "Replicas is the number of desired replicas. This is a pointer to distinguish between explicit zero and unspecified. Defaults to 1. More info: http://releases.k8s.io/HEAD/docs/user-guide/replication-controller.md#what-is-a-replication-controller",
+	"selector": "Selector is a label query over pods that should match the replica count. If the selector is empty, it is defaulted to the labels present on the pod template. Label keys and values that must match in order to be controlled by this replica set. More info: http://releases.k8s.io/HEAD/docs/user-guide/labels.md#label-selectors",
+	"template": "Template is the object that describes the pod that will be created if insufficient replicas are detected. More info: http://releases.k8s.io/HEAD/docs/user-guide/replication-controller.md#pod-template",
+}
+
+func (ReplicaSetSpec) SwaggerDoc() map[string]string {
+	return map_ReplicaSetSpec
+}
+
+var map_ReplicaSetStatus = map[string]string{
+	"":                   "ReplicaSetStatus represents the current status of a ReplicaSet.",
+	"replicas":           "Replicas is the most recently oberved number of replicas. More info: http://releases.k8s.io/HEAD/docs/user-guide/replication-controller.md#what-is-a-replication-controller",
+	"observedGeneration": "ObservedGeneration reflects the generation of the most recently observed ReplicaSet.",
+}
+
+func (ReplicaSetStatus) SwaggerDoc() map[string]string {
+	return map_ReplicaSetStatus
+}
+
 var map_ReplicationControllerDummy = map[string]string{
 	"": "Dummy definition",
 }
 
 func (ReplicationControllerDummy) SwaggerDoc() map[string]string {
 	return map_ReplicationControllerDummy
+}
+
+var map_RollingUpdateDaemonSet = map[string]string{
+	"":                "Spec to control the desired behavior of daemon set rolling update.",
+	"maxUnavailable":  "The maximum number of DaemonSet pods that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of total number of DaemonSet pods at the start of the update (ex: 10%). Absolute number is calculated from percentage by rounding up. This cannot be 0. Default value is 1. Example: when this is set to 30%, 30% of the currently running DaemonSet pods can be stopped for an update at any given time. The update starts by stopping at most 30% of the currently running DaemonSet pods and then brings up new DaemonSet pods in their place. Once the new pods are ready, it then proceeds onto other DaemonSet pods, thus ensuring that at least 70% of original number of DaemonSet pods are available at all times during the update.",
+	"minReadySeconds": "Minimum number of seconds for which a newly created DaemonSet pod should be ready without any of its container crashing, for it to be considered available. Defaults to 0 (pod will be considered available as soon as it is ready).",
+}
+
+func (RollingUpdateDaemonSet) SwaggerDoc() map[string]string {
+	return map_RollingUpdateDaemonSet
 }
 
 var map_RollingUpdateDeployment = map[string]string{

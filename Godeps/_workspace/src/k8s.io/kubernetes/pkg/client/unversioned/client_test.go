@@ -46,9 +46,11 @@ func TestGetServerVersion(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 		w.Write(output)
 	}))
+	// TODO: Uncomment when fix #19254
+	// defer server.Close()
 	client := NewOrDie(&Config{Host: server.URL})
 
-	got, err := client.ServerVersion()
+	got, err := client.Discovery().ServerVersion()
 	if err != nil {
 		t.Fatalf("unexpected encoding error: %v", err)
 	}
@@ -80,6 +82,8 @@ func TestGetServerGroupsWithV1Server(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 		w.Write(output)
 	}))
+	// TODO: Uncomment when fix #19254
+	// defer server.Close()
 	client := NewOrDie(&Config{Host: server.URL})
 	// ServerGroups should not return an error even if server returns error at /api and /apis
 	apiGroupList, err := client.Discovery().ServerGroups()
@@ -115,6 +119,8 @@ func TestGetServerResourcesWithV1Server(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 		w.Write(output)
 	}))
+	// TODO: Uncomment when fix #19254
+	// defer server.Close()
 	client := NewOrDie(&Config{Host: server.URL})
 	// ServerResources should not return an error even if server returns error at /api/v1.
 	resourceMap, err := client.Discovery().ServerResources()
@@ -206,6 +212,8 @@ func TestGetServerResources(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 		w.Write(output)
 	}))
+	// TODO: Uncomment when fix #19254
+	// defer server.Close()
 	client := NewOrDie(&Config{Host: server.URL})
 	for _, test := range tests {
 		got, err := client.Discovery().ServerResourcesForGroupVersion(test.request)
@@ -266,9 +274,11 @@ func TestGetSwaggerSchema(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected encoding error: %v", err)
 	}
+	// TODO: Uncomment when fix #19254
+	// defer server.Close()
 
 	client := NewOrDie(&Config{Host: server.URL})
-	got, err := client.SwaggerSchema(v1.SchemeGroupVersion)
+	got, err := client.Discovery().SwaggerSchema(v1.SchemeGroupVersion)
 	if err != nil {
 		t.Fatalf("unexpected encoding error: %v", err)
 	}
@@ -284,9 +294,11 @@ func TestGetSwaggerSchemaFail(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected encoding error: %v", err)
 	}
+	// TODO: Uncomment when fix #19254
+	// defer server.Close()
 
 	client := NewOrDie(&Config{Host: server.URL})
-	got, err := client.SwaggerSchema(unversioned.GroupVersion{Group: "api.group", Version: "v4"})
+	got, err := client.Discovery().SwaggerSchema(unversioned.GroupVersion{Group: "api.group", Version: "v4"})
 	if got != nil {
 		t.Fatalf("unexpected response: %v", got)
 	}

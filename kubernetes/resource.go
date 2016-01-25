@@ -37,43 +37,6 @@ func NewResource(id, namespace string, port api.ServicePort, meta api.ObjectMeta
 		}
 	}
 
-	rt := NewRoute()
-	for key, val := range annotations {
-		switch key {
-		case "headers":
-			vals := strings.Fields(strings.Replace(val, ";", "", -1))
-			for _, v := range vals {
-				bits := strings.SplitN(v, "=", 2)
-				if len(bits) < 2 {
-					continue
-				}
-				rt.AddHeader(bits[0], bits[1])
-			}
-		case "host":
-			rt.AddHost(val)
-		case "host_regex":
-			if er := rt.AddHostRegex(val); er != nil {
-				logger.Warnf("[%v] Failed to parse host regex: %v", id, er)
-			}
-		case "hostRegex":
-			if er := rt.AddHostRegex(val); er != nil {
-				logger.Warnf("[%v] Failed to parse host regex: %v", id, er)
-			}
-		case "path":
-			rt.AddPath(val)
-		case "path_regex":
-			if er := rt.AddPathRegex(val); er != nil {
-				logger.Warnf("[%v] Failed to parse path regex: %v", id, er)
-			}
-		case "pathRegex":
-			if er := rt.AddPathRegex(val); er != nil {
-				logger.Warnf("[%v] Failed to parse path regex: %v", id, er)
-			}
-		case "method":
-			rt.AddMethod(val)
-		}
-	}
-
 	websocket := false
 	if val, ok := annotations["websocket"]; ok {
 		if b, er := strconv.ParseBool(val); er == nil {
@@ -83,7 +46,7 @@ func NewResource(id, namespace string, port api.ServicePort, meta api.ObjectMeta
 
 	return &Resource{
 		id:          id,
-		Route:       rt,
+		Route:       NewRoute(id, annotations),
 		port:        port,
 		annotations: annotations,
 		uid:         string(meta.UID),
@@ -92,15 +55,50 @@ func NewResource(id, namespace string, port api.ServicePort, meta api.ObjectMeta
 	}
 }
 
-func NewRoute() *Route {
-	return &Route{
-		parts:  make(map[string]string),
-		header: make(map[string]string),
-		regex:  make(map[string]*regexp.Regexp),
+func NewRoute(id string, annotations map[string]string) *Route {
+	var (
+		rt = &Route{parts: make([]*routePart, 0, 1)}
+	)
+
+	for key, val := range annotations {
+		switch key {
+		case HeadersKey:
+			vals := strings.Fields(strings.Replace(val, ";", "", -1))
+			for _, v := range vals {
+				bits := strings.SplitN(v, "=", 2)
+				if len(bits) < 2 {
+					continue
+				}
+				if er := rt.AddHeader(bits[0], bits[1]); er != nil {
+					logger.Warnf("[%v] Failed to add header(%q) matcher: %v", id, bits[0], er)
+				}
+			}
+		case MethodsKey:
+			vals := strings.Fields(strings.Replace(val, ";", "", -1))
+			for _, v := range vals {
+				if er := rt.AddMethod(strings.ToUpper(v)); er != nil {
+					logger.Warnf("[%v] Failed to add method matcher: %v", id, er)
+				}
+			}
+		case HostKey:
+			if er := rt.AddHost(val); er != nil {
+				logger.Warnf("[%v] Failed to add host matcher: %v", id, er)
+			}
+		case PathKey:
+			if er := rt.AddPath(val); er != nil {
+				logger.Warnf("[%v] Failed to add patch matcher: %v", id, er)
+			}
+		case PrefixKey:
+			if er := rt.AddPrefix(val); er != nil {
+				logger.Warnf("[%v] Failed to app prefix matcher: %v", id, er)
+			}
+		}
 	}
+
+	return rt
 }
 
-func GenResources(store Cache, obj interface{}) (ResourceList, error) {
+func GenResources(store *Cache, obj interface{}) (ResourceList, error) {
 	var (
 		list ResourceList = make([]*Resource, 0, 1)
 	)
@@ -109,17 +107,17 @@ func GenResources(store Cache, obj interface{}) (ResourceList, error) {
 	default:
 		return list, errors.New("Unsupported type")
 	case *extensions.Ingress:
-		list = ResourcesFromIngress(store, t)
+		list = resourcesFromIngress(store, t)
 	case *api.Service:
-		list = ResourcesFromService(store, t)
+		list = resourcesFromService(store, t)
 	case *api.Endpoints:
-		list = ResourcesFromEndpoints(store, t)
+		list = resourcesFromEndpoints(store, t)
 	}
 	logger.Debugf(list.String())
 	return list, nil
 }
 
-func ResourcesFromIngress(store Cache, in *extensions.Ingress) ResourceList {
+func resourcesFromIngress(store *Cache, in *extensions.Ingress) ResourceList {
 	var (
 		list ResourceList = make([]*Resource, 0, 1)
 	)
@@ -129,6 +127,7 @@ func ResourcesFromIngress(store Cache, in *extensions.Ingress) ResourceList {
 		name := in.Spec.Backend.ServiceName
 		svc, er := store.GetService(namespace, name)
 		if er != nil {
+			logger.Warnf(er.Error())
 			goto Rules
 		}
 
@@ -163,8 +162,14 @@ Rules:
 			en, _ := store.GetEndpoints(namespace, name)
 			AddServers(r, svc, en, port)
 
-			r.Route.AddHost(rule.Host)
-			r.Route.AddPath(path.Path)
+			if rule.Host != "" {
+				r.Route.delete(HostPart)
+				r.Route.AddHost(rule.Host)
+			}
+			if path.Path != "" {
+				r.Route.delete(PathPart)
+				r.Route.AddPath(path.Path)
+			}
 			list = append(list, r)
 		}
 	}
@@ -172,7 +177,7 @@ Rules:
 	return list
 }
 
-func ResourcesFromService(store Cache, svc *api.Service) ResourceList {
+func resourcesFromService(store *Cache, svc *api.Service) ResourceList {
 	var (
 		list ResourceList = make([]*Resource, 0, 1)
 		s    Service      = Service(*svc)
@@ -197,7 +202,7 @@ func ResourcesFromService(store Cache, svc *api.Service) ResourceList {
 	return list
 }
 
-func ResourcesFromEndpoints(store Cache, en *api.Endpoints) ResourceList {
+func resourcesFromEndpoints(store *Cache, en *api.Endpoints) ResourceList {
 	var (
 		list ResourceList = make([]*Resource, 0, 1)
 		e    Endpoints    = Endpoints(*en)
@@ -352,55 +357,70 @@ func (s *Server) ID() string        { return s.id }
 func (s *Server) IsWebsocket() bool { return s.websocket }
 
 func (r *Route) Empty() bool {
-	return len(r.parts) < 1 && len(r.header) < 1
+	return len(r.parts) < 1
 }
 
-func (r *Route) AddHost(host string)            { r.parts["host"] = host }
-func (r *Route) AddPath(path string)            { r.parts["path"] = path }
-func (r *Route) AddMethod(method string)        { r.parts["method"] = strings.ToUpper(method) }
-func (r *Route) AddHeader(header, value string) { r.header[header] = value }
-
-func (r *Route) GetParts() map[string]string {
-	var dst = make(map[string]string, len(r.parts))
-	for k, v := range r.parts {
-		dst[k] = v
-	}
-	return dst
+func (r *Route) AddHost(host string) error {
+	part := &routePart{kind: HostPart, value: host}
+	return r.add(part, host)
 }
 
-func (r *Route) GetHeader() map[string]string {
-	var dst = make(map[string]string, len(r.header))
-	for k, v := range r.header {
-		dst[k] = v
-	}
-	return dst
+func (r *Route) AddPath(path string) error {
+	part := &routePart{kind: PathPart, value: path}
+	return r.add(part, path)
 }
 
-func (r *Route) GetRegex() map[string]string {
-	var dst = make(map[string]string, len(r.regex))
-	for k, v := range r.regex {
-		dst[k] = v.String()
-	}
-	return dst
+func (r *Route) AddHeader(header, value string) error {
+	part := &routePart{kind: HeaderPart, header: header, value: value}
+	return r.add(part, value)
 }
 
-func (r *Route) AddHostRegex(expr string) error {
-	rg, er := regexp.Compile(expr)
-	if er != nil {
-		return er
+func (r *Route) AddMethod(method string) error {
+	part := &routePart{kind: MethodPart, value: method}
+	return r.add(part, method)
+}
+
+func (r *Route) AddPrefix(pre string) error {
+	part := &routePart{kind: PrefixPart, value: pre}
+	return r.add(part, pre)
+}
+
+func (r *Route) add(part *routePart, val string) error {
+	if isRegexp(val) {
+		expr := strings.Trim(val, "|")
+		rg, er := regexp.Compile(expr)
+		if er != nil {
+			return er
+		}
+		part.value = rg.String()
+		part.regex = true
 	}
-	r.regex["host"] = rg
+	r.parts = append(r.parts, part)
 	return nil
 }
 
-func (r *Route) AddPathRegex(expr string) error {
-	rg, er := regexp.Compile(expr)
-	if er != nil {
-		return er
+func (r *Route) delete(kind string) {
+	cp := make([]*routePart, 0, 1)
+	for i := 0; i < len(r.parts); i++ {
+		if r.parts[i].kind != kind {
+			cp = append(cp, r.parts[i])
+		}
 	}
-	r.regex["path"] = rg
-	return nil
+
+	r.parts = cp
+	return
 }
+
+func (r *Route) Parts() []*routePart {
+	p := make([]*routePart, len(r.parts))
+	copy(p, r.parts)
+	return p
+}
+
+func (r *routePart) Type() string   { return r.kind }
+func (r *routePart) Value() string  { return r.value }
+func (r *routePart) Header() string { return r.header }
+func (r *routePart) IsRegex() bool  { return r.regex }
 
 func (r ResourceList) Map() map[string]*Resource {
 	m := make(map[string]*Resource, len(r))
