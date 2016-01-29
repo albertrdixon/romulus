@@ -87,6 +87,14 @@ func deepCopy_api_CinderVolumeSource(in api.CinderVolumeSource, out *api.CinderV
 	return nil
 }
 
+func deepCopy_api_ConfigMapKeySelector(in api.ConfigMapKeySelector, out *api.ConfigMapKeySelector, c *conversion.Cloner) error {
+	if err := deepCopy_api_LocalObjectReference(in.LocalObjectReference, &out.LocalObjectReference, c); err != nil {
+		return err
+	}
+	out.Key = in.Key
+	return nil
+}
+
 func deepCopy_api_Container(in api.Container, out *api.Container, c *conversion.Cloner) error {
 	out.Name = in.Name
 	out.Image = in.Image
@@ -239,6 +247,22 @@ func deepCopy_api_EnvVarSource(in api.EnvVarSource, out *api.EnvVarSource, c *co
 	} else {
 		out.FieldRef = nil
 	}
+	if in.ConfigMapKeyRef != nil {
+		out.ConfigMapKeyRef = new(api.ConfigMapKeySelector)
+		if err := deepCopy_api_ConfigMapKeySelector(*in.ConfigMapKeyRef, out.ConfigMapKeyRef, c); err != nil {
+			return err
+		}
+	} else {
+		out.ConfigMapKeyRef = nil
+	}
+	if in.SecretKeyRef != nil {
+		out.SecretKeyRef = new(api.SecretKeySelector)
+		if err := deepCopy_api_SecretKeySelector(*in.SecretKeyRef, out.SecretKeyRef, c); err != nil {
+			return err
+		}
+	} else {
+		out.SecretKeyRef = nil
+	}
 	return nil
 }
 
@@ -274,6 +298,29 @@ func deepCopy_api_FCVolumeSource(in api.FCVolumeSource, out *api.FCVolumeSource,
 	return nil
 }
 
+func deepCopy_api_FlexVolumeSource(in api.FlexVolumeSource, out *api.FlexVolumeSource, c *conversion.Cloner) error {
+	out.Driver = in.Driver
+	out.FSType = in.FSType
+	if in.SecretRef != nil {
+		out.SecretRef = new(api.LocalObjectReference)
+		if err := deepCopy_api_LocalObjectReference(*in.SecretRef, out.SecretRef, c); err != nil {
+			return err
+		}
+	} else {
+		out.SecretRef = nil
+	}
+	out.ReadOnly = in.ReadOnly
+	if in.Options != nil {
+		out.Options = make(map[string]string)
+		for key, val := range in.Options {
+			out.Options[key] = val
+		}
+	} else {
+		out.Options = nil
+	}
+	return nil
+}
+
 func deepCopy_api_FlockerVolumeSource(in api.FlockerVolumeSource, out *api.FlockerVolumeSource, c *conversion.Cloner) error {
 	out.DatasetName = in.DatasetName
 	return nil
@@ -290,6 +337,7 @@ func deepCopy_api_GCEPersistentDiskVolumeSource(in api.GCEPersistentDiskVolumeSo
 func deepCopy_api_GitRepoVolumeSource(in api.GitRepoVolumeSource, out *api.GitRepoVolumeSource, c *conversion.Cloner) error {
 	out.Repository = in.Repository
 	out.Revision = in.Revision
+	out.Directory = in.Directory
 	return nil
 }
 
@@ -347,6 +395,7 @@ func deepCopy_api_ISCSIVolumeSource(in api.ISCSIVolumeSource, out *api.ISCSIVolu
 	out.TargetPortal = in.TargetPortal
 	out.IQN = in.IQN
 	out.Lun = in.Lun
+	out.ISCSIInterface = in.ISCSIInterface
 	out.FSType = in.FSType
 	out.ReadOnly = in.ReadOnly
 	return nil
@@ -651,6 +700,14 @@ func deepCopy_api_SELinuxOptions(in api.SELinuxOptions, out *api.SELinuxOptions,
 	return nil
 }
 
+func deepCopy_api_SecretKeySelector(in api.SecretKeySelector, out *api.SecretKeySelector, c *conversion.Cloner) error {
+	if err := deepCopy_api_LocalObjectReference(in.LocalObjectReference, &out.LocalObjectReference, c); err != nil {
+		return err
+	}
+	out.Key = in.Key
+	return nil
+}
+
 func deepCopy_api_SecretVolumeSource(in api.SecretVolumeSource, out *api.SecretVolumeSource, c *conversion.Cloner) error {
 	out.SecretName = in.SecretName
 	return nil
@@ -805,6 +862,14 @@ func deepCopy_api_VolumeSource(in api.VolumeSource, out *api.VolumeSource, c *co
 	} else {
 		out.RBD = nil
 	}
+	if in.FlexVolume != nil {
+		out.FlexVolume = new(api.FlexVolumeSource)
+		if err := deepCopy_api_FlexVolumeSource(*in.FlexVolume, out.FlexVolume, c); err != nil {
+			return err
+		}
+	} else {
+		out.FlexVolume = nil
+	}
 	if in.Cinder != nil {
 		out.Cinder = new(api.CinderVolumeSource)
 		if err := deepCopy_api_CinderVolumeSource(*in.Cinder, out.Cinder, c); err != nil {
@@ -943,6 +1008,44 @@ func deepCopy_extensions_ClusterAutoscalerSpec(in ClusterAutoscalerSpec, out *Cl
 	return nil
 }
 
+func deepCopy_extensions_ConfigMap(in ConfigMap, out *ConfigMap, c *conversion.Cloner) error {
+	if err := deepCopy_unversioned_TypeMeta(in.TypeMeta, &out.TypeMeta, c); err != nil {
+		return err
+	}
+	if err := deepCopy_api_ObjectMeta(in.ObjectMeta, &out.ObjectMeta, c); err != nil {
+		return err
+	}
+	if in.Data != nil {
+		out.Data = make(map[string]string)
+		for key, val := range in.Data {
+			out.Data[key] = val
+		}
+	} else {
+		out.Data = nil
+	}
+	return nil
+}
+
+func deepCopy_extensions_ConfigMapList(in ConfigMapList, out *ConfigMapList, c *conversion.Cloner) error {
+	if err := deepCopy_unversioned_TypeMeta(in.TypeMeta, &out.TypeMeta, c); err != nil {
+		return err
+	}
+	if err := deepCopy_unversioned_ListMeta(in.ListMeta, &out.ListMeta, c); err != nil {
+		return err
+	}
+	if in.Items != nil {
+		out.Items = make([]ConfigMap, len(in.Items))
+		for i := range in.Items {
+			if err := deepCopy_extensions_ConfigMap(in.Items[i], &out.Items[i], c); err != nil {
+				return err
+			}
+		}
+	} else {
+		out.Items = nil
+	}
+	return nil
+}
+
 func deepCopy_extensions_DaemonSet(in DaemonSet, out *DaemonSet, c *conversion.Cloner) error {
 	if err := deepCopy_unversioned_TypeMeta(in.TypeMeta, &out.TypeMeta, c); err != nil {
 		return err
@@ -981,8 +1084,8 @@ func deepCopy_extensions_DaemonSetList(in DaemonSetList, out *DaemonSetList, c *
 
 func deepCopy_extensions_DaemonSetSpec(in DaemonSetSpec, out *DaemonSetSpec, c *conversion.Cloner) error {
 	if in.Selector != nil {
-		out.Selector = new(PodSelector)
-		if err := deepCopy_extensions_PodSelector(*in.Selector, out.Selector, c); err != nil {
+		out.Selector = new(LabelSelector)
+		if err := deepCopy_extensions_LabelSelector(*in.Selector, out.Selector, c); err != nil {
 			return err
 		}
 	} else {
@@ -996,6 +1099,10 @@ func deepCopy_extensions_DaemonSetSpec(in DaemonSetSpec, out *DaemonSetSpec, c *
 	} else {
 		out.Template = nil
 	}
+	if err := deepCopy_extensions_DaemonSetUpdateStrategy(in.UpdateStrategy, &out.UpdateStrategy, c); err != nil {
+		return err
+	}
+	out.UniqueLabelKey = in.UniqueLabelKey
 	return nil
 }
 
@@ -1003,6 +1110,19 @@ func deepCopy_extensions_DaemonSetStatus(in DaemonSetStatus, out *DaemonSetStatu
 	out.CurrentNumberScheduled = in.CurrentNumberScheduled
 	out.NumberMisscheduled = in.NumberMisscheduled
 	out.DesiredNumberScheduled = in.DesiredNumberScheduled
+	return nil
+}
+
+func deepCopy_extensions_DaemonSetUpdateStrategy(in DaemonSetUpdateStrategy, out *DaemonSetUpdateStrategy, c *conversion.Cloner) error {
+	out.Type = in.Type
+	if in.RollingUpdate != nil {
+		out.RollingUpdate = new(RollingUpdateDaemonSet)
+		if err := deepCopy_extensions_RollingUpdateDaemonSet(*in.RollingUpdate, out.RollingUpdate, c); err != nil {
+			return err
+		}
+	} else {
+		out.RollingUpdate = nil
+	}
 	return nil
 }
 
@@ -1343,9 +1463,15 @@ func deepCopy_extensions_JobSpec(in JobSpec, out *JobSpec, c *conversion.Cloner)
 	} else {
 		out.Completions = nil
 	}
+	if in.ActiveDeadlineSeconds != nil {
+		out.ActiveDeadlineSeconds = new(int64)
+		*out.ActiveDeadlineSeconds = *in.ActiveDeadlineSeconds
+	} else {
+		out.ActiveDeadlineSeconds = nil
+	}
 	if in.Selector != nil {
-		out.Selector = new(PodSelector)
-		if err := deepCopy_extensions_PodSelector(*in.Selector, out.Selector, c); err != nil {
+		out.Selector = new(LabelSelector)
+		if err := deepCopy_extensions_LabelSelector(*in.Selector, out.Selector, c); err != nil {
 			return err
 		}
 	} else {
@@ -1390,13 +1516,7 @@ func deepCopy_extensions_JobStatus(in JobStatus, out *JobStatus, c *conversion.C
 	return nil
 }
 
-func deepCopy_extensions_NodeUtilization(in NodeUtilization, out *NodeUtilization, c *conversion.Cloner) error {
-	out.Resource = in.Resource
-	out.Value = in.Value
-	return nil
-}
-
-func deepCopy_extensions_PodSelector(in PodSelector, out *PodSelector, c *conversion.Cloner) error {
+func deepCopy_extensions_LabelSelector(in LabelSelector, out *LabelSelector, c *conversion.Cloner) error {
 	if in.MatchLabels != nil {
 		out.MatchLabels = make(map[string]string)
 		for key, val := range in.MatchLabels {
@@ -1406,9 +1526,9 @@ func deepCopy_extensions_PodSelector(in PodSelector, out *PodSelector, c *conver
 		out.MatchLabels = nil
 	}
 	if in.MatchExpressions != nil {
-		out.MatchExpressions = make([]PodSelectorRequirement, len(in.MatchExpressions))
+		out.MatchExpressions = make([]LabelSelectorRequirement, len(in.MatchExpressions))
 		for i := range in.MatchExpressions {
-			if err := deepCopy_extensions_PodSelectorRequirement(in.MatchExpressions[i], &out.MatchExpressions[i], c); err != nil {
+			if err := deepCopy_extensions_LabelSelectorRequirement(in.MatchExpressions[i], &out.MatchExpressions[i], c); err != nil {
 				return err
 			}
 		}
@@ -1418,7 +1538,7 @@ func deepCopy_extensions_PodSelector(in PodSelector, out *PodSelector, c *conver
 	return nil
 }
 
-func deepCopy_extensions_PodSelectorRequirement(in PodSelectorRequirement, out *PodSelectorRequirement, c *conversion.Cloner) error {
+func deepCopy_extensions_LabelSelectorRequirement(in LabelSelectorRequirement, out *LabelSelectorRequirement, c *conversion.Cloner) error {
 	out.Key = in.Key
 	out.Operator = in.Operator
 	if in.Values != nil {
@@ -1432,10 +1552,87 @@ func deepCopy_extensions_PodSelectorRequirement(in PodSelectorRequirement, out *
 	return nil
 }
 
+func deepCopy_extensions_NodeUtilization(in NodeUtilization, out *NodeUtilization, c *conversion.Cloner) error {
+	out.Resource = in.Resource
+	out.Value = in.Value
+	return nil
+}
+
+func deepCopy_extensions_ReplicaSet(in ReplicaSet, out *ReplicaSet, c *conversion.Cloner) error {
+	if err := deepCopy_unversioned_TypeMeta(in.TypeMeta, &out.TypeMeta, c); err != nil {
+		return err
+	}
+	if err := deepCopy_api_ObjectMeta(in.ObjectMeta, &out.ObjectMeta, c); err != nil {
+		return err
+	}
+	if err := deepCopy_extensions_ReplicaSetSpec(in.Spec, &out.Spec, c); err != nil {
+		return err
+	}
+	if err := deepCopy_extensions_ReplicaSetStatus(in.Status, &out.Status, c); err != nil {
+		return err
+	}
+	return nil
+}
+
+func deepCopy_extensions_ReplicaSetList(in ReplicaSetList, out *ReplicaSetList, c *conversion.Cloner) error {
+	if err := deepCopy_unversioned_TypeMeta(in.TypeMeta, &out.TypeMeta, c); err != nil {
+		return err
+	}
+	if err := deepCopy_unversioned_ListMeta(in.ListMeta, &out.ListMeta, c); err != nil {
+		return err
+	}
+	if in.Items != nil {
+		out.Items = make([]ReplicaSet, len(in.Items))
+		for i := range in.Items {
+			if err := deepCopy_extensions_ReplicaSet(in.Items[i], &out.Items[i], c); err != nil {
+				return err
+			}
+		}
+	} else {
+		out.Items = nil
+	}
+	return nil
+}
+
+func deepCopy_extensions_ReplicaSetSpec(in ReplicaSetSpec, out *ReplicaSetSpec, c *conversion.Cloner) error {
+	out.Replicas = in.Replicas
+	if in.Selector != nil {
+		out.Selector = new(LabelSelector)
+		if err := deepCopy_extensions_LabelSelector(*in.Selector, out.Selector, c); err != nil {
+			return err
+		}
+	} else {
+		out.Selector = nil
+	}
+	if in.Template != nil {
+		out.Template = new(api.PodTemplateSpec)
+		if err := deepCopy_api_PodTemplateSpec(*in.Template, out.Template, c); err != nil {
+			return err
+		}
+	} else {
+		out.Template = nil
+	}
+	return nil
+}
+
+func deepCopy_extensions_ReplicaSetStatus(in ReplicaSetStatus, out *ReplicaSetStatus, c *conversion.Cloner) error {
+	out.Replicas = in.Replicas
+	out.ObservedGeneration = in.ObservedGeneration
+	return nil
+}
+
 func deepCopy_extensions_ReplicationControllerDummy(in ReplicationControllerDummy, out *ReplicationControllerDummy, c *conversion.Cloner) error {
 	if err := deepCopy_unversioned_TypeMeta(in.TypeMeta, &out.TypeMeta, c); err != nil {
 		return err
 	}
+	return nil
+}
+
+func deepCopy_extensions_RollingUpdateDaemonSet(in RollingUpdateDaemonSet, out *RollingUpdateDaemonSet, c *conversion.Cloner) error {
+	if err := deepCopy_intstr_IntOrString(in.MaxUnavailable, &out.MaxUnavailable, c); err != nil {
+		return err
+	}
+	out.MinReadySeconds = in.MinReadySeconds
 	return nil
 }
 
@@ -1584,6 +1781,7 @@ func init() {
 		deepCopy_api_Capabilities,
 		deepCopy_api_CephFSVolumeSource,
 		deepCopy_api_CinderVolumeSource,
+		deepCopy_api_ConfigMapKeySelector,
 		deepCopy_api_Container,
 		deepCopy_api_ContainerPort,
 		deepCopy_api_DownwardAPIVolumeFile,
@@ -1593,6 +1791,7 @@ func init() {
 		deepCopy_api_EnvVarSource,
 		deepCopy_api_ExecAction,
 		deepCopy_api_FCVolumeSource,
+		deepCopy_api_FlexVolumeSource,
 		deepCopy_api_FlockerVolumeSource,
 		deepCopy_api_GCEPersistentDiskVolumeSource,
 		deepCopy_api_GitRepoVolumeSource,
@@ -1616,6 +1815,7 @@ func init() {
 		deepCopy_api_RBDVolumeSource,
 		deepCopy_api_ResourceRequirements,
 		deepCopy_api_SELinuxOptions,
+		deepCopy_api_SecretKeySelector,
 		deepCopy_api_SecretVolumeSource,
 		deepCopy_api_SecurityContext,
 		deepCopy_api_TCPSocketAction,
@@ -1631,10 +1831,13 @@ func init() {
 		deepCopy_extensions_ClusterAutoscaler,
 		deepCopy_extensions_ClusterAutoscalerList,
 		deepCopy_extensions_ClusterAutoscalerSpec,
+		deepCopy_extensions_ConfigMap,
+		deepCopy_extensions_ConfigMapList,
 		deepCopy_extensions_DaemonSet,
 		deepCopy_extensions_DaemonSetList,
 		deepCopy_extensions_DaemonSetSpec,
 		deepCopy_extensions_DaemonSetStatus,
+		deepCopy_extensions_DaemonSetUpdateStrategy,
 		deepCopy_extensions_Deployment,
 		deepCopy_extensions_DeploymentList,
 		deepCopy_extensions_DeploymentSpec,
@@ -1658,10 +1861,15 @@ func init() {
 		deepCopy_extensions_JobList,
 		deepCopy_extensions_JobSpec,
 		deepCopy_extensions_JobStatus,
+		deepCopy_extensions_LabelSelector,
+		deepCopy_extensions_LabelSelectorRequirement,
 		deepCopy_extensions_NodeUtilization,
-		deepCopy_extensions_PodSelector,
-		deepCopy_extensions_PodSelectorRequirement,
+		deepCopy_extensions_ReplicaSet,
+		deepCopy_extensions_ReplicaSetList,
+		deepCopy_extensions_ReplicaSetSpec,
+		deepCopy_extensions_ReplicaSetStatus,
 		deepCopy_extensions_ReplicationControllerDummy,
+		deepCopy_extensions_RollingUpdateDaemonSet,
 		deepCopy_extensions_RollingUpdateDeployment,
 		deepCopy_extensions_Scale,
 		deepCopy_extensions_ScaleSpec,

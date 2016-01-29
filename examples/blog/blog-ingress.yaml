@@ -1,0 +1,23 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: blogs
+  namespace: blog
+  labels:
+    name: blogs
+    romulus/route: public
+    romulus/lb: vulcan
+spec:
+  rules:
+  - host: tech.example.com
+    http:
+      paths:
+      - backend:
+          serviceName: tech-blog
+          servicePort: web
+  - host: news.example.com
+    http:
+      paths:
+      - backend:
+          serviceName: news-blog
+          servicePort: web

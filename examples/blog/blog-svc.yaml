@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: tech-blog
+  namespace: blog
+  annotations:
+    romulus/redirect_to_ssl: "true"
+  labels:
+    name: tech-blog
+    romulus/route: public
+    romulus/lb: vulcan
+spec:
+  selector:
+    app: ghost
+    topic: tech
+  ports:
+  - name: web
+    port: 80
+    targetPort: http
+    protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: news-blog
+  namespace: blog
+  annotations:
+    romulus/redirect_to_ssl: "true"
+  labels:
+    name: news-blog
+    romulus/route: public
+    romulus/lb: vulcan
+spec:
+  selector:
+    app: ghost
+    topic: news
+  ports:
+  - name: web
+    port: 80
+    targetPort: http
+    protocol: TCP

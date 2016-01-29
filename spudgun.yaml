@@ -3,17 +3,44 @@ defaults:
   notify:
     slack:
       channel: "#logs"
+  templateDirs:
+    - k8s
   timeout: 600s
 
 stages:
   - name: test
     events: [push, CI]
+
   - name: build
     policies:
-      - branch: ["|feature/*|", "dev", "master"]
-        action: build
+      - branch: ["*"]
+        name: build
+
+  - name: deploy
+    policies:
+      - branch: ["dev"]
+        env: staging
+        name: deploy
+      - branch: ["feature/*"]
+        env: test
+        name: deploy
+
+policies:
+  - name: env
+    action: env
+
+  - name: build
+    description: Build romulusd
+    action: build
+
+  - name: deploy
+    description: Deploy romulusd
+    action: kubeDeploy
 
 actions:
+  - name: env
+    commands: ["printenv | sort"]
+
   - name: build
     commands:
       - go get github.com/tools/godep && go install github.com/tools/godep
@@ -21,3 +48,10 @@ actions:
       - REV="$SG_HEAD" BRANCH=$(echo "$SG_REF" | tr / _) make container
     container: golang:1.5
     containerDir: /go/src/github.com/timelinelabs/romulus
+
+  - name: kubeDeploy
+    config:
+      app: romulus
+      dir: k8s
+      command: rolling-update
+      update_period: 10s

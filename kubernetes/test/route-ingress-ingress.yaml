@@ -1,0 +1,14 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: route-ingress-ing
+  namespace: test
+spec:
+  rules:
+  - host: "www.example.net"
+    http:
+      paths:
+      - path: /foo
+        backend:
+          serviceName: route-ingress-svc
+          servicePort: web

@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: users
+  namespace: microservices
+  annotations:
+    romulus/methods: "|(GET|PUT|POST)|"
+    romulus/pass_host_header: "true"
+    romulus/trust_forward_headers: "true"
+  labels:
+    name: users
+    romulus/route: public
+    romulus/lb: vulcan
+spec:
+  selector:
+    service: users
+    version: v1
+  ports:
+  - name: api
+    port: 80
+    targetPort: public-api
+    protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: video
+  namespace: microservices
+  annotations:
+    romulus/pass_host_header: "true"
+    romulus/trust_forward_headers: "true"
+  labels:
+    name: video
+    romulus/route: public
+    romulus/lb: vulcan
+spec:
+  selector:
+    service: video
+    version: v1
+  ports:
+  - name: web
+    port: 80
+    targetPort: http
+    protocol: TCP
+

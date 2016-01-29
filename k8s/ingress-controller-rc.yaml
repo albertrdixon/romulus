@@ -1,0 +1,73 @@
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: 'ingress-controller-{{ .SG_SHA }}'
+  namespace: 'romulus-{{ .SG_ENV }}'
+  labels:
+    name: ingress-controller
+    app: romulusd
+    lb: vulcan
+    env: '{{ .SG_ENV }}'
+    sha: '{{ .SG_SHA }}'
+    ref: '{{ join (split .SG_REF "/") "_" }}'
+spec:
+  selector:
+    app: romulusd
+    lb: vulcan
+    sha: '{{ .SG_SHA }}'
+  template:
+    metadata:
+      labels:
+        app: romulusd
+        lb: vulcan
+        env: '{{ .SG_ENV }}'
+        sha: '{{ .SG_SHA }}'
+        ref: '{{ join (split .SG_REF "/") "_" }}'
+    spec:
+      containers:
+        - name: etcd
+          image: quay.io/coreos/etcd:v2.2.3
+          imagePullPolicy: IfNotPresent
+          resources:
+            limits:
+              cpu: 100m
+              memory: 50Mi
+          args:
+          - --data-dir=/var/etcd/data
+          - --name=etcd0
+          - --listen-client-urls=http://0.0.0.0:2379,http://0.0.0.0:4001
+          - --advertise-client-urls=http://127.0.0.1:2379,http://127.0.0.1:4001
+          - --initial-cluster-token=ingress-etcd
+          volumeMounts:
+          - name: etcd-storage
+            mountPath: /var/etcd/data
+        - name: vulcan
+          image: quay.io/timeline_labs/vulcand:latest
+          imagePullPolicy: Always
+          command:
+          - "/vulcand"
+          - "-apiInterface=0.0.0.0"
+          - "-apiPort=8182"
+          - "-etcd=http://127.0.0.1:2379"
+          - "-interface=0.0.0.0"
+          - "-port=1080"
+          ports:
+          - name: proxy
+            containerPort: 1080
+            protocol: TCP
+          - name: api
+            containerPort: 8182
+            protocol: TCP
+        - name: romulus
+          image: quay.io/timeline_labs/romulusd:{{ .SG_SHA }}
+          imagePullPolicy: IfNotPresent
+          args:
+          - --kube-api=https://kubernetes.default
+          - --kube-insecure
+          - --provider=vulcand
+          - --vulcan-api=http://127.0.0.1:8182
+          - --selector=lb=vulcan
+          - --selector=route=public
+      volumes:
+      - name: etcd-storage
+        emptyDir: {}
