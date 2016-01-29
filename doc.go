@@ -14,7 +14,7 @@ package main
 import "fmt"
 
 var (
-	version = "v0.1.3"
+	version = "v0.2.0"
 
 	// SHA is the build sha
 	SHA string
