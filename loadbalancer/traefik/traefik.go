@@ -25,11 +25,8 @@ var (
 )
 
 const (
-	DefaultPrefix = "/traefik"
-
-	passHostHeader      = "pass_host_header"
-	loadbalancingMethod = "loadbalancer_method"
-	failover            = "circuitbreaker"
+	DefaultPrefix          = "/traefik"
+	LoadbalancingMethodKey = "loadbalancer_method"
 
 	cb  = "circuitbreaker"
 	lb  = "loadbalancer"
@@ -64,7 +61,7 @@ func (t *traefik) Status() error {
 func (t *traefik) NewFrontend(rsc *kubernetes.Resource) (loadbalancer.Frontend, error) {
 	f := types.Frontend{Backend: rsc.ID(), PassHostHeader: false}
 	f.Routes = NewRoute(rsc.Route)
-	if phh, ok := rsc.GetAnnotation(passHostHeader); ok {
+	if phh, ok := rsc.GetAnnotation(loadbalancer.PassHostHeaderKey); ok {
 		if val, er := strconv.ParseBool(phh); er == nil {
 			f.PassHostHeader = val
 		}
@@ -120,10 +117,10 @@ func (t *traefik) NewBackend(rsc *kubernetes.Resource) (loadbalancer.Backend, er
 		CircuitBreaker: defaultCircuitBreaker,
 	}
 	b.Servers = make(map[string]types.Server)
-	if lbm, ok := rsc.GetAnnotation(loadbalancingMethod); ok && validLBM(lbm) {
+	if lbm, ok := rsc.GetAnnotation(LoadbalancingMethodKey); ok && validLBM(lbm) {
 		b.LoadBalancer = &types.LoadBalancer{Method: lbm}
 	}
-	if exp, ok := rsc.GetAnnotation(failover); ok {
+	if exp, ok := rsc.GetAnnotation(loadbalancer.FailoverExpressionKey); ok {
 		b.CircuitBreaker = &types.CircuitBreaker{Expression: exp}
 	}
 

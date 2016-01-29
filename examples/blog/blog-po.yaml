@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: tech-blog
+  namespace: blog
+  labels:
+    name: tech-blog
+    app: ghost
+    topic: tech
+spec:
+  containers:
+  - name: ghost
+    image: ghost:latest
+    imagePullPolicy: IfNotPresent
+    ports:
+    - name: http
+      protocol: TCP
+      containerPort: 2368
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: news-blog
+  namespace: blog
+  labels:
+    name: news-blog
+    app: ghost
+    topic: news
+spec:
+  containers:
+  - name: ghost
+    image: ghost:latest
+    imagePullPolicy: IfNotPresent
+    ports:
+    - name: http
+      protocol: TCP
+      containerPort: 2368

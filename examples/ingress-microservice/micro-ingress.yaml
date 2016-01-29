@@ -1,0 +1,21 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: microservices
+  namespace: microservices
+  labels:
+    name: microservices
+    romulus/route: public
+    romulus/lb: vulcan
+spec:
+  rules:
+  - host: www.example.com
+    paths:
+    - path: /users
+      backend:
+        serviceName: users
+        servicePort: api
+    - path: /video
+      backend:
+        serviceName: video
+        servicePort: web

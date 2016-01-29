@@ -11,6 +11,16 @@ var (
 	ErrUnexpectedBackendType  = errors.New("Backend is of unexpected type")
 )
 
+const (
+	PassHostHeaderKey      = "pass_host_header"
+	TrustForwardHeadersKey = "trust_forward_headers"
+	FailoverExpressionKey  = "failover_expression"
+	WebsocketKey           = "websocket"
+
+	FrontendSettingsKey = "frontend_settings"
+	BackendSettingsKey  = "backend_settings"
+)
+
 type LoadBalancer interface {
 	NewFrontend(*kubernetes.Resource) (Frontend, error)
 	GetFrontend(string) (Frontend, error)

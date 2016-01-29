@@ -24,12 +24,6 @@ import (
 const (
 	DefaultRoute = "Path(`/`)"
 
-	FrontendSettingsKey        = "frontend_settings"
-	BackendSettingsKey         = "backend_settings"
-	BackendTypeKey             = "backend_type"
-	PassHostHeaderKey          = "pass_host_header"
-	TrustForwardHeadersKey     = "trust_forward_headers"
-	FailoverExpressionKey      = "failover_expression"
 	DailTimeoutKey             = "dial_timeout"
 	ReadTimeoutKey             = "read_timeout"
 	MaxIdleConnsKey            = "max_idle_conns_per_host"
@@ -40,7 +34,7 @@ const (
 	HTTP      = "http"
 	Enabled   = "enabled"
 
-	RedirectSSLID = "redirect_ssl"
+	RedirectSSLID = "redirect_to_ssl"
 	TraceID       = "trace"
 	AuthID        = "auth"
 	MaintenanceID = "maintenance"
@@ -71,18 +65,18 @@ func (v *vulcan) Status() error {
 
 func (v *vulcan) NewFrontend(rsc *kubernetes.Resource) (loadbalancer.Frontend, error) {
 	s := engine.HTTPFrontendSettings{}
-	if val, ok := rsc.GetAnnotation(PassHostHeaderKey); ok {
+	if val, ok := rsc.GetAnnotation(loadbalancer.PassHostHeaderKey); ok {
 		b, _ := strconv.ParseBool(val)
 		s.PassHostHeader = b
 	}
-	if val, ok := rsc.GetAnnotation(TrustForwardHeadersKey); ok {
+	if val, ok := rsc.GetAnnotation(loadbalancer.TrustForwardHeadersKey); ok {
 		b, _ := strconv.ParseBool(val)
 		s.TrustForwardHeader = b
 	}
-	if val, ok := rsc.GetAnnotation(FailoverExpressionKey); ok {
+	if val, ok := rsc.GetAnnotation(loadbalancer.FailoverExpressionKey); ok {
 		s.FailoverPredicate = val
 	}
-	if val, ok := rsc.GetAnnotation(FrontendSettingsKey); ok {
+	if val, ok := rsc.GetAnnotation(loadbalancer.FrontendSettingsKey); ok {
 		if er := json.Unmarshal([]byte(val), &s); er != nil {
 			logger.Warnf("Failed to parse settings for frontend %q: %v", rsc.ID, er)
 		}
@@ -111,7 +105,7 @@ func (v *vulcan) NewBackend(rsc *kubernetes.Resource) (loadbalancer.Backend, err
 			s.KeepAlive.MaxIdleConnsPerHost = i
 		}
 	}
-	if val, ok := rsc.GetAnnotation(BackendSettingsKey); ok {
+	if val, ok := rsc.GetAnnotation(loadbalancer.BackendSettingsKey); ok {
 		if er := json.Unmarshal([]byte(val), &s); er != nil {
 			logger.Warnf("Failed to parse settings for frontend %q: %v", rsc.ID, er)
 		}

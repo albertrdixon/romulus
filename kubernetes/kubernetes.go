@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"fmt"
+	"regexp"
 	"time"
 
 	"golang.org/x/net/context"
@@ -17,6 +18,52 @@ import (
 	"k8s.io/kubernetes/pkg/labels"
 	"k8s.io/kubernetes/pkg/runtime"
 	"k8s.io/kubernetes/pkg/watch"
+)
+
+var (
+	// FakeKubeClient = &testclient.Fake{}
+	Keyspace string
+
+	EverythingSelector = map[string]string{}
+
+	resources = map[string]runtime.Object{
+		"services":  &api.Service{},
+		"endpoints": &api.Endpoints{},
+		"ingresses": &extensions.Ingress{},
+	}
+
+	extensionsObj = map[string]struct{}{
+		"ingresses": struct{}{},
+	}
+
+	validScheme = regexp.MustCompile(`(?:wss?|https?)`)
+)
+
+const (
+	hashLen  = 8
+	cacheTTL = 48 * time.Hour
+
+	ServiceKind   = "service"
+	ServicesKind  = "services"
+	IngressKind   = "ingress"
+	IngressesKind = "ingresses"
+	EndpointsKind = "endpoints"
+
+	HostPart   = "host"
+	PathPart   = "path"
+	PrefixPart = "prefix"
+	MethodPart = "method"
+	HeaderPart = "header"
+
+	HostKey    = "host"
+	PathKey    = "path"
+	PrefixKey  = "prefix"
+	MethodsKey = "methods"
+	HeadersKey = "headers"
+
+	HTTP  = "http"
+	HTTPS = "https"
+	TCP   = "tcp"
 )
 
 func NewClient(kubeapi, user, pass string, insecure bool) (*Client, error) {

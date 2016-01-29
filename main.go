@@ -21,7 +21,7 @@ import (
 var (
 	lbs = []string{"vulcand", "traefik"}
 
-	ro = kingpin.New("romulusd", "A utility for automatically registering Kubernetes services in Vulcand")
+	ro = kingpin.New("romulusd", "A kubernetes ingress controller")
 
 	kubeAPI     = ro.Flag("kube-api", "URL for kubernetes api").Short('k').Default("http://127.0.0.1:8080").OverrideDefaultFromEnvar("KUBE_API").URL()
 	kubeVer     = ro.Flag("kube-api-ver", "kubernetes api version").Default("v1").OverrideDefaultFromEnvar("KUBE_API_VER").String()

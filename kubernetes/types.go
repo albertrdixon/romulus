@@ -3,10 +3,8 @@ package kubernetes
 import (
 	"fmt"
 	"path"
-	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/bradfitz/slice"
 
@@ -14,53 +12,6 @@ import (
 	"k8s.io/kubernetes/pkg/apis/extensions"
 	"k8s.io/kubernetes/pkg/client/cache"
 	"k8s.io/kubernetes/pkg/client/unversioned"
-	"k8s.io/kubernetes/pkg/runtime"
-)
-
-var (
-	// FakeKubeClient = &testclient.Fake{}
-	Keyspace string
-
-	EverythingSelector = map[string]string{}
-
-	resources = map[string]runtime.Object{
-		"services":  &api.Service{},
-		"endpoints": &api.Endpoints{},
-		"ingresses": &extensions.Ingress{},
-	}
-
-	extensionsObj = map[string]struct{}{
-		"ingresses": struct{}{},
-	}
-
-	validScheme = regexp.MustCompile(`(?:wss?|https?)`)
-)
-
-const (
-	hashLen  = 8
-	cacheTTL = 48 * time.Hour
-
-	ServiceKind   = "service"
-	ServicesKind  = "services"
-	IngressKind   = "ingress"
-	IngressesKind = "ingresses"
-	EndpointsKind = "endpoints"
-
-	HostPart   = "host"
-	PathPart   = "path"
-	PrefixPart = "prefix"
-	MethodPart = "method"
-	HeaderPart = "header"
-
-	HostKey    = "host"
-	PathKey    = "path"
-	PrefixKey  = "prefix"
-	MethodsKey = "methods"
-	HeadersKey = "headers"
-
-	HTTP  = "http"
-	HTTPS = "https"
-	TCP   = "tcp"
 )
 
 type watcher interface {
