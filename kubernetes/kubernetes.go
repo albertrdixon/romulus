@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"time"
@@ -42,6 +43,10 @@ var (
 const (
 	hashLen  = 8
 	cacheTTL = 48 * time.Hour
+
+	Add    = "ADD"
+	Update = "UPDATE"
+	Delete = "DELETE"
 
 	ServiceKind   = "service"
 	ServicesKind  = "services"
@@ -138,8 +143,8 @@ func CreateUpdateController(kind string, w watcher, c cache.Getter, sel Selector
 
 	sl := selectorFromMap(sel)
 	handler := framework.ResourceEventHandlerFuncs{
-		DeleteFunc: w.Delete,
-		UpdateFunc: w.Update,
+		DeleteFunc: addDelete(Delete, w),
+		UpdateFunc: update(Update, w),
 	}
 	return framework.NewInformer(getListWatch(kind, c, sl), obj, resync, handler)
 }
@@ -152,9 +157,9 @@ func CreateFullController(kind string, w watcher, c cache.Getter, sel Selector, 
 
 	sl := selectorFromMap(sel)
 	handler := framework.ResourceEventHandlerFuncs{
-		AddFunc:    w.Add,
-		DeleteFunc: w.Delete,
-		UpdateFunc: w.Update,
+		AddFunc:    addDelete(Add, w),
+		DeleteFunc: addDelete(Delete, w),
+		UpdateFunc: update(Update, w),
 	}
 	return framework.NewInformer(getListWatch(kind, c, sl), obj, resync, handler)
 }
@@ -189,11 +194,40 @@ func getListWatch(kind string, getter cache.Getter, selector labels.Selector) *c
 	}
 }
 
-func LogCallback(callback string, obj interface{}) {
-	format := "%s %s"
+func addDelete(callback string, w watcher) func(interface{}) {
+	return func(obj interface{}) {
+		if er := logCallback(callback, obj); er != nil {
+			logger.Errorf(er.Error())
+			return
+		}
+
+		switch callback {
+		case Add:
+			w.Add(obj)
+		case Update:
+			w.Delete(obj)
+		}
+	}
+}
+
+func update(callback string, w watcher) func(interface{}, interface{}) {
+	return func(a, b interface{}) {
+		if er := logCallback(callback, a); er != nil {
+			logger.Errorf(er.Error())
+			return
+		}
+		w.Update(a, b)
+	}
+}
+
+func logCallback(callback string, obj interface{}) error {
+	var (
+		format = "%s %s"
+	)
+
 	switch t := obj.(type) {
 	default:
-		logger.Warnf(format, callback, "<unknown>")
+		return errors.New("Object not supported")
 	case *extensions.Ingress:
 		logger.Infof(format, callback, Ingress(*t))
 	case *api.Service:
@@ -201,4 +235,5 @@ func LogCallback(callback string, obj interface{}) {
 	case *api.Endpoints:
 		logger.Infof(format, callback, Endpoints(*t))
 	}
+	return nil
 }

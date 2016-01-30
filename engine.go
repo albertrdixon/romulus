@@ -53,7 +53,6 @@ func (e *Engine) Start(selector kubernetes.Selector, resync time.Duration) error
 func (e *Engine) Add(obj interface{}) {
 	e.Lock()
 	defer e.Unlock()
-	kubernetes.LogCallback("ADD", obj)
 
 	resources, er := kubernetes.GenResources(e.Cache, obj)
 	if er != nil {
@@ -68,7 +67,6 @@ func (e *Engine) Add(obj interface{}) {
 func (e *Engine) Delete(obj interface{}) {
 	e.Lock()
 	defer e.Unlock()
-	kubernetes.LogCallback("DELETE", obj)
 
 	resources, er := kubernetes.GenResources(e.Cache, obj)
 	if er != nil {
@@ -84,7 +82,6 @@ func (e *Engine) Delete(obj interface{}) {
 func (e *Engine) Update(old, next interface{}) {
 	e.Lock()
 	defer e.Unlock()
-	kubernetes.LogCallback("UPDATE", next)
 
 	logger.Debugf("Gather resources from previous object")
 	oldResources, er := kubernetes.GenResources(e.Cache, old)
