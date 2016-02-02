@@ -14,7 +14,7 @@ import (
 	"k8s.io/kubernetes/pkg/client/unversioned"
 )
 
-type watcher interface {
+type Updater interface {
 	Add(obj interface{})
 	Delete(obj interface{})
 	Update(old, next interface{})

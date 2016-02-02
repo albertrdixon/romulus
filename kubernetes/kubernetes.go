@@ -135,7 +135,7 @@ func CreateStore(kind string, c cache.Getter, sel Selector, resync time.Duration
 	return store, nil
 }
 
-func CreateUpdateController(kind string, w watcher, c cache.Getter, sel Selector, resync time.Duration) (cache.Store, *framework.Controller) {
+func CreateUpdateController(kind string, w Updater, c cache.Getter, sel Selector, resync time.Duration) (cache.Store, *framework.Controller) {
 	obj, ok := resources[kind]
 	if !ok {
 		return nil, nil
@@ -149,7 +149,7 @@ func CreateUpdateController(kind string, w watcher, c cache.Getter, sel Selector
 	return framework.NewInformer(getListWatch(kind, c, sl), obj, resync, handler)
 }
 
-func CreateFullController(kind string, w watcher, c cache.Getter, sel Selector, resync time.Duration) (cache.Store, *framework.Controller) {
+func CreateFullController(kind string, w Updater, c cache.Getter, sel Selector, resync time.Duration) (cache.Store, *framework.Controller) {
 	obj, ok := resources[kind]
 	if !ok {
 		return nil, nil
@@ -194,7 +194,7 @@ func getListWatch(kind string, getter cache.Getter, selector labels.Selector) *c
 	}
 }
 
-func addDelete(callback string, w watcher) func(interface{}) {
+func addDelete(callback string, w Updater) func(interface{}) {
 	return func(obj interface{}) {
 		if er := logCallback(callback, obj); er != nil {
 			logger.Errorf(er.Error())
@@ -210,7 +210,7 @@ func addDelete(callback string, w watcher) func(interface{}) {
 	}
 }
 
-func update(callback string, w watcher) func(interface{}, interface{}) {
+func update(callback string, w Updater) func(interface{}, interface{}) {
 	return func(a, b interface{}) {
 		if er := logCallback(callback, a); er != nil {
 			logger.Errorf(er.Error())

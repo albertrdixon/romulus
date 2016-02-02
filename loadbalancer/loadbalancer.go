@@ -19,6 +19,10 @@ const (
 
 	FrontendSettingsKey = "frontend_settings"
 	BackendSettingsKey  = "backend_settings"
+
+	DefaultPassHostHeader      = true
+	DefaultTrustForwardHeaders = true
+	DefaultWebsocket           = false
 )
 
 type LoadBalancer interface {

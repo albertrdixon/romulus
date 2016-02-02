@@ -22,7 +22,8 @@ import (
 )
 
 const (
-	DefaultRoute = "Path(`/`)"
+	DefaultRoute             = "Path(`/`)"
+	DefaultFailoverPredicate = `IsNetworkError() && Attempts() <= 2`
 
 	DailTimeoutKey             = "dial_timeout"
 	ReadTimeoutKey             = "read_timeout"
@@ -64,7 +65,10 @@ func (v *vulcan) Status() error {
 }
 
 func (v *vulcan) NewFrontend(rsc *kubernetes.Resource) (loadbalancer.Frontend, error) {
-	s := engine.HTTPFrontendSettings{}
+	s := engine.HTTPFrontendSettings{
+		PassHostHeader:     loadbalancer.DefaultPassHostHeader,
+		TrustForwardHeader: loadbalancer.DefaultTrustForwardHeaders,
+	}
 	if val, ok := rsc.GetAnnotation(loadbalancer.PassHostHeaderKey); ok {
 		b, _ := strconv.ParseBool(val)
 		s.PassHostHeader = b
