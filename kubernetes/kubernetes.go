@@ -37,6 +37,15 @@ var (
 		"ingresses": struct{}{},
 	}
 
+	defaultRoute = &Route{
+		parts: []*routePart{
+			&routePart{
+				kind:  PathPart,
+				value: "/",
+			},
+		},
+	}
+
 	validScheme = regexp.MustCompile(`(?:wss?|https?)`)
 )
 
@@ -204,7 +213,7 @@ func addDelete(callback string, w Updater) func(interface{}) {
 		switch callback {
 		case Add:
 			w.Add(obj)
-		case Update:
+		case Delete:
 			w.Delete(obj)
 		}
 	}

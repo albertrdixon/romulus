@@ -51,10 +51,12 @@ type LoadbalancerObject interface {
 type Frontend interface {
 	LoadbalancerObject
 	AddMiddleware(mid Middleware)
+	// GetRoute() string
 }
 type Backend interface {
 	LoadbalancerObject
 	AddServer(srv Server)
+	// GetServers() []Server
 }
 type Server interface {
 	LoadbalancerObject

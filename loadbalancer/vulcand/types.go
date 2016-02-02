@@ -52,11 +52,10 @@ func newMiddleware(m *engine.Middleware) *middleware {
 }
 
 type route struct {
-	host, path     *routePart
-	header, method []*routePart
+	host, path       *routePart
+	headers, methods []*routePart
 }
 
 type routePart struct {
 	part, val, header string
-	regex             bool
 }

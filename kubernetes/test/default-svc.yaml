@@ -1,13 +1,13 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: baz
+  name: bar
   namespace: test
-  annotations:
-    romulus/path: "/bar"
+  UID: two
 spec:
+  type: ClusterIP
+  clusterIP: 1.2.3.4
   ports:
   - name: web
     port: 80
     targetPort: http
-    protocol: TCP

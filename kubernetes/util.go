@@ -10,6 +10,7 @@ import (
 	"github.com/albertrdixon/gearbox/util"
 
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/apis/extensions"
 	"k8s.io/kubernetes/pkg/client/cache"
 	"k8s.io/kubernetes/pkg/labels"
 	"k8s.io/kubernetes/pkg/util/intstr"
@@ -39,15 +40,31 @@ func GenServerID(namespace, name, ip string, port int) string {
 	return strings.Join(id, ".")
 }
 
-func matchTarget(p intstr.IntOrString, name string, port int) bool {
-	return p.String() == name || p.IntValue() == port
-}
-
 func matchPort(a api.ServicePort, b api.EndpointPort) bool {
 	if a.Name != "" && b.Name != "" {
 		return a.Name == b.Name
 	}
 	return true
+}
+
+func matchIntStr(str string, num int, is intstr.IntOrString) bool {
+	switch is.Type {
+	default:
+		return false
+	case intstr.Int:
+		return num != 0 && is.IntValue() == num
+	case intstr.String:
+		return str != "" && is.String() == str
+	}
+}
+
+func matchIngressBackend(serviceName string, servicePort api.ServicePort, backend extensions.IngressBackend) bool {
+	logger.Debugf("Comparing Service(Name=%q, Port=%v) with IngressBackend(%v)", serviceName, servicePort, backend)
+	nameMatch := serviceName == backend.ServiceName
+	isMatch := matchIntStr(servicePort.Name, servicePort.Port, backend.ServicePort)
+	logger.Debugf("NameMatch = %v intstrMatch = %v", nameMatch, isMatch)
+	return serviceName == backend.ServiceName &&
+		matchIntStr(servicePort.Name, servicePort.Port, backend.ServicePort)
 }
 
 func cacheLookupKey(namespace, name string) cache.ExplicitKey {

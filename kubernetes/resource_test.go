@@ -7,11 +7,10 @@ import (
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/apis/extensions"
 	"k8s.io/kubernetes/pkg/client/cache"
-	"k8s.io/kubernetes/pkg/types"
-	"k8s.io/kubernetes/pkg/util/intstr"
 
 	"github.com/albertrdixon/gearbox/logger"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestRoute(te *testing.T) {
@@ -40,42 +39,18 @@ func TestRoute(te *testing.T) {
 	}
 }
 
-func TestDefaultResourceFromIngress(te *testing.T) {
+func TestGenResources(te *testing.T) {
 	var (
-		is  = assert.New(te)
-		m   = NewCache()
-		ing = &extensions.Ingress{
-			ObjectMeta: api.ObjectMeta{Name: "ingress", Namespace: "test", UID: types.UID("one")},
-			Spec: extensions.IngressSpec{
-				Backend: &extensions.IngressBackend{
-					ServiceName: "service",
-					ServicePort: intstr.FromString("web"),
-				},
-			},
-		}
-		svc = &api.Service{
-			ObjectMeta: api.ObjectMeta{Name: "service", Namespace: "test", UID: types.UID("two")},
-			Spec: api.ServiceSpec{
-				Type:      api.ServiceTypeClusterIP,
-				ClusterIP: "1.2.3.4",
-				Ports: []api.ServicePort{
-					api.ServicePort{Name: "web", Port: 80, TargetPort: intstr.FromString("http")},
-				},
-			},
-		}
-		end = &api.Endpoints{
-			ObjectMeta: api.ObjectMeta{Name: "service", Namespace: "test", UID: types.UID("three")},
-			Subsets: []api.EndpointSubset{
-				api.EndpointSubset{
-					Addresses: []api.EndpointAddress{
-						api.EndpointAddress{IP: "10.11.12.13"},
-						api.EndpointAddress{IP: "10.20.21.23"},
-					},
-					Ports: []api.EndpointPort{
-						api.EndpointPort{Name: "web", Port: 8080, Protocol: api.ProtocolTCP},
-					},
-				},
-			},
+		is    = assert.New(te)
+		must  = require.New(te)
+		tests = []struct {
+			category         string
+			ingName, svcName string
+			route            string
+			numSrvs          int
+		}{
+			{"default", "foo", "bar", "Route()", 2},
+			{"route-ingress", "bif", "baz", "Route(host(`www.example.net`) && path(`/foo`))", 3},
 		}
 	)
 
@@ -84,96 +59,50 @@ func TestDefaultResourceFromIngress(te *testing.T) {
 		defer logger.SetLevel("error")
 	}
 
-	m.SetServiceStore(cache.NewStore(cache.MetaNamespaceKeyFunc))
-	m.SetEndpointsStore(cache.NewStore(cache.MetaNamespaceKeyFunc))
-	m.endpoints.Add(end)
-	m.service.Add(svc)
+	for _, test := range tests {
+		var (
+			m   = NewCache()
+			ing = new(extensions.Ingress)
+			svc = new(api.Service)
+			end = new(api.Endpoints)
+		)
+		objectFromFile(te, test.category, "ingress", ing)
+		objectFromFile(te, test.category, "svc", svc)
+		objectFromFile(te, test.category, "endpoints", end)
 
-	list := resourcesFromIngress(m, ing)
-	te.Logf("Default ResourceList: %v", list)
-	is.True(len(list) > 0, "ResourceList should be non-zero")
-	ma := list.Map()
-	rsc, ok := ma["test.service.web"]
-	if is.True(ok, "'test.service.web' not created: %v", list) {
-		is.False(rsc.NoServers(), "%v should have servers", rsc)
-	}
-}
+		m.SetServiceStore(cache.NewStore(cache.MetaNamespaceKeyFunc))
+		m.SetEndpointsStore(cache.NewStore(cache.MetaNamespaceKeyFunc))
+		m.SetIngressStore(cache.NewStore(cache.MetaNamespaceKeyFunc))
+		m.endpoints.Add(end)
+		m.service.Add(svc)
+		m.ingress.Add(ing)
+		m.MapServiceToIngress("test", test.svcName, test.ingName)
 
-func TestRoutedResourceFromIngress(te *testing.T) {
-	var (
-		is  = assert.New(te)
-		m   = NewCache()
-		ing = &extensions.Ingress{
-			ObjectMeta: api.ObjectMeta{Name: "ingress", Namespace: "test", UID: types.UID("one")},
-			Spec: extensions.IngressSpec{
-				Rules: []extensions.IngressRule{
-					extensions.IngressRule{
-						Host: "www.example.net",
-						IngressRuleValue: extensions.IngressRuleValue{
-							HTTP: &extensions.HTTPIngressRuleValue{
-								Paths: []extensions.HTTPIngressPath{
-									extensions.HTTPIngressPath{
-										Path: "/foo",
-										Backend: extensions.IngressBackend{
-											ServiceName: "service",
-											ServicePort: intstr.FromString("web"),
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
+		c := newFakeClient()
+		c.updateFake(svc, end)
+		c.updateFakeExp(ing)
+
+		fromIng, ingEr := GenResources(m, c, ing)
+		fromSvc, svcEr := GenResources(m, c, svc)
+		fromEnd, endEr := GenResources(m, c, end)
+		must.NotEmpty(fromIng, "[%s] ResourceList should be non-zero: %v", test.category, fromIng)
+		must.NoError(ingEr, "[%s] GenResources(Ingress): %v", test.category, ingEr)
+		must.NotEmpty(fromSvc, "ResourceList should be non-zero: %v", fromSvc)
+		must.NoError(svcEr, "[%s] GenResources(Service): %v", test.category, svcEr)
+		must.NotEmpty(fromEnd, "ResourceList should be non-zero: %v", fromEnd)
+		must.NoError(endEr, "[%s] GenResources(Endpoints): %v", test.category, endEr)
+
+		is.EqualValues(fromIng, fromSvc, "[%s]\nfrom_ingress: %v\nfrom_service: %v", test.category, fromIng, fromSvc)
+		is.EqualValues(fromIng, fromEnd, "[%s]\nfrom_ingress  : %v\nfrom_endpoints: %v", test.category, fromIng, fromEnd)
+
+		obj := map[string]map[string]*Resource{"from_ingress": fromIng.Map(), "from_service": fromSvc.Map(), "from_endpoints": fromEnd.Map()}
+		for cat, ma := range obj {
+			id := "test." + test.svcName + ".web"
+			r, ok := ma[id]
+			if is.True(ok, "[%s] [%s] Resource(%q) not created: %v", test.category, cat, id, fromIng) {
+				is.Equal(test.numSrvs, len(r.Servers()), "[%s] [%s] Resource should have %d Servers: %v", test.category, cat, test.numSrvs, r)
+				is.Equal(test.route, r.Route.String(), "[%s] [%s] Resource route should be %q: %v", test.category, cat, test.route, r)
+			}
 		}
-		svc = &api.Service{
-			ObjectMeta: api.ObjectMeta{
-				Name:        "service",
-				Namespace:   "test",
-				UID:         types.UID("two"),
-				Annotations: map[string]string{"romulus/path": "/bar"},
-			},
-			Spec: api.ServiceSpec{
-				Type: api.ServiceTypeClusterIP,
-				Ports: []api.ServicePort{
-					api.ServicePort{Name: "web", Port: 80, TargetPort: intstr.FromString("http")},
-				},
-			},
-		}
-		end = &api.Endpoints{
-			ObjectMeta: api.ObjectMeta{Name: "service", Namespace: "test", UID: types.UID("three")},
-			Subsets: []api.EndpointSubset{
-				api.EndpointSubset{
-					Addresses: []api.EndpointAddress{
-						api.EndpointAddress{IP: "10.11.12.13"},
-						api.EndpointAddress{IP: "10.20.21.23"},
-					},
-					Ports: []api.EndpointPort{
-						api.EndpointPort{Name: "web", Port: 8080, Protocol: api.ProtocolTCP},
-					},
-				},
-			},
-		}
-	)
-
-	if testing.Verbose() {
-		logger.Configure("debug", "[romulus-test] ", os.Stdout)
-		defer logger.SetLevel("error")
-	}
-
-	m.SetServiceStore(cache.NewStore(cache.MetaNamespaceKeyFunc))
-	m.SetEndpointsStore(cache.NewStore(cache.MetaNamespaceKeyFunc))
-	m.service.Add(svc)
-	m.endpoints.Add(end)
-
-	list := resourcesFromIngress(m, ing)
-	te.Logf("Routed ResourceList: %v", list)
-	is.True(len(list) > 0, "ResourceList should be non-zero")
-	ma := list.Map()
-	rsc, ok := ma["test.service.web"]
-	if is.True(ok, "'test.service.web' not created: %v", list) {
-		is.False(rsc.NoServers(), "%v should have servers", rsc)
-		rt := rsc.Route.String()
-		is.Equal("Route(host(`www.example.net`) && path(`/foo`))", rt)
 	}
 }

@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"k8s.io/kubernetes/pkg/api"
+
 	"github.com/albertrdixon/gearbox/logger"
 	"github.com/cenkalti/backoff"
 
@@ -54,7 +56,7 @@ func (e *Engine) Add(obj interface{}) {
 	e.Lock()
 	defer e.Unlock()
 
-	resources, er := kubernetes.GenResources(e.Cache, obj)
+	resources, er := kubernetes.GenResources(e.Cache, e.Client, obj)
 	if er != nil {
 		logger.Errorf(er.Error())
 	}
@@ -68,9 +70,12 @@ func (e *Engine) Delete(obj interface{}) {
 	e.Lock()
 	defer e.Unlock()
 
-	resources, er := kubernetes.GenResources(e.Cache, obj)
+	resources, er := kubernetes.GenResources(e.Cache, e.Client, obj)
 	if er != nil {
 		logger.Errorf(er.Error())
+	}
+	if o, ok := obj.(*api.Service); ok {
+		e.Cache.ServiceDeleted(o.GetNamespace(), o.GetName())
 	}
 
 	if er := deleteResources(e, resources); er != nil {
@@ -84,13 +89,13 @@ func (e *Engine) Update(old, next interface{}) {
 	defer e.Unlock()
 
 	logger.Debugf("Gather resources from previous object")
-	oldResources, er := kubernetes.GenResources(e.Cache, old)
+	oldResources, er := kubernetes.GenResources(e.Cache, e.Client, old)
 	if er != nil {
 		logger.Errorf(er.Error())
 	}
 
 	logger.Debugf("Gather resources from new object")
-	newResources, er := kubernetes.GenResources(e.Cache, next)
+	newResources, er := kubernetes.GenResources(e.Cache, e.Client, next)
 	if er != nil {
 		logger.Errorf(er.Error())
 	}
@@ -233,6 +238,9 @@ func createObjectCache(e *Engine, selector kubernetes.Selector, resync time.Dura
 		logger.Warnf("Failed to create Ingress cache")
 	}
 
+	// e.SetStore(kubernetes.IngressKind, ingress)
+	// e.SetStore(kubernetes.ServiceKind, service)
+	// e.SetStore(kubernetes.EndpointsKind, endpoints)
 	e.SetIngressStore(ingress)
 	e.SetServiceStore(service)
 	e.SetEndpointsStore(endpoints)

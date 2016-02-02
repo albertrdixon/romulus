@@ -1,7 +1,7 @@
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-  name: route-ingress-ing
+  name: bif
   namespace: test
 spec:
   rules:
@@ -10,5 +10,5 @@ spec:
       paths:
       - path: /foo
         backend:
-          serviceName: route-ingress-svc
+          serviceName: baz
           servicePort: web

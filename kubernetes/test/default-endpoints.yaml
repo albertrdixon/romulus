@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: bar
+  namespace: test
+  UID: three
+Subsets:
+  - Addresses:
+      - IP: 10.11.12.13
+      - IP: 10.20.21.23
+    Ports:
+      - Name: web
+        Port: 8080
+        Protocol: TCP

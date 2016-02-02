@@ -1,0 +1,10 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: foo
+  namespace: test
+  UID: one
+spec:
+  backend:
+    serviceName: bar
+    servicePort: web

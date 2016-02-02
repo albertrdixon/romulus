@@ -1,5 +1,6 @@
 REV ?= $$(git rev-parse --short=8 HEAD)
 BRANCH ?= $$(git rev-parse --abbrev-ref HEAD | tr / _)
+DEFAULT_BRANCH = dev
 EXECUTABLE = romulusd
 IMAGE = romulusd
 REMOTE_REPO = quay.io/timeline_labs/romulusd
@@ -66,6 +67,12 @@ publish:
 	@docker tag $(IMAGE) $(REMOTE_REPO):$(REV)
 	@docker push $(REMOTE_REPO):$(REV)
 	@docker rmi $(REMOTE_REPO):$(REV)
+	@if [ "$(BRANCH)" = "$(DEFAULT_BRANCH)" ]; then \
+		docker rmi $(REMOTE_REPO):latest >/dev/null 2>&1 || true ;\
+		docker tag $(IMAGE) $(REMOTE_REPO):latest ;\
+		docker push $(REMOTE_REPO):latest ;\
+		docker rmi $(REMOTE_REPO):latest ;\
+	fi
 
 install:
 	@echo "--> Installing $(EXECUTABLE) with ldflags '$(LDFLAGS)'"

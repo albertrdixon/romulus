@@ -11,6 +11,7 @@ import (
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/endpoints"
 	"k8s.io/kubernetes/pkg/apis/extensions"
+	"k8s.io/kubernetes/pkg/client/unversioned"
 
 	"github.com/albertrdixon/gearbox/logger"
 	"github.com/albertrdixon/gearbox/url"
@@ -46,10 +47,10 @@ func NewResource(id, namespace string, port api.ServicePort, meta api.ObjectMeta
 
 	return &Resource{
 		id:          id,
+		uid:         string(meta.UID),
 		Route:       NewRoute(id, annotations),
 		port:        port,
 		annotations: annotations,
-		uid:         string(meta.UID),
 		servers:     make([]*Server, 0, 1),
 		websocket:   websocket,
 	}
@@ -98,39 +99,49 @@ func NewRoute(id string, annotations map[string]string) *Route {
 	return rt
 }
 
-func GenResources(store *Cache, obj interface{}) (ResourceList, error) {
+func GenResources(store *Cache, client SuperClient, obj interface{}) (ResourceList, error) {
 	var (
 		list ResourceList = make([]*Resource, 0, 1)
+
+		po interface{}
 	)
 
 	switch t := obj.(type) {
 	default:
 		return list, errors.New("Unsupported type")
 	case *extensions.Ingress:
-		list = resourcesFromIngress(store, t)
+		list = resourcesFromIngress(store, client, t)
+		po = Ingress(*t)
 	case *api.Service:
-		list = resourcesFromService(store, t)
+		list = resourcesFromService(store, client, t)
+		po = Service(*t)
 	case *api.Endpoints:
-		list = resourcesFromEndpoints(store, t)
+		list = resourcesFromEndpoints(store, client, t)
+		po = Endpoints(*t)
 	}
-	logger.Debugf(list.String())
+	Sort(list, ByID)
+	logger.Debugf("Resources from %v: %v", po, list)
 	return list, nil
 }
 
-func resourcesFromIngress(store *Cache, in *extensions.Ingress) ResourceList {
+func resourcesFromIngress(store *Cache, client unversioned.Interface, in *extensions.Ingress) ResourceList {
 	var (
 		list ResourceList = make([]*Resource, 0, 1)
+		i    Ingress      = Ingress(*in)
+
+		namespace = in.GetNamespace()
 	)
 
-	namespace := in.GetNamespace()
+	logger.Debugf("Generate Resources from %v", i)
 	if in.Spec.Backend != nil {
 		name := in.Spec.Backend.ServiceName
-		svc, er := store.GetService(namespace, name)
+		svc, er := store.GetService(client, namespace, name)
 		if er != nil {
 			logger.Warnf(er.Error())
 			goto Rules
 		}
 
+		store.MapServiceToIngress(namespace, svc.GetName(), in.GetName())
 		port, ok := GetServicePort(svc, in.Spec.Backend.ServicePort)
 		if !ok {
 			goto Rules
@@ -138,7 +149,8 @@ func resourcesFromIngress(store *Cache, in *extensions.Ingress) ResourceList {
 
 		id := GenResourceID(namespace, name, intstrFromPort(port.Name, port.Port))
 		r := NewResource(id, port.Name, port, svc.ObjectMeta)
-		en, _ := store.GetEndpoints(namespace, name)
+		r.Route.parts = nil
+		en, _ := store.GetEndpoints(client, namespace, name)
 		AddServers(r, svc, en, port)
 
 		list = append(list, r)
@@ -148,10 +160,11 @@ Rules:
 	for _, rule := range in.Spec.Rules {
 		for _, path := range rule.HTTP.Paths {
 			name := path.Backend.ServiceName
-			svc, er := store.GetService(namespace, name)
+			svc, er := store.GetService(client, namespace, name)
 			if er != nil {
 				continue
 			}
+			store.MapServiceToIngress(namespace, svc.GetName(), in.GetName())
 			port, ok := GetServicePort(svc, path.Backend.ServicePort)
 			if !ok {
 				continue
@@ -159,7 +172,7 @@ Rules:
 
 			id := GenResourceID(namespace, name, intstrFromPort(port.Name, port.Port))
 			r := NewResource(id, port.Name, port, svc.ObjectMeta)
-			en, _ := store.GetEndpoints(namespace, name)
+			en, _ := store.GetEndpoints(client, namespace, name)
 			AddServers(r, svc, en, port)
 
 			if rule.Host != "" {
@@ -173,11 +186,11 @@ Rules:
 			list = append(list, r)
 		}
 	}
-	Sort(list, nil)
+
 	return list
 }
 
-func resourcesFromService(store *Cache, svc *api.Service) ResourceList {
+func resourcesFromService(store *Cache, client SuperClient, svc *api.Service) ResourceList {
 	var (
 		list ResourceList = make([]*Resource, 0, 1)
 		s    Service      = Service(*svc)
@@ -186,7 +199,8 @@ func resourcesFromService(store *Cache, svc *api.Service) ResourceList {
 		name      = svc.GetName()
 	)
 
-	en, er := store.GetEndpoints(namespace, name)
+	logger.Debugf("Generate Resources from %v", s)
+	en, er := store.GetEndpoints(client, namespace, name)
 	if er != nil {
 		logger.Warnf("No Endpoints for %v", s)
 	}
@@ -194,15 +208,18 @@ func resourcesFromService(store *Cache, svc *api.Service) ResourceList {
 	for _, port := range svc.Spec.Ports {
 		id := GenResourceID(namespace, name, intstrFromPort(port.Name, port.Port))
 		r := NewResource(id, port.Name, port, svc.ObjectMeta)
+		if in, er := store.GetIngress(client, namespace, name); er == nil {
+			routePartsFromIngress(r.Route, in, svc.GetName(), port)
+		}
 		AddServers(r, svc, en, port)
 
 		list = append(list, r)
 	}
-	Sort(list, nil)
+
 	return list
 }
 
-func resourcesFromEndpoints(store *Cache, en *api.Endpoints) ResourceList {
+func resourcesFromEndpoints(store *Cache, client SuperClient, en *api.Endpoints) ResourceList {
 	var (
 		list ResourceList = make([]*Resource, 0, 1)
 		e    Endpoints    = Endpoints(*en)
@@ -211,7 +228,8 @@ func resourcesFromEndpoints(store *Cache, en *api.Endpoints) ResourceList {
 		name      = en.GetName()
 	)
 
-	svc, er := store.GetService(namespace, name)
+	logger.Debugf("Generate Resources from %v", e)
+	svc, er := store.GetService(client, namespace, name)
 	if er != nil {
 		logger.Errorf("Unable to find Service for %v", e)
 		return list
@@ -220,11 +238,14 @@ func resourcesFromEndpoints(store *Cache, en *api.Endpoints) ResourceList {
 	for _, port := range svc.Spec.Ports {
 		id := GenResourceID(namespace, name, intstrFromPort(port.Name, port.Port))
 		r := NewResource(id, port.Name, port, svc.ObjectMeta)
+		if in, er := store.GetIngress(client, namespace, name); er == nil {
+			routePartsFromIngress(r.Route, in, svc.GetName(), port)
+		}
 		AddServers(r, svc, en, port)
 
 		list = append(list, r)
 	}
-	Sort(list, nil)
+
 	return list
 }
 
@@ -300,6 +321,31 @@ func AddServersFromEndpoints(r *Resource, en *api.Endpoints, p api.ServicePort) 
 	}
 }
 
+func routePartsFromIngress(rt *Route, ing *extensions.Ingress, name string, port api.ServicePort) {
+	if ing.Spec.Backend != nil {
+		if matchIngressBackend(name, port, *ing.Spec.Backend) {
+			rt.parts = nil
+			return
+		}
+	}
+
+	for _, rule := range ing.Spec.Rules {
+		for _, path := range rule.HTTP.Paths {
+			if matchIngressBackend(name, port, path.Backend) {
+				if rule.Host != "" {
+					rt.delete(HostPart)
+					rt.AddHost(rule.Host)
+				}
+				if path.Path != "" {
+					rt.delete(PathPart)
+					rt.AddPath(path.Path)
+				}
+				return
+			}
+		}
+	}
+}
+
 func (r *Resource) AddServer(id, scheme, ip string, port int) {
 	if r.servers == nil {
 		r.servers = make([]*Server, 0, 1)
@@ -357,7 +403,7 @@ func (s *Server) ID() string        { return s.id }
 func (s *Server) IsWebsocket() bool { return s.websocket }
 
 func (r *Route) Empty() bool {
-	return len(r.parts) < 1
+	return r.parts == nil || len(r.parts) < 1
 }
 
 func (r *Route) AddHost(host string) error {
@@ -429,3 +475,19 @@ func (r ResourceList) Map() map[string]*Resource {
 	}
 	return m
 }
+
+// func (r ResourceList) Eql(l ResourceList) bool {
+// 	if len(r) != len(l) {
+// 		return false
+// 	}
+
+// 	Sort(r, ByID)
+// 	Sort(l, ByID)
+// 	for i := range l {
+
+// 	}
+// }
+
+// func (r *Resource) Eql(o *Resource) bool {
+// 	return r.id == o.id && r.uid == o.uid && r.Route.String() == o.Route.String()
+// }

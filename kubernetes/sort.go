@@ -2,25 +2,28 @@ package kubernetes
 
 import "sort"
 
-func Sort(res ResourceList, fn func(a, b *Resource) bool) {
+var (
+	ByID  = func(a, b *Resource) bool { return a.id < b.id }
+	ByUID = func(a, b *Resource) bool { return a.uid < b.uid }
+)
+
+func Sort(list ResourceList, fn func(a, b *Resource) bool) {
 	sfn := fn
 	if sfn == nil {
-		sfn = func(a, b *Resource) bool {
-			return a.id < b.id
-		}
+		sfn = ByID
 	}
-	sort.Sort(&Sorter{
-		resources: res,
+	sort.Sort(&resourceListSorter{
+		resources: list,
 		sorter:    sfn,
 	})
 }
 
-func (s *Sorter) Len() int {
+func (s *resourceListSorter) Len() int {
 	return len(s.resources)
 }
-func (s *Sorter) Swap(i, j int) {
+func (s *resourceListSorter) Swap(i, j int) {
 	s.resources[i], s.resources[j] = s.resources[j], s.resources[i]
 }
-func (s *Sorter) Less(i, j int) bool {
+func (s *resourceListSorter) Less(i, j int) bool {
 	return s.sorter(s.resources[i], s.resources[j])
 }

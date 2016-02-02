@@ -86,6 +86,9 @@ func (v *vulcan) NewFrontend(rsc *kubernetes.Resource) (loadbalancer.Frontend, e
 		}
 	}
 
+	// if frontend, er := v.GetFrontend(rsc.ID()); er == nil && frontend != nil {
+	// }
+
 	f, er := engine.NewHTTPFrontend(vroute.NewMux(), rsc.ID(), rsc.ID(), NewRoute(rsc.Route).String(), s)
 	if er != nil {
 		return nil, er
@@ -249,6 +252,7 @@ func (v *vulcan) GetFrontend(frontendID string) (loadbalancer.Frontend, error) {
 	if er != nil {
 		return nil, er
 	}
+
 	return newFrontend(f), nil
 }
 
@@ -306,6 +310,10 @@ func (f *frontend) AddMiddleware(mid loadbalancer.Middleware) {
 		f.middlewares = make([]*middleware, 0, 1)
 	}
 	f.middlewares = append(f.middlewares, mid.(*middleware))
+}
+
+func (f *frontend) GetRoute() string {
+	return f.Route
 }
 
 func (m *middleware) GetID() string { return m.Id }

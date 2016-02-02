@@ -20,6 +20,20 @@ type Updater interface {
 	Update(old, next interface{})
 }
 
+type SuperClient interface {
+	unversioned.Interface
+	unversioned.ExtensionsInterface
+}
+
+type Client struct {
+	*unversioned.Client
+}
+
+type Cache struct {
+	ingress, service, endpoints cache.Store
+	ingMap                      map[cache.ExplicitKey]cache.ExplicitKey
+}
+
 type Resource struct {
 	*Route
 	port        api.ServicePort
@@ -48,29 +62,27 @@ type routePart struct {
 	regex               bool
 }
 
-type Sorter struct {
+type resourceListSorter struct {
 	resources ResourceList
 	sorter    func(a, b *Resource) bool
 }
 
-type Client struct {
-	*unversioned.Client
-}
-
-type Cache struct {
-	ingress, service, endpoints cache.Store
-}
-
 type Selector map[string]string
-
-// type Cache map[string]cache.Store
 
 type Ingress extensions.Ingress
 type Service api.Service
 type Endpoints api.Endpoints
+type ingressBackend extensions.IngressBackend
 
 func (i Ingress) String() string {
-	return fmt.Sprintf("Ingress(Name=%q, Namespace=%q)", i.ObjectMeta.Name, i.ObjectMeta.Namespace)
+	var (
+		f = "Ingress(Name=%q, Namespace=%q, DefBackend=%v, Rules=%d)"
+	)
+
+	if i.Spec.Backend == nil {
+		return fmt.Sprintf(f, i.ObjectMeta.Name, i.ObjectMeta.Namespace, "", len(i.Spec.Rules))
+	}
+	return fmt.Sprintf(f, i.ObjectMeta.Name, i.ObjectMeta.Namespace, ingressBackend(*i.Spec.Backend), len(i.Spec.Rules))
 }
 
 func (s Service) String() string {
@@ -81,6 +93,10 @@ func (e Endpoints) String() string {
 	return fmt.Sprintf(`Endpoints(Name=%q, Namespace=%q, Subsets=%d)`, e.ObjectMeta.Name, e.ObjectMeta.Namespace, len(e.Subsets))
 }
 
+func (i ingressBackend) String() string {
+	return fmt.Sprintf("%s:%v", i.ServiceName, i.ServicePort.String())
+}
+
 func (s Service) IsFrontend() bool {
 	key := path.Join(Keyspace, "frontend")
 	val := s.ObjectMeta.Annotations[key]
@@ -89,7 +105,8 @@ func (s Service) IsFrontend() bool {
 }
 
 func (r Resource) String() string {
-	return fmt.Sprintf("Resource(ID=%q, Route=%v, Servers=%v, Annotations=%v)", r.id, r.Route, r.servers, r.annotations)
+	return fmt.Sprintf("Resource(ID=%q, UID=%q, Route=%v, Servers=%v, Annotations=%v)",
+		r.id, r.uid, r.Route, r.servers, r.annotations)
 }
 
 func (r ResourceList) String() string {
