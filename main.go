@@ -33,7 +33,7 @@ var (
 	provider    = ro.Flag("provider", "LoadBalancer provider").Short('p').Default("vulcand").Enum(lbs...)
 	resync      = ro.Flag("sync-interval", "Resync period with kube api").Default("1h").Duration()
 	timeout     = ro.Flag("lb-timeout", "Timeout for communicating with loadbalancer provider").Default("10s").Duration()
-	vulcanAPI   = ro.Flag("vulcan-api", "URL for vulcand api").Default("http://127.0.0.1:8182").OverrideDefaultFromEnvar("VULCAN_API").URL()
+	vulcanAPI   = ro.Flag("vulcand-api", "URL for vulcand api").Default("http://127.0.0.1:8182").OverrideDefaultFromEnvar("VULCAND_API").URL()
 	traefikEtcd = ro.Flag("traefik-etcd", "etcd peers for traefik").OverrideDefaultFromEnvar("TRAEFIK_ETCD").URLList()
 	logLevel    = ro.Flag("log-level", "log level. One of: fatal, error, warn, info, debug").Short('l').Default("info").OverrideDefaultFromEnvar("LOG_LEVEL").Enum(logger.Levels...)
 )
