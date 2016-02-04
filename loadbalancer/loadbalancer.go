@@ -15,6 +15,8 @@ const (
 	PassHostHeaderKey      = "pass_host_header"
 	TrustForwardHeadersKey = "trust_forward_headers"
 	FailoverExpressionKey  = "failover_expression"
+	MaxReqSizeKey          = "max_req_size"
+	MaxRespSizeKey         = "max_resp_size"
 	WebsocketKey           = "websocket"
 
 	FrontendSettingsKey = "frontend_settings"

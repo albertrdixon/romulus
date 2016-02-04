@@ -17,9 +17,13 @@ import (
 	"github.com/albertrdixon/gearbox/url"
 )
 
-func NewResource(id, namespace string, port api.ServicePort, meta api.ObjectMeta) *Resource {
-	annotations := make(map[string]string)
-	for key, value := range meta.Annotations {
+func NewResource(id, namespace string, anno annotations) *Resource {
+	var (
+		an annotations = make(map[string]string)
+	)
+
+	// annotations := make(map[string]string)
+	for key, value := range anno {
 		if strings.HasPrefix(key, Keyspace) {
 			bits := strings.SplitN(path.Base(key), ".", 2)
 			if len(bits) == 2 && namespace == "" {
@@ -28,18 +32,18 @@ func NewResource(id, namespace string, port api.ServicePort, meta api.ObjectMeta
 			switch len(bits) {
 			case 2:
 				if bits[0] == namespace {
-					annotations[bits[1]] = value
+					an[bits[1]] = value
 				}
 			case 1:
-				if _, ok := annotations[bits[0]]; !ok {
-					annotations[bits[0]] = value
+				if _, ok := an[bits[0]]; !ok {
+					an[bits[0]] = value
 				}
 			}
 		}
 	}
 
 	websocket := false
-	if val, ok := annotations["websocket"]; ok {
+	if val, ok := an["websocket"]; ok {
 		if b, er := strconv.ParseBool(val); er == nil {
 			websocket = b
 		}
@@ -47,21 +51,19 @@ func NewResource(id, namespace string, port api.ServicePort, meta api.ObjectMeta
 
 	return &Resource{
 		id:          id,
-		uid:         string(meta.UID),
-		Route:       NewRoute(id, annotations),
-		port:        port,
-		annotations: annotations,
+		Route:       NewRoute(id, an),
+		annotations: an,
 		servers:     make([]*Server, 0, 1),
 		websocket:   websocket,
 	}
 }
 
-func NewRoute(id string, annotations map[string]string) *Route {
+func NewRoute(id string, anno annotations) *Route {
 	var (
 		rt = &Route{parts: make([]*routePart, 0, 1)}
 	)
 
-	for key, val := range annotations {
+	for key, val := range anno {
 		switch key {
 		case HeadersKey:
 			vals := strings.Fields(strings.Replace(val, ";", "", -1))
@@ -148,7 +150,7 @@ func resourcesFromIngress(store *Cache, client unversioned.Interface, in *extens
 		}
 
 		id := GenResourceID(namespace, name, intstrFromPort(port.Name, port.Port))
-		r := NewResource(id, port.Name, port, svc.ObjectMeta)
+		r := NewResource(id, port.Name, svc.ObjectMeta.Annotations)
 		r.Route.parts = nil
 		en, _ := store.GetEndpoints(client, namespace, name)
 		AddServers(r, svc, en, port)
@@ -171,7 +173,7 @@ Rules:
 			}
 
 			id := GenResourceID(namespace, name, intstrFromPort(port.Name, port.Port))
-			r := NewResource(id, port.Name, port, svc.ObjectMeta)
+			r := NewResource(id, port.Name, svc.ObjectMeta.Annotations)
 			en, _ := store.GetEndpoints(client, namespace, name)
 			AddServers(r, svc, en, port)
 
@@ -207,7 +209,7 @@ func resourcesFromService(store *Cache, client SuperClient, svc *api.Service) Re
 
 	for _, port := range svc.Spec.Ports {
 		id := GenResourceID(namespace, name, intstrFromPort(port.Name, port.Port))
-		r := NewResource(id, port.Name, port, svc.ObjectMeta)
+		r := NewResource(id, port.Name, svc.ObjectMeta.Annotations)
 		if in, er := store.GetIngress(client, namespace, name); er == nil {
 			routePartsFromIngress(r.Route, in, svc.GetName(), port)
 		}
@@ -237,7 +239,7 @@ func resourcesFromEndpoints(store *Cache, client SuperClient, en *api.Endpoints)
 
 	for _, port := range svc.Spec.Ports {
 		id := GenResourceID(namespace, name, intstrFromPort(port.Name, port.Port))
-		r := NewResource(id, port.Name, port, svc.ObjectMeta)
+		r := NewResource(id, port.Name, svc.ObjectMeta.Annotations)
 		if in, er := store.GetIngress(client, namespace, name); er == nil {
 			routePartsFromIngress(r.Route, in, svc.GetName(), port)
 		}
@@ -363,7 +365,6 @@ func (r *Resource) AddServer(id, scheme, ip string, port int) {
 }
 
 func (r *Resource) ID() string          { return r.id }
-func (r *Resource) UID() string         { return r.uid }
 func (r *Resource) Servers() ServerList { return r.servers }
 func (r *Resource) IsWebsocket() bool   { return r.websocket }
 

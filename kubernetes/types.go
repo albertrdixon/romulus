@@ -36,9 +36,8 @@ type Cache struct {
 
 type Resource struct {
 	*Route
-	port        api.ServicePort
-	id, uid     string
-	annotations map[string]string
+	id          string
+	annotations annotations
 	servers     ServerList
 	websocket   bool
 }
@@ -67,6 +66,7 @@ type resourceListSorter struct {
 	sorter    func(a, b *Resource) bool
 }
 
+type annotations map[string]string
 type Selector map[string]string
 
 type Ingress extensions.Ingress
@@ -105,8 +105,8 @@ func (s Service) IsFrontend() bool {
 }
 
 func (r Resource) String() string {
-	return fmt.Sprintf("Resource(ID=%q, UID=%q, Route=%v, Servers=%v, Annotations=%v)",
-		r.id, r.uid, r.Route, r.servers, r.annotations)
+	return fmt.Sprintf("Resource(ID=%q, Route=%v, Servers=%v, Annotations=%v)",
+		r.id, r.Route, r.servers, r.annotations)
 }
 
 func (r ResourceList) String() string {

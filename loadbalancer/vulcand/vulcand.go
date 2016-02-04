@@ -19,6 +19,7 @@ import (
 
 	"github.com/timelinelabs/romulus/kubernetes"
 	"github.com/timelinelabs/romulus/loadbalancer"
+	"k8s.io/kubernetes/pkg/api/resource"
 )
 
 const (
@@ -65,10 +66,19 @@ func (v *vulcan) Status() error {
 }
 
 func (v *vulcan) NewFrontend(rsc *kubernetes.Resource) (loadbalancer.Frontend, error) {
-	s := engine.HTTPFrontendSettings{
-		PassHostHeader:     loadbalancer.DefaultPassHostHeader,
-		TrustForwardHeader: loadbalancer.DefaultTrustForwardHeaders,
-	}
+	var (
+		s = engine.HTTPFrontendSettings{
+			PassHostHeader:     loadbalancer.DefaultPassHostHeader,
+			TrustForwardHeader: loadbalancer.DefaultTrustForwardHeaders,
+		}
+		limits = engine.HTTPFrontendLimits{
+			MaxBodyBytes:        int64(2097152),
+			MaxMemBodyBytes:     int64(2097152),
+			MaxRespBodyBytes:    int64(2097152),
+			MaxRespMemBodyBytes: int64(2097152),
+		}
+	)
+
 	if val, ok := rsc.GetAnnotation(loadbalancer.PassHostHeaderKey); ok {
 		b, _ := strconv.ParseBool(val)
 		s.PassHostHeader = b
@@ -80,14 +90,30 @@ func (v *vulcan) NewFrontend(rsc *kubernetes.Resource) (loadbalancer.Frontend, e
 	if val, ok := rsc.GetAnnotation(loadbalancer.FailoverExpressionKey); ok {
 		s.FailoverPredicate = val
 	}
+
+	if val, ok := rsc.GetAnnotation(loadbalancer.MaxReqSizeKey); ok {
+		if q, er := resource.ParseQuantity(val); er == nil {
+			limits.MaxBodyBytes = q.Value()
+			limits.MaxMemBodyBytes = q.Value()
+		} else {
+			logger.Warnf("Failed to parse request limits: %v", er)
+		}
+	}
+	if val, ok := rsc.GetAnnotation(loadbalancer.MaxRespSizeKey); ok {
+		if q, er := resource.ParseQuantity(val); er == nil {
+			limits.MaxRespBodyBytes = q.Value()
+			limits.MaxRespMemBodyBytes = q.Value()
+		} else {
+			logger.Warnf("Failed to parse response limits: %v", er)
+		}
+	}
+	s.Limits = limits
+
 	if val, ok := rsc.GetAnnotation(loadbalancer.FrontendSettingsKey); ok {
 		if er := json.Unmarshal([]byte(val), &s); er != nil {
 			logger.Warnf("Failed to parse settings for frontend %q: %v", rsc.ID, er)
 		}
 	}
-
-	// if frontend, er := v.GetFrontend(rsc.ID()); er == nil && frontend != nil {
-	// }
 
 	f, er := engine.NewHTTPFrontend(vroute.NewMux(), rsc.ID(), rsc.ID(), NewRoute(rsc.Route).String(), s)
 	if er != nil {

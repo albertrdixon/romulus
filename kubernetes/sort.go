@@ -3,8 +3,7 @@ package kubernetes
 import "sort"
 
 var (
-	ByID  = func(a, b *Resource) bool { return a.id < b.id }
-	ByUID = func(a, b *Resource) bool { return a.uid < b.uid }
+	ByID = func(a, b *Resource) bool { return a.id < b.id }
 )
 
 func Sort(list ResourceList, fn func(a, b *Resource) bool) {
