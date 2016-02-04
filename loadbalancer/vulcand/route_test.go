@@ -1,8 +1,10 @@
 package vulcand
 
 import (
+	"os"
 	"testing"
 
+	"github.com/albertrdixon/gearbox/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/timelinelabs/romulus/kubernetes"
 	vroute "github.com/vulcand/route"
@@ -28,10 +30,14 @@ func TestBuildRoute(te *testing.T) {
 		},
 	}
 
+	if testing.Verbose() {
+		logger.Configure("debug", "[test-vulcan-buildroute] ", os.Stdout)
+		defer logger.SetLevel("error")
+	}
+
 	for _, t := range tests {
 		rt := kubernetes.NewRoute("foo", t.annotations)
 		actual := NewRoute(rt).String()
-		te.Logf("Actual: %v", actual)
 		is.Equal(t.expected, actual)
 		is.True(vroute.IsValid(actual))
 	}

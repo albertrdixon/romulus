@@ -17,6 +17,8 @@ import (
 	"github.com/albertrdixon/gearbox/url"
 )
 
+// NewResource returns a Resource pointer given an id, annotations and an annotations namespace which
+// should be ServicePort.Name
 func NewResource(id, namespace string, anno annotations) *Resource {
 	var (
 		an annotations = make(map[string]string)
@@ -58,6 +60,9 @@ func NewResource(id, namespace string, anno annotations) *Resource {
 	}
 }
 
+// NewRoute returns a pointer to a Route given a set of annotations. The annotations are
+// assumed to already be processed such that the keys no longer have the Keyspace prefix
+// (e.g. romulus/) and the namespace (e.g. ServicePort.Name).
 func NewRoute(id string, anno annotations) *Route {
 	var (
 		rt = &Route{parts: make([]*routePart, 0, 1)}
@@ -101,6 +106,8 @@ func NewRoute(id string, anno annotations) *Route {
 	return rt
 }
 
+// GenResources parses a given kubernetes object and returns a ResourceList or an error if the object is not
+// a Service, Endpoints or Ingress. Returned ResourceList can be empty.
 func GenResources(store *Cache, client SuperClient, obj interface{}) (ResourceList, error) {
 	var (
 		list ResourceList = make([]*Resource, 0, 1)
@@ -267,6 +274,7 @@ func AddServersFromService(r *Resource, svc *api.Service, p api.ServicePort) {
 		name      = svc.GetName()
 		ips       = make([]string, 0, 1)
 		s         = Service(*svc)
+		valid     = regexp.MustCompile(`(?:wss?|https?)`)
 	)
 
 	logger.Debugf("[%v] Adding Servers from %v", r.id, s)
@@ -280,7 +288,7 @@ func AddServersFromService(r *Resource, svc *api.Service, p api.ServicePort) {
 		id := GenServerID(namespace, name, ip, p.Port)
 
 		scheme := HTTP
-		if sc, ok := r.GetAnnotation("scheme"); ok && validScheme.MatchString(sc) {
+		if sc, ok := r.GetAnnotation("scheme"); ok && valid.MatchString(sc) {
 			scheme = sc
 		}
 

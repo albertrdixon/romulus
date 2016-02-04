@@ -14,12 +14,14 @@ import (
 	"k8s.io/kubernetes/pkg/client/unversioned"
 )
 
+// Updater will be fed into framework.ResourceEventHandlerFuncs
 type Updater interface {
 	Add(obj interface{})
 	Delete(obj interface{})
 	Update(old, next interface{})
 }
 
+// SuperClient is a convenience interface that includes unversioned.Interface & ExtensionsInterface
 type SuperClient interface {
 	unversioned.Interface
 	unversioned.ExtensionsInterface
@@ -29,11 +31,13 @@ type Client struct {
 	*unversioned.Client
 }
 
+// Cache is a convenience struct so we can pass around all our various caches
 type Cache struct {
 	ingress, service, endpoints cache.Store
 	ingMap                      map[cache.ExplicitKey]cache.ExplicitKey
 }
 
+// Resource is a single loadbalancer Resource or service pulled out of kubernetes objects
 type Resource struct {
 	*Route
 	id          string

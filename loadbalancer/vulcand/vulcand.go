@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/albertrdixon/gearbox/logger"
 	"github.com/albertrdixon/gearbox/url"
@@ -128,10 +129,18 @@ func (v *vulcan) NewBackend(rsc *kubernetes.Resource) (loadbalancer.Backend, err
 		KeepAlive: engine.HTTPBackendKeepAlive{},
 	}
 	if val, ok := rsc.GetAnnotation(DailTimeoutKey); ok {
-		s.Timeouts.Dial = val
+		if t, er := time.ParseDuration(val); er == nil {
+			s.Timeouts.Dial = t.String()
+		} else {
+			logger.Warnf("Failed to parse dial timeout: %v", er)
+		}
 	}
 	if val, ok := rsc.GetAnnotation(ReadTimeoutKey); ok {
-		s.Timeouts.Read = val
+		if t, er := time.ParseDuration(val); er == nil {
+			s.Timeouts.Read = t.String()
+		} else {
+			logger.Warnf("Failed to parse read timeout: %v", er)
+		}
 	}
 	if val, ok := rsc.GetAnnotation(MaxIdleConnsKey); ok {
 		if i, er := strconv.Atoi(val); er == nil {

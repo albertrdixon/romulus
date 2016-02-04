@@ -3,7 +3,6 @@ package kubernetes
 import (
 	"errors"
 	"fmt"
-	"regexp"
 	"time"
 
 	"golang.org/x/net/context"
@@ -22,31 +21,13 @@ import (
 )
 
 var (
-	// FakeKubeClient = &testclient.Fake{}
 	Keyspace string
 
-	EverythingSelector = map[string]string{}
-
 	resources = map[string]runtime.Object{
-		"services":  &api.Service{},
-		"endpoints": &api.Endpoints{},
-		"ingresses": &extensions.Ingress{},
+		ServicesKind:  &api.Service{},
+		EndpointsKind: &api.Endpoints{},
+		IngressesKind: &extensions.Ingress{},
 	}
-
-	extensionsObj = map[string]struct{}{
-		"ingresses": struct{}{},
-	}
-
-	defaultRoute = &Route{
-		parts: []*routePart{
-			&routePart{
-				kind:  PathPart,
-				value: "/",
-			},
-		},
-	}
-
-	validScheme = regexp.MustCompile(`(?:wss?|https?)`)
 )
 
 const (

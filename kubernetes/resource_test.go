@@ -55,7 +55,7 @@ func TestGenResources(te *testing.T) {
 	)
 
 	if testing.Verbose() {
-		logger.Configure("debug", "[romulus-test] ", os.Stdout)
+		logger.Configure("debug", "[test-kubernetes-genresources] ", os.Stdout)
 		defer logger.SetLevel("error")
 	}
 

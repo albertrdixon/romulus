@@ -90,7 +90,7 @@ func selectorFromMap(m Selector) labels.Selector {
 		}
 	}
 	if s.Empty() {
-		s = labels.Everything()
+		return labels.Everything()
 	}
 	return s
 }
