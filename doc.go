@@ -1,6 +1,5 @@
-// package main runs the romulusd deamon.
-// Romulus is a utility to automatically register kubernetes services in vulcand.
-// Kubernetes services are configured with annotations in the 'romulus/' namespace like so
+// Romulus is a kubernetes ingress controller.
+// Romulus will create loadbalancer resources based on Ingress objects and Service annotations
 //
 //    kind: Service
 //    metadata:

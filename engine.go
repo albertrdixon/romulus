@@ -223,6 +223,7 @@ func createObjectCache(e *Engine, selector kubernetes.Selector, resync time.Dura
 		uc = e.GetUnversionedClient()
 		ec = e.GetExtensionsClient()
 	)
+
 	logger.Infof("Creating kubernetes object cache")
 
 	service, er := kubernetes.CreateStore(kubernetes.ServicesKind, uc, selector, resync, e.Context)
@@ -238,9 +239,6 @@ func createObjectCache(e *Engine, selector kubernetes.Selector, resync time.Dura
 		logger.Warnf("Failed to create Ingress cache")
 	}
 
-	// e.SetStore(kubernetes.IngressKind, ingress)
-	// e.SetStore(kubernetes.ServiceKind, service)
-	// e.SetStore(kubernetes.EndpointsKind, endpoints)
 	e.SetIngressStore(ingress)
 	e.SetServiceStore(service)
 	e.SetEndpointsStore(endpoints)

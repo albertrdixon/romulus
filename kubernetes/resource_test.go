@@ -14,24 +14,25 @@ import (
 )
 
 func TestRoute(te *testing.T) {
-	is := assert.New(te)
-
-	var tests = []struct {
-		expected    string
-		annotations map[string]string
-	}{
-		{"Route()", map[string]string{}},
-		{"Route(host(`abc`) && prefix(`/f`))", map[string]string{"host": "abc", "prefix": "/f"}},
-		{"Route(method(`GET`) && method(`POST`))", map[string]string{"methods": "get; post"}},
-		{
-			"Route(header(`X-Foo`, `Bar`) && headerRegexp(`X-Bif`, `Baz.*`))",
-			map[string]string{"headers": "X-Foo=Bar; X-Bif=|Baz.*|"},
-		},
-		{
-			"Route(hostRegexp(`.*local`) && pathRegexp(`/f/b.*`))",
-			map[string]string{"host": "|.*local|", "path": "|/f/b.*|"},
-		},
-	}
+	var (
+		is    = assert.New(te)
+		tests = []struct {
+			expected    string
+			annotations map[string]string
+		}{
+			{"Route()", map[string]string{}},
+			{"Route(host(`abc`) && prefix(`/f`))", map[string]string{"host": "abc", "prefix": "/f"}},
+			{"Route(method(`GET`) && method(`POST`))", map[string]string{"methods": "get; post"}},
+			{
+				"Route(header(`X-Foo`, `Bar`) && headerRegexp(`X-Bif`, `Baz.*`))",
+				map[string]string{"headers": "X-Foo=Bar; X-Bif=|Baz.*|"},
+			},
+			{
+				"Route(hostRegexp(`.*local`) && pathRegexp(`/f/b.*`))",
+				map[string]string{"host": "|.*local|", "path": "|/f/b.*|"},
+			},
+		}
+	)
 
 	for _, t := range tests {
 		r := NewRoute("foo", t.annotations)
