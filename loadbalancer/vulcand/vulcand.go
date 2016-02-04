@@ -72,10 +72,10 @@ func (v *vulcan) NewFrontend(rsc *kubernetes.Resource) (loadbalancer.Frontend, e
 			TrustForwardHeader: loadbalancer.DefaultTrustForwardHeaders,
 		}
 		limits = engine.HTTPFrontendLimits{
-			MaxBodyBytes:        int64(2097152),
-			MaxMemBodyBytes:     int64(2097152),
-			MaxRespBodyBytes:    int64(2097152),
-			MaxRespMemBodyBytes: int64(2097152),
+			MaxBodyBytes:        int64(1048576),
+			MaxMemBodyBytes:     int64(1048576),
+			MaxRespBodyBytes:    int64(1048576),
+			MaxRespMemBodyBytes: int64(1048576),
 		}
 	)
 
