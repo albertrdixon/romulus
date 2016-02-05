@@ -261,15 +261,15 @@ func resourcesFromEndpoints(store *Cache, client SuperClient, en *api.Endpoints)
 
 func AddServers(rsc *Resource, svc *api.Service, en *api.Endpoints, port api.ServicePort) {
 	if en != nil {
-		AddServersFromEndpoints(rsc, en, port)
+		addServersFromEndpoints(rsc, en, port)
 	}
 	if rsc.NoServers() {
 		logger.Warnf("[%v] No servers added from Endpoints, falling back to Service", rsc.id)
-		AddServersFromService(rsc, svc, port)
+		addServersFromService(rsc, svc, port)
 	}
 }
 
-func AddServersFromService(r *Resource, svc *api.Service, p api.ServicePort) {
+func addServersFromService(r *Resource, svc *api.Service, p api.ServicePort) {
 	var (
 		namespace = svc.GetNamespace()
 		name      = svc.GetName()
@@ -297,7 +297,7 @@ func AddServersFromService(r *Resource, svc *api.Service, p api.ServicePort) {
 	}
 }
 
-func AddServersFromEndpoints(r *Resource, en *api.Endpoints, p api.ServicePort) {
+func addServersFromEndpoints(r *Resource, en *api.Endpoints, p api.ServicePort) {
 	// Quick path, no subsets
 	if len(en.Subsets) < 1 {
 		return
