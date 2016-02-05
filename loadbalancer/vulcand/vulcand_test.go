@@ -7,6 +7,8 @@ import (
 	"github.com/albertrdixon/gearbox/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/timelinelabs/romulus/kubernetes"
+	"github.com/timelinelabs/vulcand/api"
+	"github.com/timelinelabs/vulcand/plugin/registry"
 )
 
 func TestNewFrontend(te *testing.T) {
@@ -107,6 +109,62 @@ func TestNewBackend(te *testing.T) {
 		b, ok := ba.(*backend)
 		if is.NoError(e) && is.NotNil(ba) && is.True(ok, "Could not cast to backend") {
 			t.assertions(b)
+		}
+	}
+}
+
+func TestNewMiddleware(te *testing.T) {
+	if testing.Verbose() {
+		logger.Configure("debug", "[test-vulcan-newmiddleware] ", os.Stdout)
+		defer logger.SetLevel("error")
+	}
+
+	var (
+		is     = assert.New(te)
+		client = api.NewClient("localhost", registry.GetRegistry())
+		v      = &vulcan{Client: *client}
+		tests  = []struct {
+			resource   *kubernetes.Resource
+			assertions func(*middleware)
+		}{
+			{kubernetes.NewResource("rewrite", "", map[string]string{
+				"romulus/" + RedirectSSLID: "true",
+			}), func(m *middleware) {
+				is.Equal(RedirectSSLID, m.GetID())
+				is.Equal("rewrite", m.Type)
+			}},
+			{kubernetes.NewResource("trace", "", map[string]string{
+				"romulus/" + TraceID: `["X-Foo", "X-Bar"]`,
+			}), func(m *middleware) {
+				is.Equal(TraceID, m.GetID())
+				is.Equal("trace", m.Type)
+			}},
+			{kubernetes.NewResource("auth", "", map[string]string{
+				"romulus/" + AuthID: "username:password",
+			}), func(m *middleware) {
+				is.Equal(AuthID, m.GetID())
+				is.Equal("auth", m.Type)
+			}},
+			{kubernetes.NewResource("maintenance", "", map[string]string{
+				"romulus/" + MaintenanceID: "Hello World!",
+			}), func(m *middleware) {
+				is.Equal(MaintenanceID, m.GetID())
+				is.Equal("cbreaker", m.Type)
+			}},
+			{kubernetes.NewResource("custom", "", map[string]string{
+				"romulus/middleware.foo": `{"Type":"ratelimit","Middleware":{"Requests":1,"PeriodSeconds":1,"Burst":3,"Variable":"client.ip"}}`,
+			}), func(m *middleware) {
+				is.Equal("foo", m.GetID())
+				is.Equal("ratelimit", m.Type)
+			}},
+		}
+	)
+
+	for _, t := range tests {
+		mi, er := v.NewMiddlewares(t.resource)
+		if is.NoError(er, t.resource.ID()) && is.NotEmpty(mi, t.resource.ID()) {
+			m := mi[0].(*middleware)
+			t.assertions(m)
 		}
 	}
 }

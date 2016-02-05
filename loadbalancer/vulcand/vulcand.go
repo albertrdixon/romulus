@@ -78,8 +78,12 @@ func (v *vulcan) NewFrontend(rsc *kubernetes.Resource) (loadbalancer.Frontend, e
 			MaxRespBodyBytes:    int64(1048576),
 			MaxRespMemBodyBytes: int64(1048576),
 		}
+		rt = NewRoute(rsc.Route)
 	)
 
+	if rt.host != nil && rt.host.val != "" {
+		s.Hostname = rt.host.val
+	}
 	if val, ok := rsc.GetAnnotation(loadbalancer.PassHostHeaderKey); ok {
 		b, _ := strconv.ParseBool(val)
 		s.PassHostHeader = b
@@ -116,7 +120,7 @@ func (v *vulcan) NewFrontend(rsc *kubernetes.Resource) (loadbalancer.Frontend, e
 		}
 	}
 
-	f, er := engine.NewHTTPFrontend(vroute.NewMux(), rsc.ID(), rsc.ID(), NewRoute(rsc.Route).String(), s)
+	f, er := engine.NewHTTPFrontend(vroute.NewMux(), rsc.ID(), rsc.ID(), rt.String(), s)
 	if er != nil {
 		return nil, er
 	}

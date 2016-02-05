@@ -24,17 +24,18 @@ func NewResource(id, namespace string, anno annotations) *Resource {
 		an annotations = make(map[string]string)
 	)
 
-	// annotations := make(map[string]string)
 	for key, value := range anno {
 		if strings.HasPrefix(key, Keyspace) {
 			bits := strings.SplitN(path.Base(key), ".", 2)
-			if len(bits) == 2 && namespace == "" {
+			if len(bits) == 2 && namespace == "" && bits[0] != "middleware" {
 				continue
 			}
 			switch len(bits) {
 			case 2:
 				if bits[0] == namespace {
 					an[bits[1]] = value
+				} else if bits[0] == "middleware" {
+					an[strings.Join(bits, ".")] = value
 				}
 			case 1:
 				if _, ok := an[bits[0]]; !ok {
@@ -382,6 +383,8 @@ func (r *Resource) GetAnnotations(expr string) (map[string]string, error) {
 	if er != nil {
 		return matches, er
 	}
+
+	logger.Debugf("[%v] Looking up annotations with %v", r.id, rgx)
 	for key, value := range r.annotations {
 		if rgx.MatchString(key) {
 			matches[key] = value
