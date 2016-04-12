@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path"
 	"strconv"
+	"strings"
 	"time"
 
 	"golang.org/x/net/context"
@@ -17,7 +18,7 @@ import (
 
 var (
 	defaultTraefikRoute = map[string]types.Route{
-		"default": types.Route{Rule: "Path", Value: "/"},
+		"default": {Rule: "Path", Value: "/"},
 	}
 
 	defaultCircuitBreaker     = &types.CircuitBreaker{Expression: `NetworkErrorRatio() > 0.6`}
@@ -59,7 +60,7 @@ func (t *traefik) Status() error {
 }
 
 func (t *traefik) NewFrontend(rsc *kubernetes.Resource) (loadbalancer.Frontend, error) {
-	f := types.Frontend{Backend: rsc.ID(), PassHostHeader: false}
+	f := types.Frontend{Backend: strings.Replace(rsc.ID(), ".", "-", -1), PassHostHeader: false}
 	f.Routes = NewRoute(rsc.Route)
 	if phh, ok := rsc.GetAnnotation(loadbalancer.PassHostHeaderKey); ok {
 		if val, er := strconv.ParseBool(phh); er == nil {
@@ -93,12 +94,8 @@ func (t *traefik) UpsertFrontend(fr loadbalancer.Frontend) error {
 	for id, rt := range f.Routes {
 		logger.Debugf("[%v] Adding Route(%s=%q)", fr.GetID(), rt.Rule, rt.Value)
 		ruleK := path.Join(pre, "routes", id, "rule")
-		valk := path.Join(pre, "routes", id, "value")
 		if er := t.Set(ruleK, rt.Rule); er != nil {
 			logger.Warnf("[%v] Upsert rule error: %v", fr.GetID(), er)
-		}
-		if er := t.Set(valk, rt.Value); er != nil {
-			logger.Warnf("[%v] Upsert value error: %v", fr.GetID(), er)
 		}
 	}
 	return nil

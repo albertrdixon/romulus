@@ -2,6 +2,7 @@ package traefik
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/albertrdixon/gearbox/ezd"
 	"github.com/emilevauge/traefik/types"
@@ -42,10 +43,10 @@ type middleware struct {
 
 type route map[string]types.Route
 
-func (f *frontend) GetID() string   { return f.id }
-func (b *backend) GetID() string    { return b.id }
-func (m *middleware) GetID() string { return m.id }
-func (s *server) GetID() string     { return s.id }
+func (f *frontend) GetID() string   { return strings.Replace(f.id, ".", "-", -1) }
+func (b *backend) GetID() string    { return strings.Replace(b.id, ".", "-", -1) }
+func (m *middleware) GetID() string { return strings.Replace(m.id, ".", "-", -1) }
+func (s *server) GetID() string     { return strings.Replace(s.id, ".", "-", -1) }
 
 func (f *frontend) String() string {
 	return fmt.Sprintf("Frontend(id=%q, backend=%q)", f.id, f.Backend)
