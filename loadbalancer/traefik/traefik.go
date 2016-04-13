@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"path"
 	"strconv"
-	"strings"
 	"time"
 
 	"golang.org/x/net/context"
@@ -60,7 +59,7 @@ func (t *traefik) Status() error {
 }
 
 func (t *traefik) NewFrontend(rsc *kubernetes.Resource) (loadbalancer.Frontend, error) {
-	f := types.Frontend{Backend: strings.Replace(rsc.ID(), ".", "-", -1), PassHostHeader: false}
+	f := types.Frontend{Backend: rsc.ID(), PassHostHeader: false}
 	f.Routes = NewRoute(rsc.Route)
 	if phh, ok := rsc.GetAnnotation(loadbalancer.PassHostHeaderKey); ok {
 		if val, er := strconv.ParseBool(phh); er == nil {
