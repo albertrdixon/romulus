@@ -98,7 +98,7 @@ func getFrontend(s ezd.Client, prefix, id string) (*frontend, error) {
 			logger.Debugf("[%v] Key read error: %v", id, er)
 			continue
 		}
-		f.Routes[rtID] = types.Route{Rule: r, Value: v}
+		f.Routes[rtID] = types.Route{Rule: fmt.Sprintf("%s: %s", r, v)}
 	}
 	return &frontend{Frontend: *f, id: id}, nil
 }

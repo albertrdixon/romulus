@@ -18,13 +18,13 @@ func NewRoute(rt *kubernetes.Route) map[string]types.Route {
 	for _, part := range rt.Parts() {
 		switch part.Type() {
 		case kubernetes.HostPart:
-			r["host"] = types.Route{Rule: "Host", Value: part.Value()}
+			r["host"] = types.Route{Rule: fmt.Sprintf("Host: %s", part.Value())}
 		case kubernetes.MethodPart:
-			r["methods"] = types.Route{Rule: "Methods", Value: part.Value()}
+			r["methods"] = types.Route{Rule: fmt.Sprintf("Methods: %s", part.Value())}
 		case kubernetes.PathPart:
-			r["path"] = types.Route{Rule: "Path", Value: part.Value()}
+			r["path"] = types.Route{Rule: fmt.Sprintf("Path: %s", part.Value())}
 		case kubernetes.PrefixPart:
-			r["prefix"] = types.Route{Rule: "PathPrefix", Value: part.Value()}
+			r["prefix"] = types.Route{Rule: fmt.Sprintf("PathPrefix: %s", part.Value())}
 		case kubernetes.HeaderPart:
 			head := fmt.Sprintf("%q, %q", part.Header(), part.Value())
 			if part.IsRegex() {
@@ -36,10 +36,10 @@ func NewRoute(rt *kubernetes.Route) map[string]types.Route {
 	}
 
 	if len(headers) > 0 {
-		r["headers"] = types.Route{Rule: "Headers", Value: strings.Join(headers, ", ")}
+		r["headers"] = types.Route{Rule: fmt.Sprintf("Headers: %s", strings.Join(headers, ", "))}
 	}
 	if len(headersRgx) > 0 {
-		r["headersRegexp"] = types.Route{Rule: "HeadersRegexp", Value: strings.Join(headersRgx, ", ")}
+		r["headersRegexp"] = types.Route{Rule: fmt.Sprintf("HeadersRegexp: %s", strings.Join(headersRgx, ", "))}
 	}
 
 	return r

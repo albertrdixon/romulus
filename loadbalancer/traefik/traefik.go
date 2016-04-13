@@ -17,7 +17,7 @@ import (
 
 var (
 	defaultTraefikRoute = map[string]types.Route{
-		"default": types.Route{Rule: "Path", Value: "/"},
+		"default": {Rule: "Path", Value: "/"},
 	}
 
 	defaultCircuitBreaker     = &types.CircuitBreaker{Expression: `NetworkErrorRatio() > 0.6`}
@@ -93,12 +93,8 @@ func (t *traefik) UpsertFrontend(fr loadbalancer.Frontend) error {
 	for id, rt := range f.Routes {
 		logger.Debugf("[%v] Adding Route(%s=%q)", fr.GetID(), rt.Rule, rt.Value)
 		ruleK := path.Join(pre, "routes", id, "rule")
-		valk := path.Join(pre, "routes", id, "value")
 		if er := t.Set(ruleK, rt.Rule); er != nil {
 			logger.Warnf("[%v] Upsert rule error: %v", fr.GetID(), er)
-		}
-		if er := t.Set(valk, rt.Value); er != nil {
-			logger.Warnf("[%v] Upsert value error: %v", fr.GetID(), er)
 		}
 	}
 	return nil
