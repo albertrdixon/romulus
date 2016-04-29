@@ -28,18 +28,23 @@ build:
 
     # Gets the dependencies
     - script:
-        name: go get
+        name: install godep & restore
         code: |
-          go get
+          go get github.com/tools/godep
+          godep restore
 
     # Build the project
     - script:
         name: go build
         code: |
-          go build ./...
+          godep go build ./...
 
     # Test the project
     - script:
         name: go test
         code: |
-          go test ./...
+          godep go test ./...
+
+  after-steps:
+    - wantedly/pretty-slack-notify@0.2.14:
+        webhook_url: $SLACK_WEBHOOK_URL
