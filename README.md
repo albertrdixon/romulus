@@ -105,4 +105,4 @@ spec:
 
 When you create these things, Romulus will turn around and upsert routes to the resulting Endpoints in your loadbalancer provider!
 
-See [the docs](https://github.com/timelinelabs/romulus/wiki) and [the examples](./examples) for more info
+See [the docs](https://github.com/albertrdixon/romulus/wiki) and [the examples](./examples) for more info
