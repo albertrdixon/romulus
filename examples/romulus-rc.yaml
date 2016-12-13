@@ -59,9 +59,8 @@ spec:
           imagePullPolicy: Always
           args:
           - --kube-api=https://kubernetes.default
-          - --kube-insecure
           - --provider=vulcand
-          - --vulcan-api=http://127.0.0.1:8182
+          - --vulcand-api=http://127.0.0.1:8182
           - --selector=lb=vulcan
           - --selector=route=public
       volumes:
